@@ -6,6 +6,7 @@ import { nextTasks, snooze, type Action, type Task } from "@/lib/coach";
 import { isNapTime } from "@/lib/slots";
 import { useApp, useCustomItems } from "@/lib/store";
 import { ScheduleSheet } from "@/components/ScheduleSheet";
+import { gaps } from "@/lib/gaps";
 import { DAY_LABEL, fmt12, isQuiet, PHASE_LINES, phaseNow, sched, sleepTimes, type Now } from "@/lib/schedule";
 import { pick, SLEEP_WHY, WISDOM, type Wisdom } from "@/lib/wisdom";
 
@@ -127,6 +128,26 @@ const WOKE_REASONS: [string, string][] = [
   ["🔔 Notification woke me", "Turn on Do Not Disturb for the night. Your sleep is worth more than any message."],
 ];
 
+function CheckGaps() {
+  const { data } = useApp();
+  const list = useMemo(() => {
+    const seen = new Set<string>();
+    return [...gaps(data, "day").gaps, ...gaps(data, "week").gaps].filter((g) => !seen.has(g.id) && !!seen.add(g.id)).slice(0, 5);
+  }, [data]);
+  if (!list.length) return <p className="mt-3 text-sm text-center">✨ Nothing is lacking right now. Keep going!</p>;
+  return (
+    <div className="mt-3 grid gap-1.5">
+      {list.map((g) => (
+        <div key={g.id} className="flex items-center gap-2 rounded-lg bg-white/5 px-2 py-1.5 text-sm">
+          <span className="text-lg">{g.icon}</span>
+          <span className="flex-1">{g.label}: <span className="text-rose-300">{g.have}</span></span>
+          <span className="text-[11px] text-muted">need {g.need}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Pops up quotes, advice and Sensei's orders at random moments, and asks
 // why you're not asleep late at night.
 export function Popper() {
@@ -159,7 +180,7 @@ export function Popper() {
         if (!skip && document.visibilityState === "visible" && !document.querySelector("[data-overlay]")) {
           const top = Math.random() < 0.5;
           const ts = latest.current;
-          setPop((p) => p ?? (Math.random() < 0.6 || !ts.length ? { kind: "wisdom", w: pick(WISDOM), top } : { kind: "task", t: ts[0], top }));
+          if (ts.length) setPop((p) => p ?? { kind: "task", t: ts[Math.floor(Math.random() * Math.min(3, ts.length))], top });
         }
         schedule();
       }, wait * (GAP[scRef.current.popups] ?? 1));
@@ -173,6 +194,33 @@ export function Popper() {
     const t = setTimeout(() => setPop(null), 12_000);
     return () => clearTimeout(t);
   }, [pop]);
+
+  // Big motivational quotes at random moments, on any screen.
+  const [quote, setQuote] = useState<Wisdom | null>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const RANGE: Record<string, [number, number]> = { high: [15, 60], normal: [30, 180], low: [180, 480] };
+    const next = () => {
+      const [a, b] = RANGE[scRef.current.popups] ?? [60, 60];
+      timer = setTimeout(() => {
+        const c = scRef.current;
+        const ph = phaseNow(c).phase;
+        const ok = c.popups !== "off" && !isQuiet(c) && ph !== "sleep" && !(ph === "work" && Math.random() < 0.7);
+        if (ok && document.visibilityState === "visible" && !document.querySelector("[data-overlay]")) setQuote((q) => q ?? pick(WISDOM));
+        next();
+      }, (a + Math.random() * (b - a)) * 1000);
+    };
+    next();
+    return () => clearTimeout(timer);
+  }, [sc.popups]);
+  useEffect(() => {
+    if (!quote) return;
+    const t = setTimeout(() => setQuote(null), 9000);
+    return () => clearTimeout(t);
+  }, [quote]);
+
+  // Check-ins at 9 AM, 12 PM, 5 PM and 8 PM: what's lacking and what to do now.
+  const [cp, setCp] = useState<{ hour: number; tasks: Task[] } | null>(null);
 
   // Reads the clock against the hero's schedule whenever the app is opened or
   // comes back to the screen, and every minute while it stays open.
@@ -202,6 +250,14 @@ export function Popper() {
         // Every time the app is opened at night, and every 20 minutes while it stays open.
         if (opened ? once("lifeos-night-open", 2) : once("lifeos-night", 20)) { setAnswer(null); setNight(true); }
         return;
+      }
+      const hr = new Date().getHours();
+      const point = [20, 17, 12, 9].find((x) => hr >= x && hr < x + 3);
+      if (point != null && !document.querySelector("[data-overlay]")) {
+        const key = `lifeos-cp:${new Date().toDateString()}:${point}`;
+        let seen = false;
+        try { seen = !!localStorage.getItem(key); if (!seen) localStorage.setItem(key, "1"); } catch {}
+        if (!seen) { setCp({ hour: point, tasks: latest.current.slice(0, 3) }); return; }
       }
       if (c.popups === "off" || isQuiet(c)) return;
       if ((opened && once(`lifeos-phase:${n.phase}`, 45)) || (changed && !opened)) {
@@ -251,6 +307,45 @@ export function Popper() {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+      {quote && (
+        <div data-overlay className="fixed inset-0 z-[45] grid place-items-center bg-[#05020d]/95 backdrop-blur-md p-6 animate-fade" onClick={() => setQuote(null)}>
+          <div className="w-full max-w-md text-center">
+            <div className="text-5xl animate-float">{quote.kind === "quote" ? "💬" : quote.kind === "fact" ? "🧠" : "🥷"}</div>
+            <div className="mt-3 text-xs font-game tracking-[.3em] text-[var(--accent2)]">
+              {quote.kind === "quote" ? "WORDS OF THE GREATS" : quote.kind === "fact" ? "DID YOU KNOW" : "SENSEI'S ADVICE"}
+            </div>
+            <p className="mt-4 font-game text-2xl font-black leading-snug">{quote.kind === "quote" ? `“${quote.text}”` : quote.text}</p>
+            {quote.by && <p className="mt-3 text-sm text-muted">— {quote.by}</p>}
+            <p className="mt-8 text-[11px] text-muted">Tap anywhere to continue</p>
+          </div>
+        </div>
+      )}
+      {cp && (
+        <div data-overlay className="fixed inset-0 z-50 grid place-items-center bg-[#05020d]/90 p-5 animate-fade">
+          <div className="card frame w-full max-w-md p-5 max-h-[90dvh] overflow-y-auto">
+            <div className="text-center">
+              <div className="text-xs font-game tracking-widest text-[var(--accent2)]">{cp.hour === 9 ? "🌅" : cp.hour === 12 ? "☀️" : cp.hour === 17 ? "🌇" : "🌙"} {cp.hour > 12 ? cp.hour - 12 : cp.hour} {cp.hour >= 12 ? "PM" : "AM"} CHECK-IN</div>
+              <h2 className="mt-1 font-game text-xl font-black">Here&apos;s what you&apos;re lacking</h2>
+            </div>
+            <CheckGaps />
+            {cp.tasks.length > 0 && (
+              <>
+                <div className="mt-3 text-xs text-muted">Do these next:</div>
+                <div className="mt-1 grid gap-2">
+                  {cp.tasks.map((t) => (
+                    <button key={t.id} onClick={() => { run(t.action); setCp(null); }} className="rounded-xl bg-white/5 p-2 text-left text-sm flex items-center gap-2">
+                      <span className="text-xl">{t.icon}</span>
+                      <span className="flex-1"><b>{t.title}</b><span className="block text-[11px] text-muted">{t.because}</span></span>
+                      <span className="text-[var(--accent2)]">›</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+            <button onClick={() => setCp(null)} className="btn-primary w-full mt-4">Got it, Sensei</button>
           </div>
         </div>
       )}

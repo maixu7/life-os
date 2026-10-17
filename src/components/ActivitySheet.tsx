@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { WherePicker } from "@/components/Where";
-import { burned, FOODS, guessFood, metOf, type Eaten } from "@/lib/body";
+import { burned, metOf } from "@/lib/body";
+import { FoodPicker, useEaten } from "@/components/FoodPicker";
 import { emojiFor } from "@/lib/emoji";
 import { ImpactCard } from "@/components/RealMe";
 import { moveOf } from "@/lib/moves";
@@ -31,9 +32,7 @@ export function ActivitySheet({ item, at, onClose, onLogged }: { item: CustomIte
   const slot = slotOf(time);
   const isMeal = /breakfast|lunch|dinner|snack|meal|eat|food/i.test(item.name);
   const [foods, setFoods] = useState<Record<string, number>>({});
-  const [foodQ, setFoodQ] = useState("");
-  const addFood = (name: string, n: number) => setFoods((p) => { const q = Math.max(0, +((p[name] ?? 0) + n).toFixed(1)); const c = { ...p }; if (q) c[name] = q; else delete c[name]; return c; });
-  const eatenList: Eaten[] = Object.entries(foods).map(([name, qty]) => { const fd = FOODS.find((x) => x.name === name)!; return { name, qty, kcal: Math.round(fd.kcal * qty), protein: +(fd.protein * qty).toFixed(1) }; });
+  const eatenList = useEaten(foods);
   const kcalIn = eatenList.reduce((n, x) => n + x.kcal, 0);
   const move = moveOf(item.name);
   const [variant, setVariant] = useState<string | null>(null);
@@ -41,7 +40,6 @@ export function ActivitySheet({ item, at, onClose, onLogged }: { item: CustomIte
   const met = metOf(`${variant ?? ""} ${item.name}`);
   const kg = Number([...data.logs].reverse().find((l) => l.kind === "body" && l.data.weight)?.data.weight) || 60;
   const kcalOut = minutes && met && met[1] >= 2 ? burned([{ id: "", day, kind: "activity", data: { name: `${variant ?? ""} ${item.name}`, minutes: minutes * factor }, xp: 0, created_at: "" }], kg)[0]?.kcal ?? 0 : 0;
-  const shown = foodQ ? FOODS.filter((x) => x.name.toLowerCase().includes(foodQ.toLowerCase()) || x.re.test(foodQ)) : FOODS.slice(0, 18);
   const toggle = (o: string) => setPicked(picked.includes(o) ? picked.filter((x) => x !== o) : [...picked, o]);
 
   const save = () => {
@@ -78,32 +76,7 @@ export function ActivitySheet({ item, at, onClose, onLogged }: { item: CustomIte
         </div>
       )}
       {!isMeal && <ImpactCard name={item.name} variant={variant ?? undefined} />}
-      {isMeal && (
-        <div className="rounded-xl bg-white/[.04] border border-white/10 p-3 space-y-2">
-          <div className="flex justify-between text-xs"><span className="text-muted">What did you eat?</span>{kcalIn > 0 && <b>{kcalIn} kcal · {eatenList.reduce((n, x) => n + x.protein, 0).toFixed(0)} g protein</b>}</div>
-          <input className="input" placeholder="Search food (apple, roti, egg…)" value={foodQ} onChange={(e) => setFoodQ(e.target.value)} />
-          {foodQ && !shown.length && guessFood(foodQ) == null && <div className="text-xs text-muted">Not in the list yet. Pick the closest food.</div>}
-          <div className="flex flex-wrap gap-1.5">
-            {shown.map((x) => (
-              <button key={x.name} onClick={() => addFood(x.name, 1)} className={`chip !py-1 text-xs ${foods[x.name] ? "chip-on" : ""}`}>
-                {x.emoji} {x.name}{foods[x.name] ? ` × ${foods[x.name]}` : ""}
-              </button>
-            ))}
-          </div>
-          {eatenList.map((x) => {
-            const fd = FOODS.find((y) => y.name === x.name)!;
-            return (
-              <div key={x.name} className="flex items-center gap-2 text-sm">
-                <span className="flex-1">{fd.emoji} {x.name} <span className="text-xs text-muted">({fd.per} = {fd.kcal} kcal)</span></span>
-                <button onClick={() => addFood(x.name, -0.5)} className="chip !px-2 !py-0.5">−</button>
-                <b className="w-8 text-center">{x.qty}</b>
-                <button onClick={() => addFood(x.name, 0.5)} className="chip !px-2 !py-0.5">+</button>
-                <span className="w-16 text-right text-xs">{x.kcal} kcal</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {isMeal && <FoodPicker value={foods} onChange={setFoods} />}
       <div className="text-xs text-muted">How long{kcalOut ? <> · <b className="text-[var(--accent2)]">≈ {kcalOut} kcal burned</b> ({met![2]}, {kg} kg)</> : null}</div>
       <div className="flex flex-wrap gap-2">
         {MINUTES.map((m) => <button key={m} onClick={() => setMinutes(minutes === m ? null : m)} className={`chip ${minutes === m ? "chip-on" : ""}`}>{m < 60 ? `${m} min` : `${m / 60} h`}</button>)}

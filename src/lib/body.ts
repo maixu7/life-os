@@ -2,7 +2,7 @@ import { logKarma } from "@/lib/karma";
 import { moveOf, MOVES } from "@/lib/moves";
 import { sleepHours } from "@/lib/missions";
 import { sched } from "@/lib/schedule";
-import { toDay, type Data, type Log } from "@/lib/store";
+import { toDay, type CustomItem, type Data, type Log } from "@/lib/store";
 import { progress } from "@/lib/xp";
 
 // Real-world numbers, not game points: calories in and out (standard food
@@ -11,7 +11,7 @@ import { progress } from "@/lib/xp";
 // Everything is an estimate based on what you log.
 
 // ---------- Food ----------
-export type Food = { name: string; re: RegExp; per: string; kcal: number; protein: number; emoji: string };
+export type Food = { name: string; re: RegExp; per: string; kcal: number; protein: number; emoji: string; contents?: string };
 const f = (name: string, re: RegExp, per: string, kcal: number, protein: number, emoji: string): Food => ({ name, re, per, kcal, protein, emoji });
 
 export const FOODS: Food[] = [
@@ -34,18 +34,27 @@ export const FOODS: Food[] = [
   f("Nuts", /nut|almond|cashew|peanut/i, "1 handful 30 g", 170, 6, "🥜"), f("Salad", /salad/i, "1 bowl", 50, 2, "🥗"), f("Potato", /potato|aloo/i, "1 bowl", 150, 3, "🥔"),
   f("Protein shake", /protein|whey/i, "1 scoop", 120, 24, "🥤"), f("Soya chunks", /soya|soy/i, "50 g dry", 170, 26, "🫘"), f("Chana / beans", /chana|rajma|bean|chickpea/i, "1 bowl", 210, 12, "🫘"),
 ];
-export const guessFood = (name: string) => FOODS.find((x) => x.re.test(name));
+const esc = (t: string) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// Foods the hero added himself (items with category "food").
+export function myFoods(items: CustomItem[]): Food[] {
+  return items.filter((i) => i.category === "food").map((i) => ({
+    name: i.name, re: new RegExp(esc(i.name), "i"), per: String(i.config.per ?? "1 serving"), kcal: Number(i.config.kcal) || 0,
+    protein: Number(i.config.protein) || 0, emoji: String(i.config.emoji ?? "🍽️"), contents: i.config.contents ? String(i.config.contents) : undefined,
+  }));
+}
+export const allFoods = (items: CustomItem[]) => [...myFoods(items), ...FOODS];
+export const guessFood = (name: string, items: CustomItem[] = []) => allFoods(items).find((x) => x.re.test(name));
 
 export type Eaten = { name: string; qty: number; kcal: number; protein: number };
 
 // Everything eaten in a list of logs.
-export function eaten(logs: Log[]): Eaten[] {
+export function eaten(logs: Log[], items: CustomItem[] = []): Eaten[] {
   const out: Eaten[] = [];
   for (const l of logs) {
     const foods = l.data.foods as Eaten[] | undefined;
     if (foods?.length) out.push(...foods);
     else if (l.kind === "use" || (l.kind === "activity" && /eat|ate|snack/i.test(String(l.data.name)))) {
-      const fd = guessFood(String(l.data.name ?? "") + " " + String(l.data.note ?? ""));
+      const fd = guessFood(String(l.data.name ?? "") + " " + String(l.data.note ?? ""), items);
       const qty = Number(l.data.qty) || 1;
       if (fd) out.push({ name: fd.name, qty, kcal: fd.kcal * qty, protein: fd.protein * qty });
     } else if (l.kind === "milk") {
@@ -102,7 +111,7 @@ export type Energy = { intake: number; protein: number; base: number; active: nu
 export function energy(d: Data, day: string): Energy {
   const b = bodyOf(d);
   const logs = d.logs.filter((l) => l.day === day);
-  const foods = eaten(logs), burns = burned(logs, b.kg);
+  const foods = eaten(logs, d.items), burns = burned(logs, b.kg);
   const intake = Math.round(foods.reduce((s, x) => s + x.kcal, 0));
   const protein = Math.round(foods.reduce((s, x) => s + x.protein, 0));
   const base = Math.round(b.bmr * 1.2); // resting + light daily life

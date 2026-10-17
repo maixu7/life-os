@@ -1,3 +1,4 @@
+import { gaps } from "@/lib/gaps";
 import { habitStats, judged, tplOf } from "@/lib/habits";
 import { sumMl } from "@/lib/goals";
 import { logKarma } from "@/lib/karma";
@@ -135,6 +136,19 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
   if (h >= at(sc.sleep) - 2 && (h < at(sc.sleep) || ph.phase === "sleep") && !actNamed(logs, /brush/i)) {
     add({ id: "brush-night", icon: "🪥", title: "Brush before bed", priority: 58, action: { type: "activity", name: "Brush teeth" },
       because: "Night time and no night brushing recorded.", why: "Night brushing matters most: saliva drops while you sleep and bacteria get free time." });
+  }
+
+  // What has really been lacking today and over the last week.
+  const best = new Map<string, { g: ReturnType<typeof gaps>["gaps"][number]; when: string }>();
+  for (const [p, when] of [["week", "lately"], ["day", "today"]] as const) {
+    for (const g of gaps(d, p, now).gaps) if ((best.get(g.id)?.g.severity ?? -1) < g.severity) best.set(g.id, { g, when });
+  }
+  for (const { g, when } of best.values()) {
+    const hh = h < 4 ? h + 24 : h;
+    if (hh < g.task.from || hh >= g.task.to) continue;
+    if (busy && g.id !== "water") continue;
+    add({ id: `gap:${g.id}`, icon: g.icon, title: g.task.title, priority: Math.round(52 + g.severity * 30), action: g.task.action,
+      because: `${g.label} is lacking ${when}: ${g.have} (you need ${g.need}).`, why: g.task.why });
   }
 
   if (!out.length && !busy) {

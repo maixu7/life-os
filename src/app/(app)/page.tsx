@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { isNapTime } from "@/lib/slots";
 import { CoachCard } from "@/components/Coach";
+import { GapsCard } from "@/components/Gaps";
 import { HabitQuests } from "@/components/Habits";
 import { ActivitySheet } from "@/components/ActivitySheet";
 import { Library } from "@/components/Library";
@@ -126,6 +127,7 @@ export default function TodayPage() {
       </div>
 
       {isToday && <CoachCard />}
+      {isToday && <GapsCard />}
 
       {isToday && <SleepCard onLogged={setToast} />}
 
