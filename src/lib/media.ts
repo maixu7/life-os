@@ -6,22 +6,22 @@ export type MediaType =
   | "book" | "study" | "article" | "course" | "documentary" | "podcast" | "audiobook"
   | "manga" | "anime" | "movie" | "series" | "video" | "game" | "social" | "music";
 
-export const MEDIA: Record<MediaType, { label: string; emoji: string; good: boolean }> = {
-  book: { label: "Book", emoji: "📚", good: true },
-  study: { label: "Study material", emoji: "📝", good: true },
-  article: { label: "Article / news", emoji: "📰", good: true },
-  course: { label: "Course / lecture", emoji: "🎓", good: true },
-  documentary: { label: "Documentary", emoji: "🌍", good: true },
-  podcast: { label: "Podcast", emoji: "🎙️", good: true },
-  audiobook: { label: "Audiobook", emoji: "🎧", good: true },
-  manga: { label: "Manga / comic", emoji: "🍥", good: false },
-  anime: { label: "Anime", emoji: "📺", good: false },
-  movie: { label: "Movie", emoji: "🎬", good: false },
-  series: { label: "TV series / drama", emoji: "📼", good: false },
-  video: { label: "Videos / reels", emoji: "📱", good: false },
-  game: { label: "Video game", emoji: "🎮", good: false },
-  social: { label: "Social media", emoji: "🌀", good: false },
-  music: { label: "Music", emoji: "🎵", good: false },
+export const MEDIA: Record<MediaType, { label: string; emoji: string; good: boolean; hint: string }> = {
+  book: { label: "Book", emoji: "📚", good: true, hint: "book" },
+  study: { label: "Study material", emoji: "📝", good: true, hint: "textbook" },
+  article: { label: "Article / news", emoji: "📰", good: true, hint: "news" },
+  course: { label: "Course / lecture", emoji: "🎓", good: true, hint: "course" },
+  documentary: { label: "Documentary", emoji: "🌍", good: true, hint: "documentary" },
+  podcast: { label: "Podcast", emoji: "🎙️", good: true, hint: "podcast" },
+  audiobook: { label: "Audiobook", emoji: "🎧", good: true, hint: "book" },
+  manga: { label: "Manga / comic", emoji: "🍥", good: false, hint: "manga" },
+  anime: { label: "Anime", emoji: "📺", good: false, hint: "anime" },
+  movie: { label: "Movie", emoji: "🎬", good: false, hint: "film" },
+  series: { label: "TV series / drama", emoji: "📼", good: false, hint: "tv series" },
+  video: { label: "Videos / reels", emoji: "📱", good: false, hint: "youtube" },
+  game: { label: "Video game", emoji: "🎮", good: false, hint: "video game" },
+  social: { label: "Social media", emoji: "🌀", good: false, hint: "social media" },
+  music: { label: "Music", emoji: "🎵", good: false, hint: "song" },
 };
 
 export const MODE_TYPES: Record<MediaMode, MediaType[]> = {

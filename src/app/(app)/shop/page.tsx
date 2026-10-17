@@ -5,6 +5,7 @@ import { dtLocal, Sheet } from "@/components/Sheet";
 import { XpHeader } from "@/components/XpHeader";
 import { gold } from "@/lib/economy";
 import { emojiFor } from "@/lib/emoji";
+import { Pic } from "@/components/Pic";
 import { line } from "@/lib/lore";
 import { useCustomItems } from "@/lib/store";
 import { UNITS, useApp, type PantryItem, type ShopItem } from "@/lib/store";
@@ -107,8 +108,8 @@ export default function ShopPage() {
         <>
           <form onSubmit={(e) => { e.preventDefault(); quickAdd(); }} className="flex gap-2 mb-2">
             <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xl">{quick ? emojiFor(quick, "🛍️") : "🛍️"}</span>
-              <input className="input !pl-11" placeholder="Add item, e.g. Apple" value={quick} onChange={(e) => setQuick(e.target.value)} />
+              <span className="absolute left-2 top-1/2 -translate-y-1/2"><Pic name={quick} emoji={quick ? emojiFor(quick, "🛍️") : "🛍️"} size={34} /></span>
+              <input className="input !pl-14" placeholder="Add item, e.g. Apple" value={quick} onChange={(e) => setQuick(e.target.value)} />
             </div>
             <button className="btn-primary">Add</button>
           </form>
@@ -120,10 +121,7 @@ export default function ShopPage() {
             <section className="card divide-y divide-white/5">
               {toBuy.map((i) => (
                 <div key={i.id} className="flex items-center gap-3 p-3">
-                  {i.photo_id && urls[i.photo_id]
-                    // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={urls[i.photo_id]} alt="" className="h-11 w-11 rounded-xl object-cover" />
-                    : <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/5 text-2xl">{i.emoji}</span>}
+                  <Pic name={i.name} emoji={i.emoji} src={i.photo_id ? urls[i.photo_id] : undefined} />
                   <button onClick={() => setEditItem(i)} className="flex-1 min-w-0 text-left">
                     <div className="font-semibold truncate">{i.name}</div>
                     <div className="text-xs text-muted truncate">
@@ -155,7 +153,7 @@ export default function ShopPage() {
               {[...data.pantry].sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name)).map((p) => (
                 <div key={p.id} className={`card p-3 ${p.qty <= 0 ? "opacity-50" : ""}`}>
                   <button onClick={() => setEditPantry(p)} className="flex w-full items-center gap-2 text-left">
-                    <span className="text-3xl">{p.emoji}</span>
+                    <Pic name={p.name} emoji={p.emoji} size={52} />
                     <span className="min-w-0">
                       <span className="block font-semibold truncate">{p.name}</span>
                       <span className="block text-xs text-muted">{p.last_price != null ? `last ${money(p.last_price)}` : ""}</span>
@@ -211,7 +209,7 @@ export default function ShopPage() {
               <div className="card divide-y divide-white/5">
                 {list.map((b) => (
                   <button key={b.id} onClick={() => setPriceOf(b.name)} className="flex w-full items-center gap-3 p-3 text-left">
-                    <span className="text-2xl">{b.emoji}</span>
+                    <Pic name={b.name} emoji={b.emoji} size={40} />
                     <span className="flex-1 min-w-0">
                       <span className="block font-semibold truncate">{b.name}</span>
                       <span className="block text-xs text-muted">
@@ -314,6 +312,7 @@ export default function ShopPage() {
 
       {priceOf && (
         <Sheet title={`${emojiFor(priceOf, "🛍️")} ${priceOf} price history`} onClose={() => setPriceOf(null)}>
+          <div className="flex justify-center"><Pic name={priceOf} emoji={emojiFor(priceOf, "🛍️")} size={96} /></div>
           <div className="divide-y divide-white/5">
             {bought.filter((b) => sameThing(b.name, priceOf)).map((b) => (
               <div key={b.id} className="flex justify-between py-2 text-sm">

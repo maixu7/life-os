@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Library } from "@/components/Library";
+import { Pic } from "@/components/Pic";
 import { LiquidGlass } from "@/components/LiquidGlass";
 import { MEDIA, type MediaType } from "@/lib/media";
 import { dtLocal, fmtDuration, fmtTime, Sheet } from "@/components/Sheet";
@@ -29,6 +30,11 @@ const atFor = (day: string) => {
   d.setHours(now.getHours(), now.getMinutes(), 0, 0);
   return d;
 };
+
+// Records about real things get a real picture in the chronicle.
+const picName = (l: Log) =>
+  l.kind === "media" ? String(l.data.title ?? "") : l.kind === "shopping" ? String(l.data.item ?? "") : l.kind === "use" || l.kind === "meal" ? String(l.data.name ?? "") : null;
+const picHint = (l: Log) => MEDIA[l.data.type as MediaType]?.hint ?? "book";
 
 export default function TodayPage() {
   const [day, setDay] = useState(today());
@@ -170,7 +176,11 @@ export default function TodayPage() {
                 <li key={l.id}>
                   <button onClick={() => setEditing(l)} className="w-full flex items-center gap-3 py-2 text-left rounded-xl hover:bg-white/5 active:bg-white/10">
                     <span className="w-11 text-right text-xs tabular-nums text-muted">{fmtTime(l.created_at)}</span>
-                    <span className="relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#1c1330] border border-white/10 text-base">{d.emoji}</span>
+                    {picName(l) ? (
+                      <Pic name={picName(l)!} hint={l.kind === "media" ? picHint(l) : ""} emoji={d.emoji} size={32} className="relative z-10 !rounded-full border border-white/10" />
+                    ) : (
+                      <span className="relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#1c1330] border border-white/10 text-base">{d.emoji}</span>
+                    )}
                     <span className="flex-1 min-w-0">
                       <span className="block font-semibold truncate">{d.title}</span>
                       {d.detail && <span className="block text-xs text-muted truncate">{d.detail}</span>}
@@ -325,7 +335,7 @@ function PantryStrip({ day, onLogged }: { day: string; onLogged: (l: Log) => voi
         {stock.map((p) => (
           <button key={p.id} onClick={() => use(p.id)}
             className="shrink-0 rounded-2xl border border-white/10 bg-white/[.04] px-3 py-2 flex items-center gap-2 active:scale-95">
-            <span className="text-2xl">{p.emoji}</span>
+            <Pic name={p.name} emoji={p.emoji} size={36} />
             <span className="text-left leading-tight"><span className="block text-sm font-semibold">{p.name}</span>
               <span className="text-xs text-muted">{p.qty} {p.unit} left</span></span>
           </button>

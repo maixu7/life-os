@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Pic } from "@/components/Pic";
 import { Sheet } from "@/components/Sheet";
 import { guessMedia, lookupMedia, MEDIA, MODE_TYPES, mediaPoints, type MediaMode, type MediaType } from "@/lib/media";
 import { useApp, type Log } from "@/lib/store";
@@ -46,8 +47,8 @@ export function Library({ at, onLogged }: { at: () => Date; onLogged: (l: Log) =
       {recent.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {recent.map((r) => (
-            <button key={r.title} onClick={() => setOpen(r)} className="chip" style={{ borderColor: MEDIA[r.type]?.good ? "#ffe06688" : "#ff3b6b88" }}>
-              {MEDIA[r.type]?.emoji} {r.title}
+            <button key={r.title} onClick={() => setOpen(r)} className="chip !inline-flex items-center gap-1.5 !pl-1" style={{ borderColor: MEDIA[r.type]?.good ? "#ffe06688" : "#ff3b6b88" }}>
+              <Pic name={r.title} hint={MEDIA[r.type]?.hint} emoji={MEDIA[r.type]?.emoji ?? "📚"} size={22} className="!rounded-md" /> {r.title}
             </button>
           ))}
         </div>
@@ -108,7 +109,7 @@ function MediaSheet({ start, at, onClose, onLogged }: { start: Recent; at: () =>
       <input autoFocus className="input" placeholder={mode === "read" ? "Book or manga name" : mode === "watch" ? "Movie, anime, show or video" : "Podcast, audiobook or music"}
         value={title} onChange={(e) => { setTitle(e.target.value); setManual(false); }} />
       <div className="rounded-xl p-3 flex items-center gap-3" style={{ background: m.good ? "#ffe0661a" : "#ff3b6b1a", border: `1px solid ${m.good ? "#ffe06666" : "#ff3b6b66"}` }}>
-        <span className="text-3xl">{m.emoji}</span>
+        <Pic name={title} hint={m.hint} emoji={m.emoji} size={64} />
         <div className="flex-1">
           <div className="font-bold">{m.label}{checking && <span className="text-xs text-muted"> · checking…</span>}</div>
           <div className="text-xs" style={{ color: m.good ? "#ffe066" : "#ff6b9b" }}>{m.good ? `😇 Good deed · +${pts} angel points` : `😈 Time waste · ${pts} devil points`}</div>
