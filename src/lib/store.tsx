@@ -83,7 +83,10 @@ export const DEFAULT_ACTIVITIES = [
   "Read", "Listen", "Clean room", "Pray", "Anime", "Manga",
 ];
 
-const NEW_ACTIVITIES: [string, string][] = [["seed-drive", "Drive / ride"], ["seed-toilet", "Toilet"], ["seed-run", "Run"], ["seed-coding", "Coding"]];
+const NEW_ACTIVITIES: [string, string][] = [
+  ["seed-drive", "Drive / ride"], ["seed-toilet", "Toilet"], ["seed-run", "Run"], ["seed-coding", "Coding"],
+  ["seed-typing", "Typing practice"], ["seed-writing", "Writing practice"], ["seed-listening", "Listening practice"], ["seed-speaking", "Speaking practice"],
+];
 
 const DEFAULT_REWARDS: [string, number, string][] = [
   ["1 anime episode", 60, "📺"], ["1 manga chapter", 40, "📕"], ["30 min gaming", 80, "🎮"],

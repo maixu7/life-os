@@ -79,6 +79,7 @@ function describeInner(l: Log, currency: string): { emoji: string; title: string
         detail: join(
           d.count && Number(d.count) > 1 ? `${ordinal(Number(d.count))} time` : "", (d.options as string[] | undefined)?.join(", "),
           d.amount ? `${d.amount} ${d.unit ?? ""}` : "",
+          (d.foods as { name: string; qty: number }[] | undefined)?.map((x) => `${x.qty} × ${x.name}`).join(", "),
           d.minutes ? `${d.minutes} min` : "", d.kcal ? `${d.kcal} kcal` : "", note,
         ),
       };
@@ -86,6 +87,8 @@ function describeInner(l: Log, currency: string): { emoji: string; title: string
       return { emoji: d.rare ? "💎" : "🎁", title: d.rare ? "Rare chest opened" : "Daily chest opened", detail: `+${d.gold} gold` };
     case "redeem":
       return { emoji: String(d.emoji ?? "🎁"), title: `Reward: ${d.name}`, detail: `-${d.cost} gold` };
+    case "battle":
+      return { emoji: d.won ? "🏆" : "💀", title: `Night battle vs ${d.demon}: ${d.won ? "won" : "lost"}`, detail: `power ${d.hero} vs ${d.foe}${d.won ? ` · +${d.gold} gold` : ""}` };
     case "bonus":
       return { emoji: "🏅", title: `Mission complete: ${d.name}`, detail: `+${l.xp} XP` };
     case "body":

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AvatarArt, CLASSES } from "@/components/AvatarArt";
 import { AboutMe, AvatarEditor, BodyStats } from "@/components/HeroSheet";
 import { CharacterPanel } from "@/components/Character";
+import { RealMe } from "@/components/RealMe";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 import { CHAPTERS, gold, TITLES } from "@/lib/economy";
 import { dailyGoals } from "@/lib/goals";
@@ -119,6 +120,8 @@ export default function RankPage() {
       </section>
 
       <CharacterPanel />
+
+      <RealMe />
 
       <AboutMe />
 

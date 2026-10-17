@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
+import { ImpactCard, LiftCard } from "@/components/RealMe";
+import { moveOf, MOVES, variantOf } from "@/lib/moves";
 import { today, useApp, useCustomItems, useLogs } from "@/lib/store";
 
 const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
@@ -32,7 +34,7 @@ function beep() {
 
 export default function TrainPage() {
   const { items, add, remove } = useCustomItems("exercise");
-  const { logActivity, celebrate } = useApp();
+  const { data, logActivity, celebrate } = useApp();
   const { logs } = useLogs(today());
   const [sel, setSel] = useState<string | null>(null);
   const [sets, setSets] = useState("3");
@@ -46,6 +48,9 @@ export default function TrainPage() {
 
   const ex = items.find((i) => i.id === sel) ?? items[0];
   const type = (ex?.config.type as string) ?? "reps";
+  const move = ex ? moveOf(ex.name) : undefined;
+  const [variant, setVariant] = useState<string>("Standard");
+  const vr = variantOf(move, variant);
 
   useEffect(() => {
     if (rest <= 0) return;
@@ -63,8 +68,11 @@ export default function TrainPage() {
     if (!ex) return;
     const row = logActivity("workout", {
       exercise: ex.name, sets: Number(sets) || 1, reps: Number(reps) || 0, weight: weight ? Number(weight) : undefined,
+      ...(vr ? { variant: vr.name, factor: vr.factor } : {}),
     });
-    celebrate({ title: "POWER UP!", subtitle: ex.name, xp: row.xp });
+    const prev = Math.max(0, ...data.logs.filter((l) => l.kind === "workout" && l.data.exercise === ex.name && (l.data.variant ?? "Standard") === (vr?.name ?? "Standard")).map((l) => Number(l.data.reps) || 0));
+    const r = Number(reps) || 0;
+    celebrate({ title: r > prev && prev > 0 ? "🔥 NEW PERSONAL BEST!" : "POWER UP!", subtitle: r > prev && prev > 0 ? `${ex.name}: ${r} reps (was ${prev}). Real strength gained.` : ex.name, xp: row.xp });
   };
 
   const todays = logs.filter((l) => l.kind === "workout");
@@ -82,7 +90,7 @@ export default function TrainPage() {
       <div className="flex flex-wrap gap-2 mb-4">
         {items.map((i) => (
           <span key={i.id} className="relative">
-            <button onClick={() => setSel(i.id)} className={`chip ${ex?.id === i.id ? "chip-on" : ""}`}>{i.name}</button>
+            <button onClick={() => { setSel(i.id); setVariant(moveOf(i.name)?.variants?.find((x) => x.factor === 1)?.name ?? "Standard"); }} className={`chip ${ex?.id === i.id ? "chip-on" : ""}`}>{i.name}</button>
             {editing && (
               <button aria-label={`Remove ${i.name}`} onClick={() => remove(i.id)}
                 className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-rose-500 text-xs">✕</button>
@@ -90,6 +98,13 @@ export default function TrainPage() {
           </span>
         ))}
       </div>
+      {editing && (
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {MOVES.filter((m) => m.kind === "body" && !items.some((i) => m.re.test(i.name))).map((m) => (
+            <button key={m.name} onClick={() => add(m.name, { type: m.type === "weight" ? "weight" : "reps" })} className="chip !py-1 text-xs">+ {m.name}</button>
+          ))}
+        </div>
+      )}
       {editing && (
         <div className="card p-3 mb-4 flex gap-2">
           <input className="input" placeholder="New exercise" value={newEx} onChange={(e) => setNewEx(e.target.value)} />
@@ -104,7 +119,16 @@ export default function TrainPage() {
 
       {ex && (
         <section className="card p-4 mb-4 space-y-3">
-          <h3 className="text-xl font-black">{ex.name}</h3>
+          <h3 className="text-xl font-black">{ex.name}{vr && vr.name !== "Standard" ? ` · ${vr.name}` : ""}</h3>
+          {move?.variants && (
+            <div>
+              <div className="text-xs text-muted mb-1">Type</div>
+              <div className="flex flex-wrap gap-1.5">
+                {move.variants.map((x) => <button key={x.name} onClick={() => setVariant(x.name)} className={`chip !py-1 text-xs ${(vr?.name ?? "Standard") === x.name ? "chip-on" : ""}`}>{x.name}</button>)}
+              </div>
+            </div>
+          )}
+          <ImpactCard name={ex.name} variant={vr?.name} />
           <div className="grid grid-cols-3 gap-2">
             <label className="text-xs text-muted">Sets<input className="input mt-1" inputMode="numeric" value={sets} onChange={(e) => setSets(e.target.value)} /></label>
             <label className="text-xs text-muted">Reps<input className="input mt-1" inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} /></label>
@@ -134,6 +158,7 @@ export default function TrainPage() {
           <button onClick={log} className="btn-primary w-full">Log set</button>
         </section>
       )}
+      {ex && <LiftCard name={`${ex.name}${vr && vr.name !== "Standard" ? ` (${vr.name})` : ""}`} />}
 
       <section className="card p-4 mb-4 text-center">
         <h2 className="font-bold mb-2">Rest timer</h2>

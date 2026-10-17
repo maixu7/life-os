@@ -26,6 +26,7 @@ const MAP: [string[], string][] = [
   [["pant", "jeans", "trouser"], "👖"], [["shoe", "sneaker"], "👟"], [["sock"], "🧦"], [["cap", "hat"], "🧢"],
   [["wake", "woke", "morning"], "🌅"], [["sleep", "nap", "bed"], "😴"], [["bath", "shower", "nuhau"], "🛁"],
   [["breakfast"], "🍳"], [["lunch"], "🍱"], [["dinner"], "🍽️"], [["snack", "khaja"], "🥨"], [["meal", "eat", "khana"], "🍽️"],
+  [["typing"], "⌨️"], [["writing", "write"], "✍️"], [["speak", "speech"], "🗣️"],
   [["study", "homework", "exam", "padhai"], "📖"], [["read"], "📚"], [["listen", "music", "song", "podcast"], "🎧"],
   [["drive", "ride", "scooter"], "🛵"], [["toilet", "pee", "washroom"], "🚽"], [["walk"], "🚶"], [["run", "jog"], "🏃"], [["cycle", "bike"], "🚴"], [["swim"], "🏊"], [["yoga", "meditat", "stretch"], "🧘"],
   [["gym", "workout", "exercise", "train"], "🏋️"], [["push-up", "pushup", "pull-up", "pullup", "curl", "bench", "press"], "💪"],

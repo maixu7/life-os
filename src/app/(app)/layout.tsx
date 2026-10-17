@@ -1,5 +1,6 @@
 import { CelebrationLayer } from "@/components/Celebration";
 import { Popper } from "@/components/Coach";
+import { BattleWatcher } from "@/components/RealMe";
 import { ReminderWatcher } from "@/components/tools/Insights";
 import { GameWatcher } from "@/components/GameWatcher";
 import { Gate } from "@/components/Gate";
@@ -18,6 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <ResumeRoute />
       <StageIntro />
       <Popper />
+      <BattleWatcher />
       <ReminderWatcher />
       <CelebrationLayer />
     </Gate>

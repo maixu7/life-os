@@ -24,7 +24,7 @@ export function useRunAction() {
       case "sleep": {
         const nap = isNapTime(now);
         logActivity("sleep", { start: now.toISOString(), end: null, type: nap ? "nap" : "night" });
-        celebrate({ title: nap ? "POWER NAP!" : "OYASUMI!", subtitle: nap ? "Day nap started" : "Night sleep started. Sleep well, hero." });
+        celebrate({ title: nap ? "POWER NAP!" : "OYASUMI!", subtitle: nap ? "Day nap started" : "Night sleep started. Tonight your day's work fights the demon. Sleep well, hero." });
         return;
       }
       case "wake": {
