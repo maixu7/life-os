@@ -118,7 +118,7 @@ function SignIn({ onDone }: { onDone: (s: Session, d: Data) => void }) {
         {mode === "in" ? "Welcome back, hero." : "One account for your phone and PC. Everything is encrypted with your password before it leaves the device."}
       </p>
       <form onSubmit={submit} className="space-y-3">
-        <input autoCapitalize="none" autoComplete="username" placeholder="Username" className="input" value={user} onChange={(e) => setUser(e.target.value)} />
+        <input autoCapitalize="none" autoComplete="username" placeholder="Username or email" className="input" value={user} onChange={(e) => setUser(e.target.value)} />
         {mode === "up" && !backup && <input placeholder="Your name" className="input" value={name} onChange={(e) => setName(e.target.value)} />}
         <input type="password" autoComplete={mode === "in" ? "current-password" : "new-password"} placeholder="Password" className="input" value={pw} onChange={(e) => setPw(e.target.value)} />
         {mode === "up" && <input type="password" autoComplete="new-password" placeholder="Repeat password" className="input" value={pw2} onChange={(e) => setPw2(e.target.value)} />}

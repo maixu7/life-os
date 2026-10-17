@@ -97,7 +97,7 @@ export type LoginResult<T> = { session: Session; data: T; offline: boolean } | {
 
 export async function register<T>(userRaw: string, password: string, initial: T): Promise<LoginResult<T>> {
   const user = normUser(userRaw);
-  if (!/^[a-z0-9_.-]{3,32}$/.test(user)) return { error: "Username: 3-32 letters, numbers, dots, dashes or underscores." };
+  if (!/^[a-z0-9_.@+-]{3,64}$/.test(user)) return { error: "Username: 3-64 characters, letters, numbers, @ . - _ or +." };
   const d = await derive(user, password);
   const vault = await sealJson(d.key, initial);
   try {

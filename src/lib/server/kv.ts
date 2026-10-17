@@ -42,7 +42,7 @@ export type VaultDoc = Cipher & { rev: number };
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 const eq = (a: string, b: string) => a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 
-export const validUser = (u: unknown): u is string => typeof u === "string" && /^[a-z0-9_.-]{3,32}$/.test(u);
+export const validUser = (u: unknown): u is string => typeof u === "string" && /^[a-z0-9_.@+-]{3,64}$/.test(u);
 export const validAuth = (a: unknown): a is string => typeof a === "string" && /^[0-9a-f]{64}$/.test(a);
 export const authHash = sha;
 
