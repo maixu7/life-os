@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AppProvider, initialData, type Data } from "@/lib/store";
-import { createVault, getLockout, hasVault, importBackup, recordAttempt, saveVault, unlock, type Session } from "@/lib/vault";
+import { AppProvider, initialData, mergeData, type Data } from "@/lib/store";
+import { getLockout, lastUser, login, readBackup, recordAttempt, register, rememberUser, type Session } from "@/lib/vault";
 
 const IDLE_MS = 3 * 60 * 1000;
 const HIDDEN_GRACE_MS = 30 * 1000;
@@ -10,22 +10,16 @@ const HIDDEN_GRACE_MS = 30 * 1000;
 // Mandatory sign-in. The decryption key only lives in memory while unlocked;
 // idle time or leaving the app throws it away and shows this screen again.
 export function Gate({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<"loading" | "setup" | "login" | "open">("loading");
   const [session, setSession] = useState<Session | null>(null);
   const [data, setData] = useState<Data | null>(null);
-
-  useEffect(() => {
-    hasVault().then((v) => setState(v ? "login" : "setup")).catch(() => setState("setup"));
-  }, []);
 
   const lock = useCallback(() => {
     setSession(null);
     setData(null);
-    setState("login");
   }, []);
 
   useEffect(() => {
-    if (state !== "open") return;
+    if (!session) return;
     let idle = setTimeout(lock, IDLE_MS);
     let hiddenAt = 0;
     const reset = () => {
@@ -44,19 +38,12 @@ export function Gate({ children }: { children: React.ReactNode }) {
       events.forEach((e) => removeEventListener(e, reset));
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [state, lock]);
+  }, [session, lock]);
 
-  const open = (s: Session, d: Data) => {
-    setSession(s);
-    setData(d);
-    setState("open");
-  };
-
-  if (state === "open" && session && data) {
-    return <AppProvider session={session} initial={data} onLock={lock}>{children}</AppProvider>;
+  if (session && data) {
+    return <AppProvider key={session.cacheId} session={session} initial={data} onLock={lock}>{children}</AppProvider>;
   }
-  if (state === "loading") return <Shell><p className="text-center text-muted">Loading…</p></Shell>;
-  return state === "setup" ? <Setup onDone={open} /> : <Login onDone={open} />;
+  return <SignIn onDone={(s, d) => { setSession(s); setData(d); }} />;
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -73,8 +60,13 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Login({ onDone }: { onDone: (s: Session, d: Data) => void }) {
+function SignIn({ onDone }: { onDone: (s: Session, d: Data) => void }) {
+  const [mode, setMode] = useState<"in" | "up">("in");
+  const [user, setUser] = useState("");
+  const [name, setName] = useState("");
   const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [backup, setBackup] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [until, setUntil] = useState(0);
@@ -82,6 +74,7 @@ function Login({ onDone }: { onDone: (s: Session, d: Data) => void }) {
 
   useEffect(() => {
     getLockout().then((l) => setUntil(l.until));
+    lastUser().then((u) => u && setUser(u));
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
@@ -90,53 +83,31 @@ function Login({ onDone }: { onDone: (s: Session, d: Data) => void }) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (wait || busy) return;
-    setBusy(true);
-    const res = await unlock<Data>(pw);
-    const lo = await recordAttempt(!!res);
-    setBusy(false);
-    if (res) return onDone(res.session, res.data);
-    navigator.vibrate?.([80, 50, 80]);
-    setPw("");
-    setUntil(lo.until);
-    setError(lo.until ? "Too many wrong tries." : `Wrong password${lo.tries >= 3 ? ` (${5 - lo.tries} tries before lockout)` : ""}.`);
-  };
-
-  return (
-    <Shell>
-      <p className="text-center text-sm text-muted">Welcome back, hero.</p>
-      <form onSubmit={submit} className="space-y-3">
-        <input type="password" autoFocus autoComplete="current-password" placeholder="Password" className="input"
-          value={pw} onChange={(e) => setPw(e.target.value)} />
-        <p className="min-h-5 text-sm text-rose-400">{wait > 0 ? `Locked. Try again in ${wait}s.` : error}</p>
-        <button disabled={busy || wait > 0 || !pw} className="btn-primary w-full">{busy ? "Unlocking…" : "Unlock"}</button>
-      </form>
-    </Shell>
-  );
-}
-
-function Setup({ onDone }: { onDone: (s: Session, d: Data) => void }) {
-  const [name, setName] = useState("");
-  const [pw, setPw] = useState("");
-  const [pw2, setPw2] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [backup, setBackup] = useState<File | null>(null);
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pw.length < 8) return setError("Use at least 8 characters.");
-    if (!backup && pw !== pw2) return setError("Passwords don't match.");
+    setError("");
+    if (mode === "up") {
+      if (pw.length < 8) return setError("Use at least 8 characters.");
+      if (pw !== pw2) return setError("Passwords don't match.");
+    }
     setBusy(true);
     try {
-      if (backup) {
-        const { session, data } = await importBackup(await backup.text(), pw);
-        await saveVault(session, data);
-        return onDone(session, data);
+      let start = initialData(name.trim() || user.trim() || "Hero");
+      if (mode === "up" && backup) start = await readBackup<Data>(await backup.text(), user, pw);
+      const res = mode === "in" ? await login<Data>(user, pw, mergeData) : await register<Data>(user, pw, start);
+      if ("error" in res) {
+        if (mode === "in") {
+          const lo = await recordAttempt(false);
+          setUntil(lo.until);
+          navigator.vibrate?.([80, 50, 80]);
+        }
+        setPw("");
+        return setError(res.error);
       }
-      const data = initialData(name.trim() || "Hero");
-      onDone(await createVault(pw, data), data);
+      await recordAttempt(true);
+      await rememberUser(res.session.user);
+      onDone(res.session, { ...res.data, deleted: res.data.deleted ?? [] });
     } catch {
       setError(backup ? "That password doesn't open this backup." : "Something went wrong. Try again.");
+    } finally {
       setBusy(false);
     }
   };
@@ -144,20 +115,28 @@ function Setup({ onDone }: { onDone: (s: Session, d: Data) => void }) {
   return (
     <Shell>
       <p className="text-center text-sm text-muted">
-        {backup ? "Restore from your backup file." : "Create your password. Your data is encrypted with it and never leaves this device."}
+        {mode === "in" ? "Welcome back, hero." : "One account for your phone and PC. Everything is encrypted with your password before it leaves the device."}
       </p>
       <form onSubmit={submit} className="space-y-3">
-        {!backup && <input placeholder="Your name" className="input" value={name} onChange={(e) => setName(e.target.value)} />}
-        <input type="password" autoComplete={backup ? "current-password" : "new-password"} placeholder="Password" className="input" value={pw} onChange={(e) => setPw(e.target.value)} />
-        {!backup && <input type="password" autoComplete="new-password" placeholder="Repeat password" className="input" value={pw2} onChange={(e) => setPw2(e.target.value)} />}
-        {!backup && <p className="text-xs text-amber-300">There is no password reset. If you forget it, the data can&apos;t be recovered.</p>}
-        {error && <p className="text-sm text-rose-400">{error}</p>}
-        <button disabled={busy} className="btn-primary w-full">{busy ? "Securing…" : backup ? "Restore" : "Create"}</button>
+        <input autoCapitalize="none" autoComplete="username" placeholder="Username" className="input" value={user} onChange={(e) => setUser(e.target.value)} />
+        {mode === "up" && !backup && <input placeholder="Your name" className="input" value={name} onChange={(e) => setName(e.target.value)} />}
+        <input type="password" autoComplete={mode === "in" ? "current-password" : "new-password"} placeholder="Password" className="input" value={pw} onChange={(e) => setPw(e.target.value)} />
+        {mode === "up" && <input type="password" autoComplete="new-password" placeholder="Repeat password" className="input" value={pw2} onChange={(e) => setPw2(e.target.value)} />}
+        {mode === "up" && <p className="text-xs text-amber-300">There is no password reset. If you forget it, nobody can recover your data, not even the server.</p>}
+        <p className="min-h-5 text-sm text-rose-400">{wait > 0 ? `Locked. Try again in ${wait}s.` : error}</p>
+        <button disabled={busy || wait > 0 || !pw || !user} className="btn-primary w-full">
+          {busy ? "Securing…" : mode === "in" ? "Sign in" : backup ? "Create from backup" : "Create account"}
+        </button>
       </form>
-      <label className="block text-center text-sm text-muted cursor-pointer">
-        {backup ? `📦 ${backup.name}` : "Have a backup? Restore it"}
-        <input type="file" accept=".lifeos,application/json" className="hidden" onChange={(e) => setBackup(e.target.files?.[0] ?? null)} />
-      </label>
+      <button onClick={() => { setMode(mode === "in" ? "up" : "in"); setError(""); }} className="w-full text-sm text-muted">
+        {mode === "in" ? "New here? Create an account" : "Have an account? Sign in"}
+      </button>
+      {mode === "up" && (
+        <label className="block text-center text-xs text-muted cursor-pointer">
+          {backup ? `📦 ${backup.name}` : "Have a backup file? Start from it"}
+          <input type="file" accept=".lifeos,application/json" className="hidden" onChange={(e) => setBackup(e.target.files?.[0] ?? null)} />
+        </label>
+      )}
     </Shell>
   );
 }

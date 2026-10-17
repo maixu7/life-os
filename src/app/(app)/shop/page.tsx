@@ -66,7 +66,7 @@ export default function ShopPage() {
 
   const remove = async (i: ShopItem) => {
     if (i.photo_id) await deletePhoto(session, i.photo_id);
-    update((d) => ({ ...d, shopping: d.shopping.filter((x) => x.id !== i.id) }));
+    update((d) => ({ ...d, shopping: d.shopping.filter((x) => x.id !== i.id), deleted: [...d.deleted, i.id] }));
   };
 
   const toBuy = items.filter((i) => i.status === "to_buy");

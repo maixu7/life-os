@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { dailyGoals } from "@/lib/goals";
 import { initialData, useApp, type Log } from "@/lib/store";
-import { createVault, exportBackup, unlock } from "@/lib/vault";
+import { addDecoy, exportBackup } from "@/lib/vault";
 import { ATTRIBUTES, BADGES, progress, RANKS, UNLOCKS } from "@/lib/xp";
 
 const THEMES = [
@@ -57,7 +57,7 @@ export default function RankPage() {
   const unlocked = new Set(UNLOCKS.filter((u) => p.level >= u.level).map((u) => u.id));
 
   const backup = async () => {
-    const blob = new Blob([await exportBackup(session)], { type: "application/json" });
+    const blob = new Blob([await exportBackup(session, data)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `life-os-${new Date().toISOString().slice(0, 10)}.lifeos`;
@@ -67,10 +67,13 @@ export default function RankPage() {
 
   const makeDecoy = async () => {
     if (decoyPw.length < 8) return setMsg("Use at least 8 characters.");
-    if (await unlock(decoyPw)) return setMsg("That password is already in use.");
-    await createVault(decoyPw, initialData(profile.display_name));
-    setDecoyPw("");
-    setMsg("Decoy password set. Signing in with it opens a separate empty profile.");
+    try {
+      await addDecoy(session, decoyPw, initialData(profile.display_name));
+      setDecoyPw("");
+      setMsg("Decoy password set. Signing in with it on any device opens a separate empty profile.");
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
   };
 
   const set = (k: "water_goal_ml" | "milk_goal_ml" | "sleep_goal_h" | "budget_monthly") =>
@@ -144,7 +147,7 @@ export default function RankPage() {
         <h2 className="font-bold">Security</h2>
         <button onClick={lock} className="btn-primary w-full">🔒 Lock now</button>
         <button onClick={backup} className="btn-ghost w-full">📦 Download encrypted backup</button>
-        <p className="text-xs text-muted">Your data lives only on this device. Back up regularly; the file stays locked by your password. Photos are not included.</p>
+        <p className="text-xs text-muted">Your data syncs to all your devices, end-to-end encrypted. The backup file is an extra safety copy, still locked by your password (photos not included).</p>
         <div className="flex gap-2">
           <input type="password" className="input" placeholder="Decoy password" value={decoyPw} onChange={(e) => setDecoyPw(e.target.value)} />
           <button onClick={makeDecoy} className="btn-ghost shrink-0">Set</button>
