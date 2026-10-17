@@ -111,7 +111,12 @@ export async function register<T>(userRaw: string, password: string, initial: T)
 
 export async function login<T>(userRaw: string, password: string, merge: (server: T, local: T) => T): Promise<LoginResult<T>> {
   const user = normUser(userRaw);
-  const d = await derive(user, password);
+  return openWith(user, await derive(user, password), merge);
+}
+
+type Derived = { key: CryptoKey; auth: string; cacheId: string };
+
+async function openWith<T>(user: string, d: Derived, merge: (server: T, local: T) => T): Promise<LoginResult<T>> {
   const cached = await idb<CacheEntry | undefined>("cache", "readonly", (s) => s.get(d.cacheId)).catch(() => undefined);
   try {
     const doc = await api<Cipher & { rev: number }>("get", { user, auth: d.auth });
@@ -134,6 +139,52 @@ export async function login<T>(userRaw: string, password: string, merge: (server
       return { error: "Wrong username or password." };
     }
   }
+}
+
+// ---------- quick PIN unlock on a trusted device ----------
+// The AES key is stored as a non-extractable CryptoKey (the browser never reveals its bytes).
+// The PIN only gates access to it; 5 wrong PINs erase it and the full password is needed again.
+type Remembered = { user: string; cacheId: string; key: CryptoKey; auth: Cipher; pinSalt: string; pinHash: string; tries: number };
+
+async function pinHash(pin: string, salt: Uint8Array) {
+  const base = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
+  return hex(await crypto.subtle.deriveBits({ name: "PBKDF2", salt: salt as BufferSource, iterations: 200_000, hash: "SHA-256" }, base, 256));
+}
+
+// pin = null remembers the device with no PIN: the app opens straight away.
+export async function rememberDevice(s: Session, pin: string | null) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const rec: Remembered = {
+    user: s.user, cacheId: s.cacheId, key: s.key, auth: await seal(s.key, enc.encode(s.auth)),
+    pinSalt: b64(salt), pinHash: pin ? await pinHash(pin, salt) : "", tries: 0,
+  };
+  await idb("meta", "readwrite", (st) => st.put(rec, "remembered"));
+}
+
+export async function remembered(): Promise<{ user: string; hasPin: boolean } | null> {
+  const r = await idb<Remembered | undefined>("meta", "readonly", (s) => s.get("remembered")).catch(() => undefined);
+  return r ? { user: r.user, hasPin: !!r.pinHash } : null;
+}
+
+export async function forgetDevice() {
+  await idb("meta", "readwrite", (s) => s.delete("remembered")).catch(() => {});
+}
+
+export async function unlockWithPin<T>(pin: string, merge: (server: T, local: T) => T): Promise<LoginResult<T> & { left?: number }> {
+  const r = await idb<Remembered | undefined>("meta", "readonly", (s) => s.get("remembered"));
+  if (!r) return { error: "Sign in with your password." };
+  if (r.pinHash && (await pinHash(pin, unb64(r.pinSalt))) !== r.pinHash) {
+    const tries = r.tries + 1;
+    if (tries >= 5) {
+      await forgetDevice();
+      return { error: "Too many wrong PINs. Sign in with your password.", left: 0 };
+    }
+    await idb("meta", "readwrite", (s) => s.put({ ...r, tries }, "remembered"));
+    return { error: `Wrong PIN. ${5 - tries} tries left.`, left: 5 - tries };
+  }
+  if (r.tries) await idb("meta", "readwrite", (s) => s.put({ ...r, tries: 0 }, "remembered"));
+  const auth = dec.decode(await open(r.key, r.auth));
+  return openWith(r.user, { key: r.key, auth, cacheId: r.cacheId }, merge);
 }
 
 // Saves locally first, then uploads. On a conflict, merges with the server copy and retries.

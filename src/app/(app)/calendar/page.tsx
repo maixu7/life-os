@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
+import Link from "next/link";
+import { describe } from "@/lib/describe";
 import { dailyGoals } from "@/lib/goals";
 import { toDay, today, useApp, type Log } from "@/lib/store";
 
-const ICON: Record<string, string> = {
-  water: "💧", milk: "🥛", meal: "🍱", wake: "🌅", sleep: "🌙", reading: "📚", listening: "🎧", workout: "🏋️", focus: "📖", shopping: "🛒",
-};
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function addDays(d: Date, n: number) {
@@ -62,7 +61,11 @@ export default function CalendarPage() {
       </div>
       <div className="flex items-center justify-between mb-3">
         <button onClick={() => step(-1)} className="btn-ghost">‹</button>
-        <h2 className="font-bold">{title}</h2>
+        <label className="relative font-bold cursor-pointer">{title} ▾
+          <input type="month" aria-label="Jump to month" className="absolute inset-0 opacity-0 cursor-pointer"
+            value={`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`}
+            onChange={(e) => e.target.value && setCursor(new Date(`${e.target.value}-01T12:00`))} />
+        </label>
         <button onClick={() => step(1)} className="btn-ghost">›</button>
       </div>
 
@@ -109,16 +112,21 @@ export default function CalendarPage() {
           {view === "day" ? "Timeline" : new Date(selected + "T12:00").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
         </h3>
         {dayLogs.length === 0 && <p className="text-sm text-muted">Nothing logged.</p>}
-        <ol className="relative border-l border-white/10 ml-2 space-y-2">
-          {dayLogs.map((l) => (
-            <li key={l.id} className="ml-4 card px-3 py-2 text-sm flex items-center gap-2">
-              <span className="absolute -left-2.5 text-base">{ICON[l.kind] ?? "✨"}</span>
-              <span className="text-muted w-12">{new Date(l.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-              <span className="flex-1 capitalize">{l.kind}{l.data.exercise ? `: ${l.data.exercise}` : ""}{l.data.ml ? ` ${l.data.ml} ml` : ""}{l.data.minutes ? ` ${l.data.minutes} min` : ""}{l.data.name ? `: ${l.data.name}` : ""}</span>
-              <span className="text-xs text-[var(--accent2)]">+{l.xp}</span>
-            </li>
-          ))}
+        <ol className="card divide-y divide-white/5">
+          {[...dayLogs].sort((a, b) => a.created_at.localeCompare(b.created_at)).map((l) => {
+            const d = describe(l, profile.settings.currency);
+            return (
+              <li key={l.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+                <span className="w-11 text-xs tabular-nums text-muted">{new Date(l.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                <span className="text-lg">{d.emoji}</span>
+                <span className="flex-1 min-w-0"><span className="block font-semibold truncate">{d.title}</span>
+                  {d.detail && <span className="block text-xs text-muted truncate">{d.detail}</span>}</span>
+                <span className="text-xs text-[var(--accent2)]">+{l.xp}</span>
+              </li>
+            );
+          })}
         </ol>
+        <Link href={`/?day=${view === "day" ? toDay(cursor) : selected}`} className="btn-primary mt-3 block text-center">Open this day to add or edit</Link>
       </section>
     </>
   );

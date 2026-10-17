@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { dailyGoals } from "@/lib/goals";
 import { initialData, useApp, type Log } from "@/lib/store";
+import { LOCK_KEY, lockMinutes } from "@/components/Gate";
 import { addDecoy, exportBackup } from "@/lib/vault";
 import { ATTRIBUTES, BADGES, progress, RANKS, UNLOCKS } from "@/lib/xp";
 
@@ -34,7 +35,8 @@ function Radar({ values }: { values: { label: string; v: number }[] }) {
 }
 
 export default function RankPage() {
-  const { data, profile, saveSettings, lock, session } = useApp();
+  const { data, profile, saveSettings, lock, signOut, hasPin, session } = useApp();
+  const [lockMin, setLockMin] = useState(() => lockMinutes());
   const p = progress(profile.xp);
   const [decoyPw, setDecoyPw] = useState("");
   const [msg, setMsg] = useState("");
@@ -139,13 +141,29 @@ export default function RankPage() {
           <label>Water ml<input className="input mt-1" inputMode="numeric" defaultValue={profile.settings.water_goal_ml} onBlur={set("water_goal_ml")} /></label>
           <label>Milk ml<input className="input mt-1" inputMode="numeric" defaultValue={profile.settings.milk_goal_ml} onBlur={set("milk_goal_ml")} /></label>
           <label>Sleep hours<input className="input mt-1" inputMode="decimal" defaultValue={profile.settings.sleep_goal_h} onBlur={set("sleep_goal_h")} /></label>
-          <label>Monthly budget<input className="input mt-1" inputMode="numeric" defaultValue={profile.settings.budget_monthly} onBlur={set("budget_monthly")} /></label>
+          <label>Monthly allowance<input className="input mt-1" inputMode="numeric" defaultValue={profile.settings.budget_monthly} onBlur={set("budget_monthly")} /></label>
+          <label>Currency<input className="input mt-1" defaultValue={profile.settings.currency} onBlur={(e) => saveSettings({ currency: e.target.value.trim() || "Rs" })} /></label>
         </div>
       </section>
 
       <section className="card p-4 mb-4 space-y-3">
         <h2 className="font-bold">Security</h2>
-        <button onClick={lock} className="btn-primary w-full">🔒 Lock now</button>
+        {hasPin ? (
+          <>
+            <button onClick={lock} className="btn-primary w-full">🔒 Lock now</button>
+            <label className="flex items-center justify-between text-sm">Ask for PIN after the app is closed for
+              <select className="input !w-28" value={lockMin} onChange={(e) => {
+                setLockMin(Number(e.target.value));
+                try { localStorage.setItem(LOCK_KEY, e.target.value); } catch {}
+              }}>
+                {[1, 5, 15, 60, 240].map((m) => <option key={m} value={m}>{m < 60 ? `${m} min` : `${m / 60} h`}</option>)}
+              </select>
+            </label>
+          </>
+        ) : (
+          <p className="text-sm text-muted">This device remembers you, so the app opens without a password.</p>
+        )}
+        <button onClick={signOut} className="btn-ghost w-full">Sign out of this device</button>
         <button onClick={backup} className="btn-ghost w-full">📦 Download encrypted backup</button>
         <p className="text-xs text-muted">Your data syncs to all your devices, end-to-end encrypted. The backup file is an extra safety copy, still locked by your password (photos not included).</p>
         <div className="flex gap-2">

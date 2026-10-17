@@ -1,49 +1,192 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AppProvider, initialData, mergeData, type Data } from "@/lib/store";
-import { getLockout, lastUser, login, readBackup, recordAttempt, register, rememberUser, type Session } from "@/lib/vault";
+import { AppProvider, initialData, mergeData, normalizeData, type Data } from "@/lib/store";
+import {
+  forgetDevice, getLockout, lastUser, login, readBackup, recordAttempt, register, remembered, rememberDevice,
+  rememberUser, save, unlockWithPin, type Session,
+} from "@/lib/vault";
 
-const IDLE_MS = 3 * 60 * 1000;
-const HIDDEN_GRACE_MS = 30 * 1000;
+export const LOCK_KEY = "lifeos-lock-minutes";
+export function lockMinutes() {
+  try {
+    return Number(localStorage.getItem(LOCK_KEY) ?? 5);
+  } catch {
+    return 5;
+  }
+}
 
-// Mandatory sign-in. The decryption key only lives in memory while unlocked;
-// idle time or leaving the app throws it away and shows this screen again.
+// Mandatory sign-in. The decryption key only lives in memory while unlocked; after the app has
+// been in the background longer than the chosen time it is dropped and the PIN is asked again.
 export function Gate({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [data, setData] = useState<Data | null>(null);
+  const [mode, setMode] = useState<"loading" | "pin" | "password" | "setpin">("loading");
+  const [hasPin, setHasPin] = useState(false);
+  const [autoError, setAutoError] = useState("");
+
+  // A remembered device without a PIN opens straight into the app.
+  const start = useCallback(async () => {
+    const r = await remembered().catch(() => null);
+    setHasPin(!!r?.hasPin);
+    if (!r) return setMode("password");
+    if (r.hasPin) return setMode("pin");
+    const res = await unlockWithPin<Data>("", mergeData).catch(() => ({ error: "Something went wrong." }));
+    if ("error" in res) {
+      setAutoError(res.error);
+      return setMode("password");
+    }
+    setSession(res.session);
+    setData(normalizeData(res.data));
+    setMode("pin");
+  }, []);
+
+  useEffect(() => { start(); }, [start]);
 
   const lock = useCallback(() => {
     setSession(null);
     setData(null);
+    setMode("loading");
+    start();
+  }, [start]);
+
+  // Signing out forgets this device; the password is needed next time.
+  const signOut = useCallback(async () => {
+    await forgetDevice();
+    setSession(null);
+    setData(null);
+    setMode("password");
   }, []);
 
   useEffect(() => {
-    if (!session) return;
-    let idle = setTimeout(lock, IDLE_MS);
+    if (!session || !hasPin) return;
     let hiddenAt = 0;
-    const reset = () => {
-      clearTimeout(idle);
-      idle = setTimeout(lock, IDLE_MS);
-    };
     const onVis = () => {
+      const limit = lockMinutes() * 60_000;
       if (document.visibilityState === "hidden") hiddenAt = Date.now();
-      else if (hiddenAt && Date.now() - hiddenAt > HIDDEN_GRACE_MS) lock();
+      else if (hiddenAt && Date.now() - hiddenAt > limit) lock();
     };
-    const events = ["pointerdown", "keydown", "scroll"];
-    events.forEach((e) => addEventListener(e, reset, { passive: true }));
     document.addEventListener("visibilitychange", onVis);
-    return () => {
-      clearTimeout(idle);
-      events.forEach((e) => removeEventListener(e, reset));
-      document.removeEventListener("visibilitychange", onVis);
-    };
-  }, [session, lock]);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [session, lock, hasPin]);
 
-  if (session && data) {
-    return <AppProvider key={session.cacheId} session={session} initial={data} onLock={lock}>{children}</AppProvider>;
+  const done = async (s: Session, d: Data, viaPassword: boolean) => {
+    const fixed = normalizeData(d);
+    // Data from an older version: store the upgraded copy right away so every device shares it.
+    if (!d.pantry || !d.items?.some((i) => i.category === "activity")) await save(s, fixed, mergeData).catch(() => {});
+    setSession(s);
+    setData(fixed);
+    setMode(viaPassword && !(await remembered()) ? "setpin" : "pin");
+  };
+
+  if (session && data && mode === "setpin") {
+    return <SetPin onDone={async (pin) => { await rememberDevice(session, pin); setHasPin(!!pin); setMode("pin"); }} />;
   }
-  return <SignIn onDone={(s, d) => { setSession(s); setData(d); }} />;
+  if (session && data) {
+    return <AppProvider key={session.cacheId} session={session} initial={data} onLock={hasPin ? lock : signOut} onSignOut={signOut} hasPin={hasPin}>{children}</AppProvider>;
+  }
+  if (mode === "loading") return <Shell><p className="text-center text-muted">Loading…</p></Shell>;
+  if (mode === "pin") return <PinUnlock onDone={(s, d) => done(s, d, false)} onPassword={() => setMode("password")} />;
+  return <SignIn onDone={(s, d) => done(s, d, true)} initialError={autoError} />;
+}
+
+function PinPad({ title, sub, error, onComplete, length = 4 }: {
+  title: string; sub?: string; error?: string; onComplete: (pin: string) => void; length?: number;
+}) {
+  const [pin, setPin] = useState("");
+  const press = (d: string) => {
+    const next = (pin + d).slice(0, length);
+    setPin(next);
+    if (next.length === length) {
+      setTimeout(() => setPin(""), 150);
+      onComplete(next);
+    }
+  };
+  return (
+    <div className="space-y-5 text-center select-none">
+      <div>
+        <div className="font-bold">{title}</div>
+        {sub && <div className="text-sm text-muted">{sub}</div>}
+      </div>
+      <div className="flex justify-center gap-3">
+        {Array.from({ length }, (_, i) => (
+          <span key={i} className={`h-3.5 w-3.5 rounded-full ${i < pin.length ? "bg-[var(--accent)] shadow-[0_0_10px_var(--accent)]" : "bg-white/15"}`} />
+        ))}
+      </div>
+      <p className="min-h-5 text-sm text-rose-400">{error}</p>
+      <div className="grid grid-cols-3 gap-3">
+        {["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "⌫"].map((k, i) =>
+          k === "" ? <span key={i} /> : (
+            <button key={k} type="button" onClick={() => (k === "⌫" ? setPin(pin.slice(0, -1)) : press(k))}
+              className="card h-14 text-2xl font-bold active:scale-95">{k}</button>
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PinUnlock({ onDone, onPassword }: { onDone: (s: Session, d: Data) => void; onPassword: () => void }) {
+  const [user, setUser] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { remembered().then((r) => r && setUser(r.user)); }, []);
+
+  const submit = async (pin: string) => {
+    setBusy(true);
+    const res = await unlockWithPin<Data>(pin, mergeData).catch(() => ({ error: "Something went wrong." } as { error: string; left?: number }));
+    setBusy(false);
+    if ("error" in res) {
+      navigator.vibrate?.([80, 50, 80]);
+      setError(res.error);
+      if (res.left === 0) onPassword();
+      return;
+    }
+    onDone(res.session, res.data);
+  };
+
+  return (
+    <Shell>
+      <PinPad title={busy ? "Unlocking…" : `Welcome back${user ? `, ${user.split("@")[0]}` : ""}`} sub="Enter your PIN" error={error} onComplete={submit} />
+      <button onClick={async () => { await forgetDevice(); onPassword(); }} className="w-full text-sm text-muted">Use password instead</button>
+    </Shell>
+  );
+}
+
+function SetPin({ onDone }: { onDone: (pin: string | null) => void }) {
+  const [first, setFirst] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [wantPin, setWantPin] = useState(false);
+  if (!wantPin) {
+    return (
+      <Shell>
+        <div className="text-center space-y-1">
+          <div className="font-bold">This device will remember you</div>
+          <div className="text-sm text-muted">Next time the app opens straight away, no password needed.</div>
+        </div>
+        <button onClick={() => onDone(null)} className="btn-primary w-full">Continue</button>
+        <button onClick={() => setWantPin(true)} className="w-full text-sm text-muted">Add a 4-digit PIN lock (optional)</button>
+      </Shell>
+    );
+  }
+  return (
+    <Shell>
+      <PinPad
+        title={first ? "Repeat your PIN" : "Set a 4-digit PIN"}
+        sub="Unlock quickly on this device without your password"
+        error={error}
+        onComplete={(pin) => {
+          if (!first) return setFirst(pin);
+          if (pin !== first) {
+            setFirst(null);
+            return setError("PINs didn't match. Try again.");
+          }
+          onDone(pin);
+        }}
+      />
+      <button onClick={() => onDone(null)} className="w-full text-sm text-muted">No PIN, just remember me</button>
+    </Shell>
+  );
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -60,7 +203,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SignIn({ onDone }: { onDone: (s: Session, d: Data) => void }) {
+function SignIn({ onDone, initialError = "" }: { onDone: (s: Session, d: Data) => void; initialError?: string }) {
   const [mode, setMode] = useState<"in" | "up">("in");
   const [user, setUser] = useState("");
   const [name, setName] = useState("");
@@ -68,7 +211,7 @@ function SignIn({ onDone }: { onDone: (s: Session, d: Data) => void }) {
   const [pw2, setPw2] = useState("");
   const [backup, setBackup] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialError);
   const [until, setUntil] = useState(0);
   const [now, setNow] = useState(Date.now());
 
@@ -104,7 +247,7 @@ function SignIn({ onDone }: { onDone: (s: Session, d: Data) => void }) {
       }
       await recordAttempt(true);
       await rememberUser(res.session.user);
-      onDone(res.session, { ...res.data, deleted: res.data.deleted ?? [] });
+      onDone(res.session, res.data);
     } catch {
       setError(backup ? "That password doesn't open this backup." : "Something went wrong. Try again.");
     } finally {
