@@ -102,6 +102,7 @@ function describeInner(l: Log, currency: string): { emoji: string; title: string
     case "spin": return { emoji: "🎡", title: "Lucky spin", detail: `+${d.gold} gold` };
     case "login": return { emoji: "📅", title: `Login reward day ${d.n}`, detail: `+${d.gold} gold` };
     case "goalstep": return { emoji: "🏔️", title: `Goal progress: ${d.name}`, detail: `${d.progress}%` };
+    case "sick": return { emoji: d.recovered ? "💪" : "🤒", title: d.recovered ? "Feeling better" : `Doctor consult: ${d.top ?? "symptoms"}`, detail: join(Array.isArray(d.symptoms) ? (d.symptoms as string[]).join(", ") : "", d.temp ? `${d.temp} °C` : "", String(d.advice ?? "")) };
     case "pages": return { emoji: "📖", title: `Read ${d.pages} pages`, detail: String(d.name ?? "") };
     default: {
       const c = CHECKIN_BY_KIND[l.kind];

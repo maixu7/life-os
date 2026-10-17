@@ -68,6 +68,11 @@ h1, h2, h3, .font-game { font-family: var(--font-display), sans-serif; letter-sp
     width: 100%; border-radius: 12px; padding: 0.7rem 0.9rem; background: rgba(0,0,0,0.45);
     border: 1px solid var(--border); color: var(--text); outline: none;
   }
+  .input { min-width: 0; max-width: 100%; }
+  /* iOS draws date/time inputs wider than their box unless appearance is reset */
+  input[type="date"], input[type="time"], input[type="datetime-local"] { -webkit-appearance: none; appearance: none; min-width: 0; display: block; min-height: 2.75rem; }
+  input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-date-and-time-value { text-align: left; }
+  label { min-width: 0; }
   .input:focus { border-color: var(--accent2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 25%, transparent); }
   .btn-primary {
     position: relative; border-radius: 12px; padding: 0.7rem 1rem; font-weight: 800; color: #0b0420;

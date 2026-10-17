@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { battleFor, bodyOf, health, skills, strength, weightForecast, type Battle, type Lift } from "@/lib/body";
-import { moveOf, variantOf } from "@/lib/moves";
+import { PoseDemo, tutorialUrl } from "@/components/PoseDemo";
+import { moveOf, variantOf, type Move } from "@/lib/moves";
 import { toDay, useApp } from "@/lib/store";
 
 const Bar = ({ pct, color = "var(--accent2)" }: { pct: number; color?: string }) => (
@@ -37,6 +38,30 @@ function LiftRow({ l }: { l: Lift }) {
   );
 }
 
+// Every skill from Noob to Master, with real hours and when you reach the next level.
+export function SkillsList() {
+  const { data } = useApp();
+  const sk = useMemo(() => skills(data), [data]);
+  return (
+    <>
+      {sk.length ? (
+        <div className="grid gap-2">
+          {sk.map((s) => (
+            <div key={s.name} className="rounded-xl bg-white/5 p-3">
+              <div className="flex justify-between text-sm"><span>{s.icon} <b>{s.name}</b> · {s.level}</span><span className="text-xs text-muted">{s.hours} h</span></div>
+              <Bar pct={s.pct} />
+              <div className="mt-1 text-[11px] text-muted">
+                {s.levelDesc}. {s.next ? <>Next: <b>{s.next[0]}</b> at {s.next[1]} h, {when(s.daysToNext)}{s.pace > 0 ? ` at your pace of ${Math.round(s.pace * 60)} min a day` : ""}.</> : "Top level reached."} {s.hint}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : <p className="text-xs text-muted">Log coding, reading, study or practice with minutes to see how many hours until you level up.</p>}
+      <p className="mt-1 text-[10px] text-muted">Levels: Noob 0 h · Beginner 20 h · Intermediate 100 h · Advanced 500 h · Expert 2,000 h · Master 10,000 h of real practice.</p>
+    </>
+  );
+}
+
 // Real strength numbers for one exercise (Training Grounds).
 export function LiftCard({ name }: { name: string }) {
   const { data } = useApp();
@@ -53,7 +78,6 @@ export function RealMe() {
   const b = useMemo(() => bodyOf(data), [data]);
   const wf = useMemo(() => weightForecast(data), [data]);
   const lifts = useMemo(() => strength(data), [data]);
-  const sk = useMemo(() => skills(data), [data]);
   const e = h.energy;
   const battles = data.logs.filter((l) => l.kind === "battle").slice(-7).reverse();
   const color = h.score >= 75 ? "#22c55e" : h.score >= 50 ? "#ffd166" : "#ff5d73";
@@ -108,20 +132,7 @@ export function RealMe() {
 
       <div>
         <div className="font-semibold mb-1">🧠 Skills: noob to expert</div>
-        {sk.length ? (
-          <div className="grid gap-2">
-            {sk.map((s) => (
-              <div key={s.name} className="rounded-xl bg-white/5 p-3">
-                <div className="flex justify-between text-sm"><span>{s.icon} <b>{s.name}</b> · {s.level}</span><span className="text-xs text-muted">{s.hours} h</span></div>
-                <Bar pct={s.pct} />
-                <div className="mt-1 text-[11px] text-muted">
-                  {s.levelDesc}. {s.next ? <>Next: <b>{s.next[0]}</b> at {s.next[1]} h, {when(s.daysToNext)}{s.pace > 0 ? ` at your pace of ${Math.round(s.pace * 60)} min a day` : ""}.</> : "Top level reached."} {s.hint}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : <p className="text-xs text-muted">Log coding, reading, study or training with minutes to see how many hours until you level up.</p>}
-        <p className="mt-1 text-[10px] text-muted">Levels: Noob 0 h · Beginner 20 h · Intermediate 100 h · Advanced 500 h · Expert 2,000 h · Master 10,000 h of real practice.</p>
+        <SkillsList />
       </div>
 
       {battles.length > 0 && (
@@ -197,8 +208,8 @@ export function BattleWatcher() {
 }
 
 // What an exercise or practice does for the body and mind.
-export function ImpactCard({ name, variant }: { name: string; variant?: string }) {
-  const m = moveOf(name);
+export function ImpactCard({ name, variant, move }: { name: string; variant?: string; move?: Move }) {
+  const m = move ?? moveOf(name);
   if (!m) return null;
   const vr = variantOf(m, variant);
   return (
@@ -208,7 +219,14 @@ export function ImpactCard({ name, variant }: { name: string; variant?: string }
       {m.body.length > 0 && <div><span className="text-muted">Body: </span>{m.body.join(", ")}</div>}
       {m.mind.length > 0 && <div><span className="text-muted">Mind: </span>{m.mind.join(", ")}</div>}
       {vr && <div><span className="text-muted">{vr.name}: </span>{vr.note}{vr.factor !== 1 ? ` (${vr.factor > 1 ? `${vr.factor}× harder` : `${Math.round(vr.factor * 100)}% of the effort`} than standard)` : ""}</div>}
-      <div className="text-muted">🔬 {m.science}</div>
+      {m.science && <div className="text-muted">🔬 {m.science}</div>}
+      {m.kind === "body" && (m.pattern || m.steps?.length) ? (
+        <div className="flex gap-3 items-center pt-2">
+          {m.pattern && <PoseDemo pattern={m.pattern} speed={vr && vr.factor > 1.3 ? 0.8 : 1} className="!w-28 shrink-0" />}
+          <ol className="list-decimal pl-4 space-y-0.5 flex-1 min-w-0">{(m.steps ?? []).map((s) => <li key={s}>{s}</li>)}</ol>
+        </div>
+      ) : null}
+      {m.kind === "body" && <a href={tutorialUrl(m.name, vr?.name)} target="_blank" rel="noreferrer" className="inline-block text-[var(--accent2)] underline">▶ Watch a video of {vr ? `${vr.name.toLowerCase()} ` : ""}{m.name.toLowerCase()}</a>}
     </div>
   );
 }

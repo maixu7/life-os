@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { PixelHero } from "@/components/PixelHero";
+import { AvatarArt } from "@/components/AvatarArt";
 import { Sheet } from "@/components/Sheet";
 import { gold } from "@/lib/economy";
 import { DEFAULT_GEAR, GEAR, gearById, ownedGear, RARITY, SLOTS, type Slot } from "@/lib/gear";
@@ -36,7 +37,7 @@ export function CharacterPanel() {
       <div className="flex items-center justify-between gap-1">
         {col(["head", "cape", "chest"])}
         <div className="rounded-xl bg-[#1b130c] p-1 shadow-[inset_0_0_0_3px_#5c4630]">
-          <PixelHero a={profile.avatar} size={130} />
+          <AvatarArt a={profile.avatar} size={170} full glow={false} />
         </div>
         {col(["gloves", "legs", "boots"])}
       </div>

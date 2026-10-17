@@ -1,5 +1,6 @@
 "use client";
 
+import { WhenPicker } from "@/components/When";
 import { useEffect, useMemo, useState } from "react";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { XpHeader } from "@/components/XpHeader";
@@ -446,7 +447,7 @@ function BuySheet({ item, cur, onClose, onBuy }: {
         </label>
         <label className="text-xs text-muted">Paid ({cur})<input autoFocus className="input mt-1" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} /></label>
       </div>
-      <label className="text-xs text-muted">When<input type="datetime-local" className="input mt-1" value={when} onChange={(e) => setWhen(e.target.value)} /></label>
+      <WhenPicker label="When" value={when} onChange={setWhen} />
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={toStorage} onChange={(e) => setToStorage(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" /> Add to my storage</label>
       <button className="btn-primary w-full" onClick={() => onBuy(Number(qty) || 1, unit, price === "" ? null : Number(price), new Date(when), toStorage)}>Save purchase</button>
     </Sheet>

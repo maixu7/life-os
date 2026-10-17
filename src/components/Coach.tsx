@@ -7,6 +7,7 @@ import { isNapTime } from "@/lib/slots";
 import { useApp, useCustomItems } from "@/lib/store";
 import { ScheduleSheet } from "@/components/ScheduleSheet";
 import { gaps } from "@/lib/gaps";
+import { wokeRecently } from "@/lib/schedule";
 import { DAY_LABEL, fmt12, isQuiet, PHASE_LINES, phaseNow, sched, sleepTimes, type Now } from "@/lib/schedule";
 import { pick, SLEEP_WHY, WISDOM, type Wisdom } from "@/lib/wisdom";
 
@@ -76,7 +77,8 @@ export function CoachCard() {
   const { data } = useApp();
   const [plan, setPlan] = useState(false);
   const sc = sched(data.profile.settings.schedule);
-  const n = phaseNow(sc);
+  const n0 = phaseNow(sc);
+  const n = n0.phase === "sleep" && wokeRecently(data.logs) ? { ...n0, phase: "morning" as const, label: "Morning (you're up)" } : n0;
   const run = useRunAction();
   const [i, setI] = useState(0);
   const [, force] = useState(0);
@@ -165,6 +167,8 @@ export function Popper() {
   const scRef = useRef(sc);
   useEffect(() => { scRef.current = sc; });
   const [woke, setWoke] = useState(false);
+  const logsRef = useRef(data.logs);
+  useEffect(() => { logsRef.current = data.logs; });
 
   // Random popups every 3 to 8 minutes while the app is open.
   useEffect(() => {
@@ -246,7 +250,7 @@ export function Popper() {
         if (opened && since >= 3 && once("lifeos-woke", 15)) { setAnswer(null); setWoke(true); }
         return;
       }
-      if (n.phase === "sleep") {
+      if (n.phase === "sleep" && !wokeRecently(logsRef.current)) {
         // Every time the app is opened at night, and every 20 minutes while it stays open.
         if (opened ? once("lifeos-night-open", 2) : once("lifeos-night", 20)) { setAnswer(null); setNight(true); }
         return;

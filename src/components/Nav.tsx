@@ -2,22 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const TABS = [
-  { href: "/", icon: "🏯", label: "Base" },
-  { href: "/train", icon: "⚔️", label: "Train" },
-  { href: "/shop", icon: "🏪", label: "Shop" },
-  { href: "/tools", icon: "🧰", label: "Tools" },
-  { href: "/focus", icon: "🧘", label: "Dojo" },
-  { href: "/calendar", icon: "📜", label: "Days" },
-  { href: "/rank", icon: "🛡️", label: "Hero" },
-];
+import { useApp } from "@/lib/store";
+import { tabsOf } from "@/lib/ui";
 
 export function Nav() {
   const path = usePathname();
+  const { profile } = useApp();
+  const TABS = tabsOf(profile.settings.ui);
   return (
     <nav className="fixed bottom-0 inset-x-0 z-30 border-t border-[var(--border)] bg-[#08051a]/90 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
-      <div className="mx-auto max-w-2xl grid grid-cols-7">
+      <div className="mx-auto max-w-2xl grid" style={{ gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))` }}>
         {TABS.map((t) => {
           const on = t.href === "/" ? path === "/" : path.startsWith(t.href);
           return (

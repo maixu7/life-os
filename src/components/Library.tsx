@@ -1,5 +1,6 @@
 "use client";
 
+import { WhenPicker } from "@/components/When";
 import { useEffect, useMemo, useState } from "react";
 import { Pic } from "@/components/Pic";
 import { dtLocal, Sheet } from "@/components/Sheet";
@@ -219,7 +220,7 @@ function MediaSheet({ start, at, onClose, onLogged }: { start: Recent; at: () =>
       <label className="text-xs text-muted">How long (minutes)
         <input className="input mt-1" inputMode="numeric" value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder={pages ? `about ${pages * 2}` : "30"} /></label>
       <WherePicker value={where} onChange={setWhere} />
-      <label className="text-xs text-muted">When<input type="datetime-local" className="input mt-1" value={when} onChange={(e) => e.target.value && setWhen(e.target.value)} /></label>
+      <WhenPicker label="When" value={when} onChange={setWhen} />
       <input className="input" placeholder="Note: what did you learn or think? (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
       <button onClick={save} disabled={!title.trim()} className="btn-primary w-full">Log it</button>
     </Sheet>
@@ -321,7 +322,7 @@ function CodingSheet({ at, onClose, onLogged }: { at: () => Date; onClose: () =>
       </div>
       <input className="input" inputMode="numeric" placeholder="Minutes" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
       <WherePicker value={where} onChange={setWhere} />
-      <label className="text-xs text-muted">When<input type="datetime-local" className="input mt-1" value={when} onChange={(e) => e.target.value && setWhen(e.target.value)} /></label>
+      <WhenPicker label="When" value={when} onChange={setWhen} />
       <button onClick={save} disabled={kind !== "typing" && !language} className="btn-primary w-full">Log coding</button>
     </Sheet>
   );

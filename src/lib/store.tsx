@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Schedule } from "@/lib/schedule";
+import type { Ui } from "@/lib/ui";
 import type { Slot } from "@/lib/gear";
 import { emojiFor } from "@/lib/emoji";
 import { realityCheck } from "@/lib/reality";
@@ -18,6 +19,7 @@ export type Settings = {
   currency: string;
   allowances: Record<string, number>; // "2026-10" -> allowance for that month
   schedule?: Partial<Schedule>; // wake/sleep, work hours, breaks, holidays
+  ui?: Ui; // bottom menu tabs and hidden Base Camp sections
 };
 export type Avatar = {
   skin: string; hair: string; hairStyle: number; eyes: string; outfit: string; accessory: number; heroClass: string;
@@ -31,7 +33,7 @@ export type Profile = {
   about?: string; // "About me", written by the hero; shapes habit quests
 };
 export const DEFAULT_AVATAR: Avatar = {
-  skin: "#f6d2b8", hair: "#2b2d42", hairStyle: 0, eyes: "#4cc9f0", outfit: "#7b2cbf", accessory: 1, heroClass: "Ninja",
+  skin: "#f6d2b8", hair: "#2b2d42", hairStyle: 0, eyes: "#3b2417", outfit: "#7b2cbf", accessory: 1, heroClass: "Ninja",
 };
 export type Log = { id: string; day: string; kind: string; data: Record<string, unknown>; xp: number; created_at: string };
 export type CustomItem = { id: string; category: string; name: string; config: Record<string, unknown>; sort: number };

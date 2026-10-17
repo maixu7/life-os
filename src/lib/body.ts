@@ -16,7 +16,7 @@ const f = (name: string, re: RegExp, per: string, kcal: number, protein: number,
 
 export const FOODS: Food[] = [
   f("Apple", /apple/i, "1 medium", 95, 0.5, "🍎"), f("Banana", /banana/i, "1 medium", 105, 1.3, "🍌"), f("Orange", /orange/i, "1 medium", 62, 1.2, "🍊"),
-  f("Mango", /mango/i, "1 whole", 200, 2.8, "🥭"), f("Grapes", /grape/i, "1 cup", 104, 1.1, "🍇"), f("Watermelon", /watermelon/i, "1 slice", 85, 1.7, "🍉"),
+  f("Mango", /mango/i, "1 whole", 200, 2.8, "🥭"), f("Grapes", /grape/i, "1 cup", 104, 1.1, "🍇"), f("Watermelon", /watermelon/i, "1 slice", 85, 1.7, "🍉"), f("Fruit", /fruit|berr|pineapple|papaya|guava|pomegranate/i, "1 bowl", 90, 1, "🍓"),
   f("Egg (boiled)", /\begg/i, "1 egg", 78, 6.3, "🥚"), f("Omelette", /omelet/i, "2 eggs", 190, 13, "🍳"), f("Milk", /milk/i, "1 glass 250 ml", 150, 8, "🥛"),
   f("Tea", /\btea\b|chai/i, "1 cup with sugar", 60, 1.5, "🍵"), f("Coffee", /coffee/i, "1 cup with milk", 60, 2, "☕"),
   f("Rice", /rice(?! fried)/i, "1 cup cooked", 205, 4.3, "🍚"), f("Roti / chapati", /roti|chapat/i, "1 piece", 120, 3, "🫓"), f("Paratha", /paratha/i, "1 piece", 260, 5, "🫓"),

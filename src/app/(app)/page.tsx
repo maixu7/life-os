@@ -1,9 +1,13 @@
 "use client";
 
+import { WhenPicker } from "@/components/When";
 import { useEffect, useMemo, useState } from "react";
-import { isNapTime } from "@/lib/slots";
+import { isNapTime, optionsFor } from "@/lib/slots";
 import { CoachCard } from "@/components/Coach";
 import { GapsCard } from "@/components/Gaps";
+import { MealSheet, MealsCard, MEALS } from "@/components/Meals";
+import { GaugesCard } from "@/components/Gauges";
+import { LearnToday } from "@/components/Learn";
 import { HabitQuests } from "@/components/Habits";
 import { ActivitySheet } from "@/components/ActivitySheet";
 import { Library } from "@/components/Library";
@@ -71,6 +75,7 @@ export default function TodayPage() {
   const { profile, logActivity, celebrate, data } = useApp();
   const { logs } = useLogs(day);
   const settings = profile.settings;
+  const show = (id: string) => !settings.ui?.hide?.includes(id);
   const missions = dailyMissions(logs, settings);
   const goals = missions;
   const doneCount = missions.filter((g) => g.done).length;
@@ -126,14 +131,17 @@ export default function TodayPage() {
         {!isToday && <button onClick={() => setDay(today())} className="chip chip-on">Today</button>}
       </div>
 
-      {isToday && <CoachCard />}
-      {isToday && <GapsCard />}
+      {isToday && show("coach") && <CoachCard />}
+      {isToday && show("learn") && <LearnToday compact />}
+      {isToday && show("gaps") && <GapsCard />}
 
-      {isToday && <SleepCard onLogged={setToast} />}
+      {isToday && show("sleep") && <SleepCard onLogged={setToast} />}
+      {isToday && show("meals") && <MealsCard />}
 
-      {isToday && <BossAndChest />}
+      {isToday && show("gauges") && <GaugesCard />}
+      {isToday && show("boss") && <BossAndChest />}
 
-      <section className="mb-4">
+      {show("missions") && <section className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="section-title">⚔ Daily missions</h2>
           <span className="font-game text-sm text-[var(--accent2)]">{doneCount}/{missions.length}</span>
@@ -158,8 +166,9 @@ export default function TodayPage() {
             </button>
           ))}
         </div>
-      </section>
+      </section>}
 
+      {show("potions") && <>
       <h2 className="section-title mb-2">🧪 Potions</h2>
       <section className="grid grid-cols-2 gap-3 mb-4">
         <LiquidGlass label="Water" color="#46c8ff" ml={sumMl(logs, "water")} goal={settings.water_goal_ml}
@@ -167,14 +176,15 @@ export default function TodayPage() {
         <LiquidGlass label="Milk" color="#fff6e8" ml={sumMl(logs, "milk")} goal={settings.milk_goal_ml}
           onAdd={(ml) => log("milk", { ml }, "STRONG BONES!")} />
       </section>
+      </>}
 
-      <Activities onLog={(a) => (/^coding$/i.test(a.name) ? setCodeOpen((n) => n + 1) : setActItem(a))} />
+      {show("quests") && <Activities onLog={(a) => (/^coding$/i.test(a.name) ? setCodeOpen((n) => n + 1) : setActItem(a))} />}
 
-      {isToday && <HabitQuests />}
+      {isToday && show("habits") && <HabitQuests />}
 
-      <Library at={() => atFor(day)} onLogged={setToast} openSignal={libOpen} codeSignal={codeOpen} />
+      <div className={show("library") ? "" : "hidden"}><Library at={() => atFor(day)} onLogged={setToast} openSignal={libOpen} codeSignal={codeOpen} /></div>
 
-      <PantryStrip day={day} onLogged={setToast} />
+      {show("pantry") && <PantryStrip day={day} onLogged={setToast} />}
 
       <section className="card p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
@@ -207,7 +217,9 @@ export default function TodayPage() {
                 <li key={l.id}>
                   <button onClick={() => setEditing(l)} className="w-full flex items-center gap-3 py-2 text-left rounded-xl hover:bg-white/5 active:bg-white/10">
                     <span className="w-11 text-right text-xs tabular-nums text-muted">{fmtTime(l.created_at)}</span>
-                    {picName(l) ? (
+                    {l.data.photo ? (
+                      <Pic name="" src={String(l.data.photo)} emoji={d.emoji} size={32} className="relative z-10 !rounded-full border border-white/10" />
+                    ) : picName(l) ? (
                       <Pic name={picName(l)!} hint={l.kind === "media" ? picHint(l) : ""} emoji={d.emoji} size={32} className="relative z-10 !rounded-full border border-white/10" />
                     ) : (
                       <span className="relative z-10 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#1c1330] border border-white/10 text-base">{d.emoji}</span>
@@ -251,14 +263,21 @@ function SleepCard({ onLogged }: { onLogged: (l: Log) => void }) {
     return () => clearInterval(t);
   }, []);
 
-  const wake = () => {
-    const now = new Date();
-    const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    if (open) updateLog(open.id, { data: { end: now.toISOString() } });
-    const row = logActivity("wake", { time, slept_from: open?.data.start ?? null });
-    celebrate({ title: "OHAYO!", subtitle: open ? `You slept ${fmtDuration(now.getTime() - new Date(String(open.data.start)).getTime())}` : undefined, xp: row.xp });
+  const wake = (at = new Date()) => {
+    const time = `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`;
+    if (open) updateLog(open.id, { data: { end: at.toISOString() } });
+    const row = logActivity("wake", { time, slept_from: open?.data.start ?? null }, at);
+    celebrate({ title: "OHAYO!", subtitle: open ? `You slept ${fmtDuration(at.getTime() - new Date(String(open.data.start)).getTime())}` : `Woke up at ${fmtTime(at.toISOString())}`, xp: row.xp });
     onLogged(row);
   };
+  const sleep = (at = new Date()) => {
+    const nap = isNapTime(at);
+    const row = logActivity("sleep", { start: at.toISOString(), end: null, type: nap ? "nap" : "night" }, at);
+    celebrate({ title: nap ? "POWER NAP!" : "OYASUMI!", subtitle: nap ? "Day nap started. 20–30 min recharges best." : "Night sleep started. Tonight your day's work fights the demon. Sleep well, hero." });
+    onLogged(row);
+  };
+  const [ask, setAsk] = useState<"sleep" | "wake" | null>(null);
+  const sheet = ask && <SleepWakeSheet kind={ask} since={open ? new Date(String(open.data.start)) : null} onClose={() => setAsk(null)} onSave={(at) => { (ask === "wake" ? wake : sleep)(at); setAsk(null); }} />;
 
   if (open) {
     const since = new Date(String(open.data.start));
@@ -267,33 +286,71 @@ function SleepCard({ onLogged }: { onLogged: (l: Log) => void }) {
         <div className="text-4xl">😴</div>
         <div className="mt-1 font-bold">Sleeping since {fmtTime(open.data.start as string)}</div>
         <div className="text-3xl font-black tabular-nums glow-text">{fmtDuration(Date.now() - since.getTime())}</div>
-        <button onClick={wake} className="btn-primary mt-3 w-full text-lg">☀️ I woke up</button>
+        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+          <button onClick={() => setAsk("wake")} className="btn-primary text-lg">☀️ I woke up…</button>
+          <button onClick={() => wake()} className="btn-ghost" aria-label="Woke up now">✓ Now</button>
+        </div>
+        {sheet}
       </section>
     );
   }
+  const tile = (kind: "sleep" | "wake", icon: string, title: string, sub: string, cls: string) => (
+    <div className={`card relative p-3 flex flex-col gap-2 ${cls}`}>
+      <button onClick={() => setAsk(kind)} className="flex items-center gap-2 text-left active:scale-95 transition">
+        <span className="text-3xl">{icon}</span>
+        <span className="min-w-0"><span className="block font-bold leading-tight">{title}</span><span className="text-[11px] text-muted">{sub}</span></span>
+      </button>
+      <button onClick={() => (kind === "wake" ? wake() : sleep())} aria-label={`${title} now`} className="btn-ghost !py-1.5 text-xs">✓ Now</button>
+    </div>
+  );
   return (
     <section className="grid grid-cols-2 gap-3 mb-4">
-      <button onClick={() => {
-        const nap = isNapTime();
-        const row = logActivity("sleep", { start: new Date().toISOString(), end: null, type: nap ? "nap" : "night" });
-        celebrate({ title: nap ? "POWER NAP!" : "OYASUMI!", subtitle: nap ? "Day nap started. 20–30 min recharges best." : "Night sleep started. Sleep well, hero." });
-        onLogged(row);
-      }} className="card p-4 flex items-center gap-3 active:scale-95 transition bg-gradient-to-br from-indigo-500/25 to-transparent">
-        <span className="text-3xl">🌙</span>
-        <span className="text-left"><span className="block font-bold">{isNapTime() ? "Taking a nap" : "Going to sleep"}</span><span className="text-xs text-muted">{isNapTime() ? "☀️ Day nap (auto)" : "🌙 Night sleep (auto)"}</span></span>
-      </button>
-      <button onClick={wake} className="card p-4 flex items-center gap-3 active:scale-95 transition bg-gradient-to-br from-amber-400/25 to-transparent">
-        <span className="text-3xl">☀️</span>
-        <span className="text-left"><span className="block font-bold">Woke up</span><span className="text-xs text-muted">Log wake time</span></span>
-      </button>
+      {tile("sleep", "🌙", isNapTime() ? "Taking a nap" : "Going to sleep", "Tap to pick the time", "bg-gradient-to-br from-indigo-500/25 to-transparent")}
+      {tile("wake", "☀️", "Woke up", "Tap to pick the time", "bg-gradient-to-br from-amber-400/25 to-transparent")}
+      {sheet}
     </section>
   );
 }
 
+// "When did you really wake up / fall asleep?" e.g. bathroom first, log 40 min later.
+function SleepWakeSheet({ kind, since, onClose, onSave }: { kind: "sleep" | "wake"; since: Date | null; onClose: () => void; onSave: (at: Date) => void }) {
+  const [when, setWhen] = useState(dtLocal(new Date()));
+  const at = new Date(when);
+  const bad = since && at.getTime() <= since.getTime();
+  return (
+    <Sheet title={kind === "wake" ? "☀️ When did you wake up?" : "🌙 When did you fall asleep?"} onClose={onClose}>
+      <p className="text-xs text-muted">{kind === "wake" ? "Went to the bathroom first? Pick how long ago you really woke up." : "Pick when you actually fell asleep."}</p>
+      <WhenPicker label={kind === "wake" ? "Woke up at" : "Fell asleep at"} value={when} onChange={setWhen} />
+      {since && !bad && <p className="text-sm text-[var(--accent2)]">You slept {fmtDuration(at.getTime() - since.getTime())}</p>}
+      {bad && <p className="text-sm text-rose-300">That is before you went to sleep ({fmtTime(since.toISOString())}).</p>}
+      <button disabled={!!bad} onClick={() => onSave(at)} className="btn-primary w-full">Save</button>
+    </Sheet>
+  );
+}
+
+type ActForm = { id?: string; name: string; emoji: string; alignment?: string; options: string[]; goal: string; minutes: string };
+
 function Activities({ onLog }: { onLog: (a: CustomItem) => void }) {
+  const { data } = useApp();
   const { items, add, update, remove } = useCustomItems("activity");
   const [edit, setEdit] = useState(false);
-  const [form, setForm] = useState<{ id?: string; name: string; emoji: string; alignment?: string } | null>(null);
+  const [form, setForm] = useState<ActForm | null>(null);
+  const [mini, setMini] = useState("");
+  const day = toDay(new Date());
+  const doneToday = (name: string) => data.logs.filter((l) => l.day === day && l.kind === "activity" && String(l.data.name).toLowerCase() === name.toLowerCase()).length;
+  const open = (a?: CustomItem) => {
+    setMini("");
+    setForm(a ? {
+      id: a.id, name: a.name, emoji: String(a.config.emoji ?? emojiFor(a.name)), alignment: a.config.alignment as string | undefined,
+      options: Array.isArray(a.config.options) ? (a.config.options as string[]) : optionsFor(a.name),
+      goal: a.config.goal ? String(a.config.goal) : "", minutes: a.config.minutes ? String(a.config.minutes) : "",
+    } : { name: "", emoji: "", options: [], goal: "", minutes: "" });
+  };
+  const move = (a: CustomItem, dir: -1 | 1) => {
+    const i = items.indexOf(a), b = items[i + dir];
+    if (!b) return;
+    update(a.id, { sort: b.sort }); update(b.id, { sort: a.sort === b.sort ? a.sort + dir : a.sort });
+  };
 
   return (
     <section className="card p-4 mb-4">
@@ -302,16 +359,27 @@ function Activities({ onLog }: { onLog: (a: CustomItem) => void }) {
         <button onClick={() => setEdit(!edit)} className={`chip ${edit ? "chip-on" : ""}`}>{edit ? "Done" : "Edit"}</button>
       </div>
       <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-        {items.map((a) => (
-          <button key={a.id}
-            onClick={() => (edit ? setForm({ id: a.id, name: a.name, emoji: String(a.config.emoji ?? emojiFor(a.name)), alignment: a.config.alignment as string | undefined }) : onLog(a))}
-            className={`relative rounded-2xl border border-white/10 bg-white/[.04] py-3 px-1 flex flex-col items-center gap-1 active:scale-95 transition ${edit ? "ring-1 ring-[var(--accent)]/60" : "hover:bg-white/10"}`}>
-            <span className="text-2xl">{String(a.config.emoji ?? emojiFor(a.name))}</span>
-            <span className="text-[11px] leading-tight text-center line-clamp-2">{a.name}</span>
-            {edit && <span className="absolute top-1 right-1.5 text-[10px] text-[var(--accent)]">✎</span>}
-          </button>
-        ))}
-        <button onClick={() => setForm({ name: "", emoji: "" })}
+        {items.map((a) => {
+          const goal = Number(a.config.goal) || 0, n = doneToday(a.name);
+          return (
+            <div key={a.id} className="relative">
+              <button onClick={() => (edit ? open(a) : onLog(a))}
+                className={`w-full rounded-2xl border border-white/10 bg-white/[.04] py-3 px-1 flex flex-col items-center gap-1 active:scale-95 transition ${edit ? "ring-1 ring-[var(--accent)]/60" : "hover:bg-white/10"} ${goal && n >= goal ? "!border-emerald-400/60" : ""}`}>
+                <span className="text-2xl">{String(a.config.emoji ?? emojiFor(a.name))}</span>
+                <span className="text-[11px] leading-tight text-center line-clamp-2">{a.name}</span>
+                {goal > 0 && !edit && <span className={`text-[9px] ${n >= goal ? "text-emerald-300" : "text-muted"}`}>{n >= goal ? "✓ " : ""}{Math.min(n, goal)}/{goal}</span>}
+                {edit && <span className="absolute top-1 right-1.5 text-[10px] text-[var(--accent)]">✎</span>}
+              </button>
+              {edit && (
+                <div className="flex justify-between mt-0.5">
+                  <button aria-label={`Move ${a.name} left`} onClick={() => move(a, -1)} className="text-[10px] text-muted px-1">◀</button>
+                  <button aria-label={`Move ${a.name} right`} onClick={() => move(a, 1)} className="text-[10px] text-muted px-1">▶</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <button onClick={() => open()}
           className="rounded-2xl border border-dashed border-white/20 py-3 flex flex-col items-center gap-1 text-muted active:scale-95">
           <span className="text-2xl">＋</span><span className="text-[11px]">Add</span>
         </button>
@@ -325,7 +393,26 @@ function Activities({ onLog }: { onLog: (a: CustomItem) => void }) {
             <input autoFocus className="input" placeholder="e.g. Football, Guitar, Homework" value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
-          <p className="text-xs text-muted">The picture is picked automatically from the name. Tap it to change.</p>
+          <p className="text-xs text-muted">The picture is picked automatically from the name. Tap it to type any emoji.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {["🛁", "🚿", "🪥", "📚", "💻", "🏃", "🧘", "🍳", "🧹", "🎸", "🎨", "🙏", "💊", "🐕", "🌱", "🛒"].map((e) => <button key={e} onClick={() => setForm({ ...form, emoji: e })} className={`chip !px-2 !py-1 ${form.emoji === e ? "chip-on" : ""}`}>{e}</button>)}
+          </div>
+          <div>
+            <div className="text-xs text-muted mb-1">Mini tasks (e.g. Bath: hair wash, full body wash)</div>
+            <div className="flex flex-wrap gap-1.5">
+              {form.options.map((o) => <button key={o} onClick={() => setForm({ ...form, options: form.options.filter((x) => x !== o) })} className="chip chip-on !py-1 text-xs">{o} ✕</button>)}
+              {!form.options.length && <span className="text-xs text-muted">None yet.</span>}
+            </div>
+            <div className="flex gap-2 mt-2">
+              <input className="input" placeholder="Add a mini task" value={mini} onChange={(e) => setMini(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && mini.trim()) { setForm({ ...form, options: [...form.options, mini.trim()] }); setMini(""); } }} />
+              <button onClick={() => { if (mini.trim() && !form.options.includes(mini.trim())) { setForm({ ...form, options: [...form.options, mini.trim()] }); setMini(""); } }} className="btn-primary !px-3 text-sm">Add</button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs text-muted">Goal per day<input className="input mt-1" inputMode="numeric" placeholder="e.g. 1" value={form.goal} onChange={(e) => setForm({ ...form, goal: e.target.value })} /></label>
+            <label className="text-xs text-muted">Usual minutes<input className="input mt-1" inputMode="numeric" placeholder="e.g. 20" value={form.minutes} onChange={(e) => setForm({ ...form, minutes: e.target.value })} /></label>
+          </div>
           <div className="grid grid-cols-3 gap-2">
             {[["light", "😇 Light"], ["", "⚖️ Auto"], ["shadow", "😈 Shadow"]].map(([v, l]) => (
               <button key={v} onClick={() => setForm({ ...form, alignment: v || undefined })}
@@ -334,10 +421,12 @@ function Activities({ onLog }: { onLog: (a: CustomItem) => void }) {
           </div>
           <div className="flex gap-2">
             {form.id && (
-              <button onClick={() => { remove(form.id!); setForm(null); }} className="btn-ghost text-rose-400">Delete</button>
+              <button onClick={() => { if (confirm(`Delete ${form.name}? Past logs stay.`)) { remove(form.id!); setForm(null); } }} className="btn-ghost text-rose-400">Delete</button>
             )}
             <button className="btn-primary flex-1" disabled={!form.name.trim()} onClick={() => {
-              const config = { emoji: form.emoji || emojiFor(form.name), ...(form.alignment ? { alignment: form.alignment } : {}) };
+              const prev = items.find((i) => i.id === form.id)?.config ?? {};
+              const config = { ...prev, emoji: form.emoji || emojiFor(form.name), alignment: form.alignment, options: form.options,
+                goal: Number(form.goal) || undefined, minutes: Number(form.minutes) || undefined };
               if (form.id) update(form.id, { name: form.name.trim(), config });
               else add(form.name.trim(), config);
               setForm(null);
@@ -429,12 +518,12 @@ function EditLog({ log, onClose }: { log: Log; onClose: () => void }) {
     <Sheet title={`${desc.emoji} ${desc.title}`} onClose={onClose}>
       {log.kind === "sleep" ? (
         <div className="grid grid-cols-1 gap-2">
-          <label className="text-xs text-muted">Fell asleep<input type="datetime-local" className="input mt-1" value={sleepStart} onChange={(e) => setSleepStart(e.target.value)} /></label>
-          <label className="text-xs text-muted">Woke up<input type="datetime-local" className="input mt-1" value={sleepEnd} onChange={(e) => setSleepEnd(e.target.value)} /></label>
+          <WhenPicker label="Fell asleep" value={sleepStart} onChange={setSleepStart} />
+          <WhenPicker label="Woke up" value={sleepEnd} onChange={setSleepEnd} />
           {sleepStart && sleepEnd && <p className="text-sm text-[var(--accent2)]">Slept {fmtDuration(new Date(sleepEnd).getTime() - new Date(sleepStart).getTime())}</p>}
         </div>
       ) : (
-        <label className="text-xs text-muted">Date and time<input type="datetime-local" className="input mt-1" value={when} onChange={(e) => setWhen(e.target.value)} /></label>
+        <WhenPicker label="Date and time" value={when} onChange={setWhen} />
       )}
       <div className="grid grid-cols-2 gap-2">
         {(log.kind === "water" || log.kind === "milk") && field("ml", "Amount (ml)")}
@@ -499,11 +588,9 @@ function AddEntry({ day, onClose }: { day: string; onClose: () => void }) {
         <input className="input" placeholder="Or type anything (e.g. Football)" value={name} onChange={(e) => setName(e.target.value)} />
       )}
       {label && !isSleep && <p className="text-sm">{emojiFor(label)} {label}</p>}
-      <label className="text-xs text-muted">{isSleep ? "Fell asleep" : "When"}
-        <input type="datetime-local" className="input mt-1" value={when} onChange={(e) => setWhen(e.target.value)} /></label>
+      <WhenPicker label={isSleep ? "Fell asleep" : "When"} value={when} onChange={setWhen} />
       {isSleep ? (
-        <label className="text-xs text-muted">Woke up
-          <input type="datetime-local" className="input mt-1" value={sleepEnd} onChange={(e) => setSleepEnd(e.target.value)} /></label>
+        <WhenPicker label="Woke up" value={sleepEnd} onChange={setSleepEnd} />
       ) : (
         <label className="text-xs text-muted">How long (minutes, optional)
           <input className="input mt-1" inputMode="numeric" value={minutes} onChange={(e) => setMinutes(e.target.value)} /></label>
@@ -554,6 +641,7 @@ function BossAndChest() {
 
 function MissionBrief({ m, onClose, log }: { m: Mission; onClose: () => void; log: (k: string, p: Record<string, unknown>, t: string) => unknown }) {
   const [advice] = useState(() => line(KIND_TOPIC[m.topic] ?? m.topic));
+  const [meal, setMeal] = useState<string | null>(null);
   const pct = Math.min(100, (m.progress / m.target) * 100);
   return (
     <Sheet title={`${m.icon} ${m.name}`} onClose={onClose}>
@@ -584,9 +672,10 @@ function MissionBrief({ m, onClose, log }: { m: Mission; onClose: () => void; lo
             log("wake", { time: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` }, "OHAYO!");
             onClose();
           }}>☀️ I&apos;m awake</button>}
-          {m.id === "meal" && ["Breakfast", "Lunch", "Dinner", "Snack"].map((n) => (
-            <button key={n} className="btn-primary" onClick={() => log("activity", { name: n, emoji: emojiFor(n) }, "ITADAKIMASU!")}>{emojiFor(n)} {n}</button>
+          {m.id === "meal" && MEALS.map(([n, e]) => (
+            <button key={n} className="btn-primary" onClick={() => setMeal(n)}>{e} {n}</button>
           ))}
+          {meal && <MealSheet meal={meal} onClose={() => { setMeal(null); onClose(); }} />}
           {m.href && <Link href={m.href} className="btn-primary btn-hot col-span-2 text-center">Accept mission ➜</Link>}
         </div>
       )}

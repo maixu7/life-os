@@ -1,5 +1,6 @@
 "use client";
 
+import { WhenPicker } from "@/components/When";
 import { useMemo, useState } from "react";
 import { dtLocal, fmtTime, Sheet } from "@/components/Sheet";
 import { WherePicker } from "@/components/Where";
@@ -81,7 +82,7 @@ export function CheckinSheet({ c, onClose }: { c: Checkin; onClose: () => void }
             </div>
           ))}
           <WherePicker value={where} onChange={setWhere} />
-          <label className="text-xs text-muted">When<input type="datetime-local" className="input mt-1" value={when} onChange={(e) => e.target.value && setWhen(e.target.value)} /></label>
+          <WhenPicker label="When" value={when} onChange={setWhen} />
           <button onClick={save} disabled={!ready} className="btn-primary w-full">Save</button>
         </>
       ) : (

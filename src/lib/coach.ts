@@ -2,7 +2,7 @@ import { gaps } from "@/lib/gaps";
 import { habitStats, judged, tplOf } from "@/lib/habits";
 import { sumMl } from "@/lib/goals";
 import { logKarma } from "@/lib/karma";
-import { isOffDay, phaseNow, sched, toMin } from "@/lib/schedule";
+import { isOffDay, phaseNow, sched, toMin, wokeRecently } from "@/lib/schedule";
 import { pick, SLEEP_WHY } from "@/lib/wisdom";
 import type { CustomItem, Data, Log } from "@/lib/store";
 import { toDay } from "@/lib/store";
@@ -44,7 +44,8 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
   if (asleep) return [];
 
   const sc = sched(d.profile.settings.schedule);
-  const ph = phaseNow(sc, now);
+  const raw = phaseNow(sc, now);
+  const ph = raw.phase === "sleep" && wokeRecently(d.logs, now) ? { ...raw, phase: "morning" as const, label: "Morning" } : raw;
   const off = isOffDay(ph.day);
   const busy = ph.phase === "work" || ph.phase === "commute";
   const at = (t: string) => toMin(t) / 60;

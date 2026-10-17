@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { CustomizeSheet } from "@/components/Customize";
 import { XpHeader } from "@/components/XpHeader";
 import { ScheduleSheet } from "@/components/ScheduleSheet";
 import { MyFoodsSheet } from "@/components/FoodPicker";
@@ -15,7 +17,7 @@ import { useApp } from "@/lib/store";
 type Open = { t: "checkin"; c: Checkin } | { t: "list"; k: ListKind } | { t: "tool"; id: string } | null;
 
 const TOOLS = [
-  { id: "schedule", name: "My schedule", icon: "🗓️" }, { id: "foods", name: "My foods", icon: "🍽️" },
+  { id: "schedule", name: "My schedule", icon: "🗓️" }, { id: "foods", name: "My foods", icon: "🍽️" }, { id: "doctor", name: "App doctor", icon: "🩺" }, { id: "customize", name: "Customize", icon: "🎛️" },
   { id: "breath", name: "Breathing", icon: "🌬️" }, { id: "meditate", name: "Meditation", icon: "🧘" }, { id: "stopwatch", name: "Stopwatch", icon: "⏱️" },
   { id: "spin", name: "Lucky spin", icon: "🎡" }, { id: "report", name: "Report card", icon: "📊" }, { id: "heatmap", name: "Heatmap", icon: "🔥" },
   { id: "search", name: "Search", icon: "🔎" }, { id: "savings", name: "Savings", icon: "🐷" }, { id: "reminders", name: "Reminders", icon: "⏰" },
@@ -34,6 +36,7 @@ function Tile({ icon, name, onClick }: { icon: string; name: string; onClick: ()
 export default function ToolsPage() {
   const { data, profile } = useApp();
   const [open, setOpen] = useState<Open>(null);
+  const router = useRouter();
   const close = () => setOpen(null);
   const sections = [...new Set(CHECKINS.map((c) => c.section))];
 
@@ -65,7 +68,7 @@ export default function ToolsPage() {
       <section className="card p-4 mb-4">
         <h2 className="section-title mb-3">🛠 Tools & insights</h2>
         <div className="grid grid-cols-4 gap-2">
-          {TOOLS.map((t) => <Tile key={t.id} icon={t.icon} name={t.name} onClick={() => (t.id === "export" ? exportCsv(data, profile.settings.currency) : setOpen({ t: "tool", id: t.id }))} />)}
+          {TOOLS.map((t) => <Tile key={t.id} icon={t.icon} name={t.name} onClick={() => (t.id === "export" ? exportCsv(data, profile.settings.currency) : t.id === "doctor" ? router.push("/doctor") : setOpen({ t: "tool", id: t.id }))} />)}
         </div>
       </section>
 
@@ -83,6 +86,7 @@ export default function ToolsPage() {
       {open?.t === "tool" && open.id === "settings" && <SettingsSheet onClose={close} />}
       {open?.t === "tool" && open.id === "schedule" && <ScheduleSheet onClose={close} />}
       {open?.t === "tool" && open.id === "foods" && <MyFoodsSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "customize" && <CustomizeSheet onClose={close} />}
     </>
   );
 }

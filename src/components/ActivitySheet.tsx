@@ -1,10 +1,12 @@
 "use client";
 
+import { WhenPicker } from "@/components/When";
 import { useState } from "react";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { WherePicker } from "@/components/Where";
 import { burned, metOf } from "@/lib/body";
 import { FoodPicker, useEaten } from "@/components/FoodPicker";
+import { MealSheet, MEALS } from "@/components/Meals";
 import { emojiFor } from "@/lib/emoji";
 import { ImpactCard } from "@/components/RealMe";
 import { moveOf } from "@/lib/moves";
@@ -19,9 +21,9 @@ export function ActivitySheet({ item, at, onClose, onLogged }: { item: CustomIte
   const { data, logActivity, celebrate } = useApp();
   const [when, setWhen] = useState(dtLocal(at));
   const time = new Date(when);
-  const opts = optionsFor(item.name);
+  const opts = Array.isArray(item.config.options) ? (item.config.options as string[]) : optionsFor(item.name);
   const [picked, setPicked] = useState<string[]>(() => { const a = autoOption(item.name, at); return a ? [a] : []; });
-  const [minutes, setMinutes] = useState<number | null>(null);
+  const [minutes, setMinutes] = useState<number | null>(Number(item.config.minutes) || null);
   const [note, setNote] = useState("");
   const [where, setWhere] = useState("");
   const [amount, setAmount] = useState("");
@@ -56,6 +58,9 @@ export function ActivitySheet({ item, at, onClose, onLogged }: { item: CustomIte
     onClose();
   };
 
+  // Meals get the full food screen: photo, what, when, contents and calories.
+  if (isMeal) return <MealSheet meal={MEALS.find(([m]) => m.toLowerCase() === item.name.toLowerCase())?.[0]} onClose={onClose} />;
+
   return (
     <Sheet title={`${emoji} ${item.name}`} onClose={onClose}>
       <div className="rounded-xl bg-white/5 p-3 text-sm flex items-center gap-2">
@@ -64,9 +69,9 @@ export function ActivitySheet({ item, at, onClose, onLogged }: { item: CustomIte
       </div>
       {opts.length > 0 && (
         <>
-          <div className="text-xs text-muted">Details (pick one or more)</div>
+          <div className="text-xs text-muted">Mini tasks done (tick each one)</div>
           <div className="flex flex-wrap gap-2">
-            {opts.map((o) => <button key={o} onClick={() => toggle(o)} className={`chip ${picked.includes(o) ? "chip-on" : ""}`}>{o}</button>)}
+            {opts.map((o) => <button key={o} onClick={() => toggle(o)} className={`chip ${picked.includes(o) ? "chip-on" : ""}`}>{picked.includes(o) ? "✓ " : "○ "}{o}</button>)}
           </div>
         </>
       )}
@@ -79,7 +84,7 @@ export function ActivitySheet({ item, at, onClose, onLogged }: { item: CustomIte
       {isMeal && <FoodPicker value={foods} onChange={setFoods} />}
       <div className="text-xs text-muted">How long{kcalOut ? <> · <b className="text-[var(--accent2)]">≈ {kcalOut} kcal burned</b> ({met![2]}, {kg} kg)</> : null}</div>
       <div className="flex flex-wrap gap-2">
-        {MINUTES.map((m) => <button key={m} onClick={() => setMinutes(minutes === m ? null : m)} className={`chip ${minutes === m ? "chip-on" : ""}`}>{m < 60 ? `${m} min` : `${m / 60} h`}</button>)}
+        {[...new Set([...MINUTES, ...(Number(item.config.minutes) ? [Number(item.config.minutes)] : [])])].sort((a, b) => a - b).map((m) => <button key={m} onClick={() => setMinutes(minutes === m ? null : m)} className={`chip ${minutes === m ? "chip-on" : ""}`}>{m < 60 ? `${m} min` : `${m / 60} h`}</button>)}
       </div>
       <div className="text-xs text-muted">How much (optional)</div>
       <div className="flex gap-2">
@@ -87,7 +92,7 @@ export function ActivitySheet({ item, at, onClose, onLogged }: { item: CustomIte
         <div className="flex flex-wrap gap-1.5">{["times", "km", "reps", "pages", "words", "wpm", "glasses", "pcs", "Rs"].map((u) => <button key={u} onClick={() => setUnit(u)} className={`chip !py-1 text-xs ${unit === u ? "chip-on" : ""}`}>{u}</button>)}</div>
       </div>
       <WherePicker value={where} onChange={setWhere} />
-      <label className="text-xs text-muted">When<input type="datetime-local" className="input mt-1" value={when} onChange={(e) => e.target.value && setWhen(e.target.value)} /></label>
+      <WhenPicker label="When" value={when} onChange={setWhen} />
       <input className="input" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
       <button onClick={save} className="btn-primary w-full">Log {item.name}</button>
     </Sheet>

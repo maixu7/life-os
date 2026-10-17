@@ -132,6 +132,7 @@ export function ScheduleSheet({ onClose }: { onClose: () => void }) {
           <Time label="Study until" value={s.studyEnd} onChange={set("studyEnd")} hint="clear" />
           <Time label="Exercise at" value={s.exercise} onChange={set("exercise")} hint="clear" />
           <Time label="Prayer / meditation" value={s.prayer} onChange={set("prayer")} hint="clear" />
+          <Num label="Learn each day (all study)" value={s.learnGoal} onChange={set("learnGoal")} unit="min" />
           <Num label="Read each day" value={s.readGoal} onChange={set("readGoal")} unit="pages" />
           <Num label="Code each day" value={s.codeGoal} onChange={set("codeGoal")} unit="min" />
           <Num label="Focus session" value={s.focusLength} onChange={set("focusLength")} unit="min" />

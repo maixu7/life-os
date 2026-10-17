@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 // A clean popup: slides up from the bottom on phones, centered on wider screens.
 export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -14,8 +15,12 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
     };
   }, [onClose]);
 
-  return (
-    <div data-overlay className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm animate-fade" onClick={onClose}>
+  // Rendered at the top of the page so no card (with blur or transforms) can trap it.
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  useEffect(() => setHost(document.body), []);
+  if (!host) return null;
+  return createPortal(
+    <div data-overlay className="fixed inset-0 z-[45] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm animate-fade" onClick={onClose}>
       <div
         role="dialog"
         aria-label={title}
@@ -28,7 +33,8 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    host,
   );
 }
 

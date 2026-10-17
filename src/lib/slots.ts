@@ -25,7 +25,7 @@ export const ordinal = (n: number) => `${n}${n % 10 === 1 && n % 100 !== 11 ? "s
 // Options shown when you tap an activity. Options marked bad count as bad deeds.
 const OPTIONS: [RegExp, string[]][] = [
   [/brush/i, ["Morning", "Night", "After meal", "With floss"]],
-  [/bath|shower/i, ["Morning", "Evening", "Cold shower", "Quick wash"]],
+  [/bath|shower/i, ["Hair wash", "Full body wash", "Face wash", "Brush teeth", "Cold shower"]],
   [/breakfast|lunch|dinner|snack|meal|eat/i, ["Home food", "Outside", "Healthy", "Fruits", "Junk food", "Skipped half"]],
   [/study|homework|revision/i, ["Math", "Science", "English", "Notes", "Practice questions", "Exam prep", "Other"]],
   [/exercise|gym|workout/i, ["Gym", "Home workout", "Running", "Yoga", "Sports", "Stretching"]],

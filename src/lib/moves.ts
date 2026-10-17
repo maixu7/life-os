@@ -5,12 +5,15 @@ export type Variant = { name: string; factor: number; note: string };
 export type Move = {
   name: string; re: RegExp; kind: "body" | "mind"; type?: "reps" | "time" | "weight";
   variants?: Variant[]; muscles?: string[]; body: string[]; mind: string[]; science: string;
+  pattern?: Pattern; steps?: string[];
 };
+
+import { EXTRA_MOVES, type Pattern } from "@/lib/exercises";
 
 const v = (name: string, factor: number, note: string): Variant => ({ name, factor, note });
 const MOOD = ["Mood up (endorphins)", "Stress down"];
 
-export const MOVES: Move[] = [
+const CORE: Move[] = [
   { name: "Push-ups", re: /push.?up/i, kind: "body", type: "reps", muscles: ["Chest", "Triceps", "Shoulders", "Core"],
     variants: [v("Knee", 0.5, "easiest, great to start"), v("Incline", 0.65, "hands on a bench"), v("Standard", 1, "the classic"), v("Wide", 1, "more chest"),
       v("Diamond", 1.3, "hands together, hits triceps hard"), v("Decline", 1.2, "feet up, more upper chest and shoulders"), v("Pike", 1.3, "hips up, shoulders"),
@@ -66,5 +69,60 @@ export const MOVES: Move[] = [
   { name: "Language learning", re: /language|english|hindi|japanese|spanish|french|duolingo|vocab/i, kind: "mind", body: [], mind: ["Memory", "Communication"], science: "Spaced repetition (reviewing just before you forget) is the most efficient way to learn words." },
 ];
 
-export const moveOf = (name: string) => MOVES.find((m) => m.re.test(name));
+// Movement pattern and a three-step how-to for the original exercises.
+const HOW: Record<string, [Pattern, string[]]> = {
+  "Push-ups": ["push", ["Hands a little wider than shoulders, body in one straight line.", "Lower your chest to a fist's height above the floor, elbows about 45°.", "Push the floor away until your arms are straight. Keep hips level."]],
+  "Pull-ups": ["pull", ["Hang from the bar, hands shoulder-width, shoulders pulled down.", "Pull your chest towards the bar until your chin is over it.", "Lower all the way down slowly. No swinging."]],
+  "Squats": ["squat", ["Feet shoulder-width, toes slightly out.", "Sit back and down until thighs are level with the floor, chest up.", "Push through your heels to stand. Knees follow your toes."]],
+  "Dips": ["dip", ["Support yourself on parallel bars, arms straight.", "Lower until your upper arms are level with the floor.", "Press back up to straight arms."]],
+  "Plank": ["plank", ["Forearms on the floor, elbows under shoulders.", "Body straight from head to heels; squeeze glutes and abs.", "Hold and breathe. Stop when your hips sag."]],
+  "Lunges": ["lunge", ["Stand tall, take a big step forward.", "Lower until both knees are at about 90°.", "Push off the front foot back to standing. Switch legs."]],
+  "Burpees": ["jump", ["Squat down and put your hands on the floor.", "Jump your feet back to a plank (add a push-up).", "Jump your feet in and leap up with arms overhead."]],
+  "Sit-ups / crunches": ["crunch", ["Lie on your back, knees bent, feet flat.", "Curl your shoulders up off the floor using your abs.", "Lower slowly. Don't pull on your neck."]],
+  "Leg raises": ["raise", ["Lie flat, hands under your hips.", "Lift straight legs up to 90°.", "Lower slowly without letting your lower back arch."]],
+  "Jumping jacks": ["jump", ["Stand with feet together, arms at your sides.", "Jump feet apart while raising arms overhead.", "Jump back to the start. Keep a steady rhythm."]],
+  "Skipping": ["jump", ["Hold the rope handles at hip height.", "Turn the rope with your wrists, not your arms.", "Make small jumps on the balls of your feet."]],
+  "Running": ["run", ["Stand tall, lean slightly forward.", "Land under your hips with short quick steps.", "Swing your arms forward and back, relaxed shoulders."]],
+  "Walking": ["run", ["Stand tall, look ahead.", "Heel lands first, roll through to your toes.", "Swing your arms naturally."]],
+  "Cycling": ["run", ["Set the seat so your leg is almost straight at the bottom.", "Push smoothly through the whole circle.", "Keep a steady cadence you could hold for a while."]],
+  "Swimming": ["press", ["Float flat with your face in the water.", "Reach forward and pull the water back past your hips.", "Kick from the hips and turn your head to breathe."]],
+  "Yoga / stretching": ["stretch", ["Move slowly into the position.", "Stop at a gentle stretch, never pain.", "Hold 20 to 30 seconds while breathing deeply."]],
+  "Weights": ["curl", ["Pick a weight you can lift 8 to 12 times with good form.", "Lift with control; exhale on the effort.", "Add a little weight or a rep each week."]],
+  "Sports": ["run", ["Warm up for 5 to 10 minutes.", "Play hard, but rest when you need to.", "Stretch and drink water afterwards."]],
+};
+for (const m of CORE) if (HOW[m.name]) { m.pattern = HOW[m.name][0]; m.steps = HOW[m.name][1]; }
+
+// Broad catch-alls go last so specific exercises win.
+const LAST = /^(Weights|Sports|Yoga \/ stretching)$/;
+export const MOVES: Move[] = [...CORE.filter((m) => !LAST.test(m.name)), ...EXTRA_MOVES, ...CORE.filter((m) => LAST.test(m.name))];
+
+// The move whose name pattern matches the most text wins, so "nordic curl"
+// finds Nordic curl rather than Bicep curl.
+export const moveOf = (name: string) => {
+  let best: Move | undefined, len = 0;
+  for (const m of MOVES) { const hit = name.match(m.re)?.[0].length ?? 0; if (hit > len) { best = m; len = hit; } }
+  return best;
+};
 export const variantOf = (m: Move | undefined, name?: unknown) => m?.variants?.find((x) => x.name === name);
+
+// A move built from the hero's own settings on a custom exercise: their
+// description, muscles, how-to and types, on top of any built-in match.
+export function myMove(name: string, config: Record<string, unknown>): Move | undefined {
+  const base = moveOf(name);
+  const extra = Array.isArray(config.variants) ? (config.variants as string[]).map((n) => ({ name: n, factor: 1, note: "your own type" })) : [];
+  const hidden = Array.isArray(config.hideVariants) ? (config.hideVariants as string[]) : [];
+  const muscles = typeof config.muscles === "string" && config.muscles.trim() ? config.muscles.split(",").map((x) => x.trim()).filter(Boolean) : undefined;
+  const steps = typeof config.steps === "string" && config.steps.trim() ? config.steps.split("\n").map((x) => x.trim()).filter(Boolean) : undefined;
+  const about = typeof config.about === "string" ? config.about.trim() : "";
+  if (!base && !extra.length && !muscles && !steps && !about && !config.pattern) return undefined;
+  const variants = [...(base?.variants ?? []).filter((v) => !hidden.includes(v.name)), ...extra];
+  return {
+    ...(base ?? { name, re: /$^/, kind: "body", body: ["Strength", "Fitness"], mind: ["Mood up (endorphins)", "Stress down"], science: "" }),
+    name: base?.name ?? name,
+    variants: variants.length ? variants : undefined,
+    muscles: muscles ?? base?.muscles,
+    steps: steps ?? base?.steps,
+    pattern: (config.pattern as Pattern) || base?.pattern,
+    science: about || base?.science || "",
+  };
+}

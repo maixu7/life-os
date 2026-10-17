@@ -1,4 +1,4 @@
-import { toDay } from "@/lib/store";
+import { toDay, type Log } from "@/lib/store";
 
 // The hero's daily timetable: when they wake and sleep, work, take breaks,
 // eat, and which days are free. The Sensei uses it to know what time it is
@@ -15,7 +15,7 @@ export type Schedule = {
   studyStart: string; studyEnd: string; exercise: string; prayer: string;
   napAllowed: boolean; napStart: string; napEnd: string;
   windDown: number; phoneFreeMorning: number; quietStart: string; quietEnd: string;
-  screenLimit: number; focusLength: number; waterEvery: number; readGoal: number; codeGoal: number;
+  screenLimit: number; focusLength: number; waterEvery: number; readGoal: number; codeGoal: number; learnGoal: number;
   popups: "off" | "low" | "normal" | "high";
 };
 
@@ -28,7 +28,7 @@ export const DEFAULT_SCHEDULE: Schedule = {
   studyStart: "18:00", studyEnd: "20:00", exercise: "18:00", prayer: "",
   napAllowed: true, napStart: "14:30", napEnd: "15:30",
   windDown: 30, phoneFreeMorning: 30, quietStart: "", quietEnd: "",
-  screenLimit: 60, focusLength: 25, waterEvery: 120, readGoal: 10, codeGoal: 30,
+  screenLimit: 60, focusLength: 25, waterEvery: 120, readGoal: 10, codeGoal: 30, learnGoal: 90,
   popups: "normal",
 };
 
@@ -101,3 +101,12 @@ export const PHASE_LINES: Record<Phase, string[]> = {
   study: ["Study time. One focus session now beats three later.", "Books open, phone face down. Let's go."],
   free: ["Free time! Pick something that grows you: read, train or code.", "No work right now. A great time for your habit quests.", "Free time is where heroes are made."],
 };
+
+// Already up for the day? (woke up in the last 8 hours, after 4 AM). Then an early
+// morning that is still inside the "sleep" window is not bedtime any more.
+export function wokeRecently(logs: Log[], now = new Date()) {
+  if (now.getHours() < 4) return false;
+  const since = now.getTime() - 8 * 3_600_000;
+  return logs.some((l) => new Date(l.created_at).getTime() >= since &&
+    (l.kind === "wake" || (l.kind === "activity" && /woke|wake/i.test(String(l.data.name)))));
+}

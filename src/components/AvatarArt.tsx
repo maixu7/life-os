@@ -10,7 +10,7 @@ export const CLASSES = [
 ];
 export const SKINS = ["#ffe0cc", "#f6d2b8", "#e8b896", "#c98e66", "#a46b47", "#6e4630"];
 export const HAIRS = ["#2b2d42", "#5c3d2e", "#f4d35e", "#e63946", "#4cc9f0", "#f1f1f1", "#b5179e", "#2a9d8f"];
-export const EYES = ["#4cc9f0", "#7b2cbf", "#e63946", "#2a9d8f", "#5c3d2e", "#f4a261"];
+export const EYES = ["#3b2417", "#5c3d2e", "#8a6a3a", "#6b7b8c", "#4a7bb7", "#4f7a52", "#4cc9f0", "#7b2cbf", "#2a9d8f"];
 export const OUTFITS = ["#7b2cbf", "#e63946", "#1d3557", "#2a9d8f", "#f4a261", "#111111", "#ff4fd8"];
 export const PANTS = ["#22223b", "#1d3557", "#3a3a3a", "#5c3d2e", "#e9ecef", "#2a9d8f"];
 export const SHOES = ["#f1f1f1", "#111111", "#e63946", "#5c3d2e", "#4cc9f0"];
@@ -63,46 +63,57 @@ function Head({ a, id }: { a: Avatar; id: string }) {
     3: <path d="M52 90 Q48 42 100 40 Q152 42 148 90 Q132 62 104 64 Q76 62 52 90 Z" fill={hair} />,
     4: <path d="M54 86 Q50 46 100 44 Q150 46 146 86 Q140 66 120 62 L80 62 Q60 66 54 86 Z" fill={hair} />,
   };
+  // Natural proportions: almond-shaped eyes, a real iris and eyelid crease,
+  // a defined nose and lips (no big cartoon eyes or blush).
   const eye = (x: number, wink: boolean) => wink ? (
-    <path key={x} d={`M${x - 11} 102 Q${x} 94 ${x + 11} 102`} stroke="#2b2d42" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+    <path key={x} d={`M${x - 10} 101 Q${x} 97 ${x + 10} 101`} stroke="#2b2d42" strokeWidth="2.6" fill="none" strokeLinecap="round" />
   ) : (
     <g key={x}>
-      <ellipse cx={x} cy="101" rx="11.5" ry={ex === 2 ? 10 : 13.5} fill="#fff" />
-      <ellipse cx={x} cy="103" rx="8.5" ry={ex === 2 ? 8 : 11} fill={`url(#${id}iris)`} />
-      <ellipse cx={x} cy="105" rx="4" ry="5.5" fill="#0b0716" />
-      <circle cx={x - 3.5} cy="97" r="3.4" fill="#fff" />
-      <circle cx={x + 3.5} cy="108" r="1.6" fill="#fff" opacity=".85" />
-      {/* upper lid with lashes */}
-      <path d={`M${x - 13} 92 Q${x} ${ex === 3 ? 90 : 84} ${x + 13} 92`} stroke="#1d1b2c" strokeWidth="3.6" fill="none" strokeLinecap="round" />
-      <path d={x < 100 ? `M${x - 13} 92 L${x - 17} 88` : `M${x + 13} 92 L${x + 17} 88`} stroke="#1d1b2c" strokeWidth="2.4" strokeLinecap="round" />
-      <path d={`M${x - 7} 115 Q${x} 117 ${x + 7} 115`} stroke="#1d1b2c" strokeOpacity=".35" strokeWidth="1.4" fill="none" />
+      <path d={`M${x - 11} 101 Q${x} ${ex === 2 ? 95 : 93} ${x + 11} 101 Q${x} 107 ${x - 11} 101 Z`} fill="#fbf7f2" />
+      <clipPath id={`${id}e${x}`}><path d={`M${x - 11} 101 Q${x} ${ex === 2 ? 95 : 93} ${x + 11} 101 Q${x} 107 ${x - 11} 101 Z`} /></clipPath>
+      <g clipPath={`url(#${id}e${x})`}>
+        <circle cx={x} cy="100.5" r="5.6" fill={shade(a.eyes, -0.35)} />
+        <circle cx={x} cy="100.5" r="4.4" fill={`url(#${id}iris)`} />
+        <circle cx={x} cy="100.5" r="2.2" fill="#0b0716" />
+        <path d={`M${x - 11} 96 Q${x} 92 ${x + 11} 96 L${x + 11} 99 Q${x} 95 ${x - 11} 99 Z`} fill="#000" opacity=".18" />
+      </g>
+      <circle cx={x + 1.6} cy="98.8" r="1.2" fill="#fff" opacity=".9" />
+      <path d={`M${x - 11.5} 101 Q${x} ${ex === 2 ? 94.5 : 92.5} ${x + 11.5} 101`} stroke="#2a2420" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      <path d={`M${x - 10} 95 Q${x} ${ex === 2 ? 89.5 : 88} ${x + 10} 95`} stroke={shade(a.skin, -0.3)} strokeWidth="1.1" fill="none" opacity=".7" />
+      <path d={`M${x - 9} 103.5 Q${x} 106.5 ${x + 9} 103.5`} stroke={shade(a.skin, -0.25)} strokeWidth=".9" fill="none" opacity=".6" />
     </g>
   );
+  const lip = shade(a.skin, -0.32);
   const mouth = [
-    <path key="0" d="M90 128 Q100 136 110 128" stroke="#8a3a46" strokeWidth="2.8" fill="none" strokeLinecap="round" />,
-    <g key="1"><path d="M88 126 Q100 142 112 126 Z" fill="#7a2a3a" /><path d="M93 133 Q100 138 107 133 Q100 136 93 133 Z" fill="#ff8fa3" /><path d="M89 126.5 L111 126.5" stroke="#fff" strokeWidth="2.4" /></g>,
-    <path key="2" d="M93 130 Q100 132 107 130" stroke="#8a3a46" strokeWidth="2.4" fill="none" strokeLinecap="round" />,
-    <path key="3" d="M91 131 Q100 127 109 131" stroke="#8a3a46" strokeWidth="2.6" fill="none" strokeLinecap="round" />,
-    <path key="4" d="M90 127 Q101 137 111 126" stroke="#8a3a46" strokeWidth="2.8" fill="none" strokeLinecap="round" />,
+    <g key="0"><path d="M89 129 Q100 134 111 129 Q100 138 89 129 Z" fill={lip} /><path d="M89 129 Q95 126 100 127.5 Q105 126 111 129 Q100 131 89 129 Z" fill={shade(lip, -0.12)} /></g>,
+    <g key="1"><path d="M88 127 Q100 140 112 127 Z" fill="#6b2b30" /><path d="M90 127.6 Q100 131 110 127.6 L110 128.8 Q100 132 90 128.8 Z" fill="#f4f1ea" /><path d="M88 127 Q100 124.5 112 127" stroke={shade(lip, -0.15)} strokeWidth="1.6" fill="none" /></g>,
+    <g key="2"><path d="M91 130 Q100 132.5 109 130 Q100 135 91 130 Z" fill={lip} /><path d="M91 130 Q100 128 109 130" stroke={shade(lip, -0.25)} strokeWidth="1.2" fill="none" /></g>,
+    <g key="3"><path d="M90 131 Q100 129 110 131 Q100 135 90 131 Z" fill={lip} /><path d="M90 131 Q100 128.5 110 131" stroke={shade(lip, -0.3)} strokeWidth="1.4" fill="none" /></g>,
+    <g key="4"><path d="M89 129 Q101 135 112 127.5 Q101 139 89 129 Z" fill={lip} /><path d="M89 129 Q101 131 112 127.5" stroke={shade(lip, -0.25)} strokeWidth="1.3" fill="none" /></g>,
   ][ex] ?? null;
   const brow = (x: number) => ex === 3
-    ? <path key={x} d={x < 100 ? `M${x - 12} 82 L${x + 10} 87` : `M${x - 10} 87 L${x + 12} 82`} stroke={shade(a.hair, -0.3)} strokeWidth="3.4" strokeLinecap="round" />
-    : <path key={x} d={`M${x - 11} 83 Q${x} 78 ${x + 11} 82`} stroke={shade(a.hair, -0.3)} strokeWidth="3" fill="none" strokeLinecap="round" />;
+    ? <path key={x} d={x < 100 ? `M${x - 12} 85 L${x + 10} 89` : `M${x - 10} 89 L${x + 12} 85`} stroke={shade(a.hair, -0.3)} strokeWidth="3.4" strokeLinecap="round" />
+    : <path key={x} d={x < 100 ? `M${x - 12} 88 Q${x - 2} 83 ${x + 11} 86` : `M${x - 11} 86 Q${x + 2} 83 ${x + 12} 88`} stroke={shade(a.hair, -0.3)} strokeWidth="2.6" fill="none" strokeLinecap="round" />;
   return (
     <g>
       {back[a.hairStyle]}
       <rect x="88" y="128" width="24" height="30" rx="8" fill={shade(a.skin, -0.15)} />
       {/* face with soft 3D shading */}
-      <path d="M56 88 Q55 138 100 148 Q145 138 144 88 Q144 52 100 52 Q56 52 56 88 Z" fill={skin} />
+      <path d="M57 88 Q56 124 72 138 Q86 150 100 150 Q114 150 128 138 Q144 124 143 88 Q143 52 100 52 Q57 52 57 88 Z" fill={skin} />
       <path d="M60 80 Q100 70 140 80 L140 92 Q100 82 60 92 Z" fill={shade(a.skin, -0.25)} opacity=".25" />
       <ellipse cx="55" cy="100" rx="6.5" ry="10" fill={shade(a.skin, -0.08)} />
       <ellipse cx="145" cy="100" rx="6.5" ry="10" fill={shade(a.skin, -0.12)} />
       {[78, 122].map(brow)}
       {eye(78, false)}
       {eye(122, ex === 4)}
-      <ellipse cx="68" cy="121" rx="10" ry="5" fill={`url(#${id}blush)`} />
-      <ellipse cx="132" cy="121" rx="10" ry="5" fill={`url(#${id}blush)`} />
-      <path d="M101 112 Q103 118 99 119" stroke={shade(a.skin, -0.35)} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      {/* nose: bridge shadow, tip and nostrils */}
+      <path d="M97 102 Q95 112 94 117" stroke={shade(a.skin, -0.2)} strokeWidth="1.4" fill="none" opacity=".6" />
+      <path d="M93 118 Q100 122 107 118" stroke={shade(a.skin, -0.35)} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <ellipse cx="96" cy="118.5" rx="1.6" ry="1" fill={shade(a.skin, -0.5)} opacity=".7" />
+      <ellipse cx="104" cy="118.5" rx="1.6" ry="1" fill={shade(a.skin, -0.5)} opacity=".7" />
+      {/* cheek and jaw shading */}
+      <path d="M60 112 Q66 136 100 147 Q78 134 70 112 Z" fill={shade(a.skin, -0.2)} opacity=".25" />
+      <path d="M140 112 Q134 136 100 147 Q122 134 130 112 Z" fill={shade(a.skin, -0.25)} opacity=".3" />
       {mouth}
       {front[a.hairStyle] ?? front[0]}
       {/* hair shine */}
