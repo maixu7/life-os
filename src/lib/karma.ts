@@ -2,6 +2,7 @@ import { hoursBetween } from "@/lib/describe";
 import { guessMedia, MEDIA, mediaPoints, type MediaType } from "@/lib/media";
 import { dailyMissions } from "@/lib/missions";
 import { BAD_OPTION, REWARD_OPTION } from "@/lib/slots";
+import { checkinKarma, EXTRA_KARMA } from "@/lib/tools";
 import type { Data, Log } from "@/lib/store";
 import { toDay } from "@/lib/store";
 
@@ -38,7 +39,7 @@ export function logKarma(l: Log): number {
       if (l.data.alignment === "shadow" || (l.data.alignment !== "light" && DEVIL.test(name))) return -5;
       return 2;
     }
-    default: return 0;
+    default: return checkinKarma(l) ?? EXTRA_KARMA[l.kind] ?? 0;
   }
 }
 

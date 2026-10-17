@@ -353,6 +353,12 @@ function AllowanceCard({ month, setMonth, allowance, spent, left, money }: {
         <div className="text-right"><div className="text-xs text-muted">{left >= 0 ? "Left" : "Over"}</div>
           <div className={`font-bold ${left >= 0 ? "text-[var(--accent2)]" : "text-rose-400"}`}>{money(Math.abs(left))}</div></div>
       </div>
+      {allowance > 0 && pct >= 80 && (
+        <p className={`mt-2 text-xs ${left < 0 ? "text-rose-400" : "text-amber-300"}`}>
+          {left < 0 ? "⚠️ Over budget. Sensei: pause non-essential buys until next month." : `⚠️ ${Math.round(pct)}% used. Only buy what you need this month.`}
+          {(() => { const now = new Date(); const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1; return left > 0 ? ` About ${money(left / daysLeft)} per day left.` : ""; })()}
+        </p>
+      )}
       {editing && (
         <Sheet title={`Allowance for ${label}`} onClose={() => setEditing(false)}>
           <input autoFocus className="input text-2xl font-bold" inputMode="decimal" value={val} onChange={(e) => setVal(e.target.value)} />

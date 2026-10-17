@@ -8,6 +8,8 @@ const COMIC = ["SUGOI!", "YATTA!", "KABOOM!", "LEGENDARY!", "FULL POWER!", "NICE
 // Synthesised victory chime, so no audio files are needed.
 function chime(big: boolean) {
   try {
+    if (localStorage.getItem("lifeos-vibrate") !== "off") navigator.vibrate?.(big ? [60, 40, 120] : 40);
+    if (localStorage.getItem("lifeos-sound") === "off") return;
     const ctx = new AudioContext();
     const notes = big ? [523, 659, 784, 1047, 1319] : [659, 988];
     notes.forEach((f, i) => {

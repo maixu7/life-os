@@ -59,7 +59,7 @@ export function VoiceButton() {
       <button
         aria-label="Voice command"
         onClick={() => (listening ? rec.current?.stop() : start())}
-        className={`fixed right-4 bottom-24 z-40 h-14 w-14 rounded-full text-2xl grid place-items-center btn-primary !p-0 ${listening ? "animate-pulse scale-110" : ""}`}
+        className={`fixed right-4 bottom-24 z-[35] h-14 w-14 rounded-full text-2xl grid place-items-center btn-primary !p-0 ${listening ? "animate-pulse scale-110" : ""}`}
       >
         🎙️
       </button>

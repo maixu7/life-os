@@ -7,7 +7,7 @@ import { toDay } from "@/lib/store";
 export function gold(d: Data) {
   let g = 0;
   for (const l of d.logs) {
-    if (l.kind === "chest") g += Number(l.data.gold ?? 0);
+    if (l.kind === "chest" || l.kind === "spin" || l.kind === "login") g += Number(l.data.gold ?? 0);
     else if (l.kind === "redeem") g -= Number(l.data.cost ?? 0);
     else g += l.xp / 2;
   }

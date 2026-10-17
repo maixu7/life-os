@@ -69,6 +69,11 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
       why: `${t.why} Tip: ${t.tiny}` });
   }
 
+  for (const p of d.items.filter((i) => i.category === "list:plan" && !i.config.done && i.config.for === day)) {
+    add({ id: `plan:${p.id}`, icon: "🗓️", title: p.name, priority: 66, action: { type: "href", href: "/tools" },
+      because: "You planned this last night as one of today's top tasks.", why: "Doing what you planned builds trust in yourself. That is real discipline." });
+  }
+
   const lastWater = [...logs].reverse().find((l) => l.kind === "water");
   const sinceWater = lastWater ? (now.getTime() - new Date(lastWater.created_at).getTime()) / 3_600_000 : h - 7;
   if (h >= 8 && h < 22 && sinceWater >= 2.5 && sumMl(logs, "water") < d.profile.settings.water_goal_ml) {

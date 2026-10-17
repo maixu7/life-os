@@ -159,7 +159,7 @@ export function Popper() {
   return (
     <>
       {pop && (
-        <div className={`fixed left-3 right-3 z-40 mx-auto max-w-md animate-sheet ${pop.top ? "top-3" : "bottom-24"}`}>
+        <div className={`fixed left-3 right-3 z-[38] mx-auto max-w-md animate-sheet ${pop.top ? "top-3" : "bottom-24"}`}>
           <div className="card frame p-4 bg-[#1c1330]/95 backdrop-blur" onClick={() => setPop(null)}>
             {pop.kind === "wisdom" ? (
               <>

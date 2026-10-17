@@ -1,5 +1,6 @@
 import { MEDIA, type MediaType } from "@/lib/media";
 import { ordinal } from "@/lib/slots";
+import { CHECKIN_BY_KIND } from "@/lib/tools";
 import type { Log } from "@/lib/store";
 
 const fmt = (iso?: unknown) =>
@@ -77,8 +78,20 @@ export function describe(l: Log, currency = "Rs"): { emoji: string; title: strin
       return { emoji: "🏅", title: `Mission complete: ${d.name}`, detail: `+${l.xp} XP` };
     case "body":
       return { emoji: "📏", title: "Body check", detail: join(d.weight ? `${d.weight} kg` : "", d.height ? `${d.height} cm` : "", d.waist ? `waist ${d.waist} cm` : "", note) };
-    default:
+    case "breath": return { emoji: "🌬️", title: "Breathing exercise", detail: join(String(d.pattern ?? ""), d.rounds ? `${d.rounds} rounds` : "") };
+    case "meditate": return { emoji: "🧘", title: "Meditation", detail: `${d.minutes} min` };
+    case "task": return { emoji: "✅", title: `Task done: ${d.name}`, detail: join(String(d.list ?? ""), note) };
+    case "routine": return { emoji: d.list === "night" ? "🌙" : "🌅", title: `${d.list === "night" ? "Night" : "Morning"} routine: ${d.name}`, detail: "" };
+    case "challenge": return { emoji: "🔥", title: "Daily challenge beaten", detail: String(d.name ?? "") };
+    case "spin": return { emoji: "🎡", title: "Lucky spin", detail: `+${d.gold} gold` };
+    case "login": return { emoji: "📅", title: `Login reward day ${d.n}`, detail: `+${d.gold} gold` };
+    case "goalstep": return { emoji: "🏔️", title: `Goal progress: ${d.name}`, detail: `${d.progress}%` };
+    case "pages": return { emoji: "📖", title: `Read ${d.pages} pages`, detail: String(d.name ?? "") };
+    default: {
+      const c = CHECKIN_BY_KIND[l.kind];
+      if (c) return { emoji: c.icon, title: c.name, detail: join(c.line(d), note) };
       return { emoji: "✨", title: l.kind, detail: note };
+    }
   }
 }
 
