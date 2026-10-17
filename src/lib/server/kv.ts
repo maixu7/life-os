@@ -8,8 +8,12 @@ import { Redis } from "@upstash/redis";
 type Store = { get<T>(k: string): Promise<T | null>; set(k: string, v: unknown): Promise<unknown>; del(k: string): Promise<unknown> };
 
 function makeStore(): Store | null {
-  const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
+  // Vercel names the variables after the prefix chosen when connecting (KV_, STORAGE_, ...),
+  // so accept any <PREFIX>_REST_API_URL / <PREFIX>_REST_API_TOKEN pair.
+  const env = process.env;
+  const urlKey = ["KV_REST_API_URL", "UPSTASH_REDIS_REST_URL", ...Object.keys(env).filter((k) => k.endsWith("_REST_API_URL"))].find((k) => env[k]);
+  const url = urlKey && env[urlKey];
+  const token = urlKey && (env[urlKey.replace(/_URL$/, "_TOKEN")] ?? env.KV_REST_API_TOKEN ?? env.UPSTASH_REDIS_REST_TOKEN);
   // All keys get a "lifeos:" prefix so this can share a database with other apps.
   if (url && token) {
     const r = new Redis({ url, token });
