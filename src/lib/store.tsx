@@ -15,7 +15,17 @@ export type Settings = {
   currency: string;
   allowances: Record<string, number>; // "2026-10" -> allowance for that month
 };
-export type Profile = { display_name: string; xp: number; settings: Settings; updated_at: string };
+export type Avatar = {
+  skin: string; hair: string; hairStyle: number; eyes: string; outfit: string; accessory: number; heroClass: string;
+};
+export type Profile = {
+  display_name: string; xp: number; settings: Settings; updated_at: string;
+  avatar: Avatar; title: string; height_cm: number | null; birth_year: number | null;
+  achievements: Record<string, string>; // id -> unlocked at
+};
+export const DEFAULT_AVATAR: Avatar = {
+  skin: "#f6d2b8", hair: "#2b2d42", hairStyle: 0, eyes: "#4cc9f0", outfit: "#7b2cbf", accessory: 1, heroClass: "Ninja",
+};
 export type Log = { id: string; day: string; kind: string; data: Record<string, unknown>; xp: number; created_at: string };
 export type CustomItem = { id: string; category: string; name: string; config: Record<string, unknown>; sort: number };
 export type ShopItem = {
@@ -43,7 +53,11 @@ export function mergeData(server: Data, local: Data): Data {
   const logs = union(server.logs, local.logs);
   const profile = (local.profile.updated_at ?? "") >= (server.profile.updated_at ?? "") ? local.profile : server.profile;
   return {
-    profile: { ...profile, xp: logs.reduce((s, l) => s + l.xp, 0) },
+    profile: {
+      ...profile,
+      xp: logs.reduce((s, l) => s + l.xp, 0),
+      achievements: { ...(server.profile.achievements ?? {}), ...(local.profile.achievements ?? {}) },
+    },
     logs,
     items: union(server.items, local.items),
     shopping: union(server.shopping, local.shopping),
@@ -62,14 +76,32 @@ export const DEFAULT_ACTIVITIES = [
   "Read", "Listen", "Clean room", "Pray", "Anime", "Manga",
 ];
 
+const DEFAULT_REWARDS: [string, number, string][] = [
+  ["1 anime episode", 60, "📺"], ["1 manga chapter", 40, "📕"], ["30 min gaming", 80, "🎮"],
+  ["Favorite snack", 100, "🍫"], ["Movie night", 300, "🎬"], ["Sleep in 1 hour", 150, "🛌"],
+];
+const rewardItems = () => DEFAULT_REWARDS.map(([n, cost, emoji], i) => ({ id: id(), category: "reward", name: n, config: { cost, emoji }, sort: 200 + i }));
+
 // Fills in anything older saved data is missing, so every version of the app can open it.
 export function normalizeData(d: Data): Data {
   const items = d.items ?? [];
   const hasActivities = items.some((i) => i.category === "activity");
   return {
-    profile: { ...d.profile, settings: { ...DEFAULT_SETTINGS, ...d.profile.settings, allowances: d.profile.settings.allowances ?? {} } },
+    profile: {
+      ...d.profile,
+      avatar: { ...DEFAULT_AVATAR, ...(d.profile.avatar ?? {}) },
+      title: d.profile.title ?? "Rookie Adventurer",
+      height_cm: d.profile.height_cm ?? null,
+      birth_year: d.profile.birth_year ?? null,
+      achievements: d.profile.achievements ?? {},
+      settings: { ...DEFAULT_SETTINGS, ...d.profile.settings, allowances: d.profile.settings.allowances ?? {} },
+    },
     logs: d.logs ?? [],
-    items: hasActivities ? items : [...items, ...DEFAULT_ACTIVITIES.map((n, i) => ({ id: id(), category: "activity", name: n, config: { emoji: emojiFor(n) }, sort: 100 + i }))],
+    items: [
+      ...items,
+      ...(hasActivities ? [] : DEFAULT_ACTIVITIES.map((n, i) => ({ id: id(), category: "activity", name: n, config: { emoji: emojiFor(n) }, sort: 100 + i }))),
+      ...(items.some((i) => i.category === "reward") ? [] : rewardItems()),
+    ],
     shopping: (d.shopping ?? []).map((x) => {
       const legacy = x as ShopItem & { quantity?: string };
       return { ...x, emoji: x.emoji ?? emojiFor(x.name, "🛍️"), qty: x.qty ?? (Number(legacy.quantity) || 1), unit: x.unit ?? "pcs" };
@@ -78,7 +110,7 @@ export function normalizeData(d: Data): Data {
     deleted: d.deleted ?? [],
   };
 }
-export type Celebration = { title: string; subtitle?: string; xp?: number; big?: boolean };
+export type Celebration = { title: string; subtitle?: string; xp?: number; big?: boolean; quote?: string; icon?: string; kind?: "mission" | "achievement" | "level" | "small" };
 
 const id = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -96,11 +128,17 @@ export function initialData(name: string): Data {
       xp: 0,
       settings: DEFAULT_SETTINGS,
       updated_at: now(),
+      avatar: DEFAULT_AVATAR,
+      title: "Rookie Adventurer",
+      height_cm: null,
+      birth_year: null,
+      achievements: {},
     },
     logs: [],
     items: [
       ...items.map(([category, n, config], i) => ({ id: id(), category, name: n, config, sort: i })),
       ...DEFAULT_ACTIVITIES.map((n, i) => ({ id: id(), category: "activity", name: n, config: { emoji: emojiFor(n) }, sort: 100 + i })),
+      ...rewardItems(),
     ],
     shopping: [],
     pantry: [],
@@ -117,7 +155,8 @@ type Ctx = {
   celebrate: (c: Celebration) => void;
   celebration: Celebration | null;
   clearCelebration: () => void;
-  logActivity: (kind: string, data?: Record<string, unknown>, at?: Date) => Log;
+  logActivity: (kind: string, data?: Record<string, unknown>, at?: Date, xp?: number) => Log;
+  saveProfile: (patch: Partial<Profile>) => void;
   updateLog: (id: string, patch: { data?: Record<string, unknown>; at?: Date }) => void;
   deleteLog: (id: string) => void;
   lock: () => void;
@@ -135,7 +174,12 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
   session: Session; initial: Data; onLock: () => void; onSignOut: () => void; hasPin: boolean; children: React.ReactNode;
 }) {
   const [data, setData] = useState<Data>(initial);
-  const [celebration, setCelebration] = useState<Celebration | null>(null);
+  // Celebrations queue up so a mission, a level-up and an achievement each get their moment.
+  const [celebrations, setQueue] = useState<Celebration[]>([]);
+  const celebration = celebrations[0] ?? null;
+  const setCelebration = useCallback((c: Celebration | null) => {
+    if (c) setQueue((q) => (q.length > 4 ? q : [...q, c]));
+  }, []);
   const latest = useRef(data);
 
   // Persist every change, encrypted, and sync it. Writes are chained so they land in order.
@@ -173,18 +217,18 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
     document.documentElement.dataset.theme = data.profile.settings.theme;
   }, [data.profile.settings.theme]);
 
-  const celebrate = useCallback((c: Celebration) => setCelebration(c), []);
+  const celebrate = useCallback((c: Celebration) => setCelebration(c), [setCelebration]);
 
-  const logActivity = useCallback((kind: string, payload: Record<string, unknown> = {}, at = new Date()) => {
-    const xp = XP[kind] ?? 5;
+  const logActivity = useCallback((kind: string, payload: Record<string, unknown> = {}, at = new Date(), xpOverride?: number) => {
+    const xp = xpOverride ?? XP[kind] ?? 5;
     const log: Log = { id: id(), day: toDay(at), kind, data: payload, xp, created_at: at.toISOString() };
     const before = latest.current.profile.xp;
     update((d) => ({ ...d, logs: [...d.logs, log], profile: { ...d.profile, xp: d.profile.xp + xp } }));
     if (Math.floor((before + xp) / 100) > Math.floor(before / 100)) {
-      setTimeout(() => setCelebration({ title: "LEVEL UP!", subtitle: `Level ${Math.floor((before + xp) / 100) + 1}`, xp, big: true }), 900);
+      setCelebration({ title: "LEVEL UP!", subtitle: `Level ${Math.floor((before + xp) / 100) + 1}`, big: true, kind: "level", icon: "⬆️" });
     }
     return log;
-  }, [update]);
+  }, [update, setCelebration]);
 
   const value: Ctx = {
     session,
@@ -194,7 +238,8 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
     saveSettings: (patch) => update((d) => ({ ...d, profile: { ...d.profile, settings: { ...d.profile.settings, ...patch }, updated_at: now() } })),
     celebrate,
     celebration,
-    clearCelebration: () => setCelebration(null),
+    clearCelebration: () => setQueue((q) => q.slice(1)),
+    saveProfile: (patch) => update((d) => ({ ...d, profile: { ...d.profile, ...patch, updated_at: now() } })),
     logActivity,
     updateLog: (logId, { data: patch, at }) => update((d) => ({
       ...d,

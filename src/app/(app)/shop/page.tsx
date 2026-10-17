@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { XpHeader } from "@/components/XpHeader";
+import { gold } from "@/lib/economy";
 import { emojiFor } from "@/lib/emoji";
+import { line } from "@/lib/lore";
+import { useCustomItems } from "@/lib/store";
 import { UNITS, useApp, type PantryItem, type ShopItem } from "@/lib/store";
 import { deletePhoto, getPhoto, putPhoto } from "@/lib/vault";
 
-type Tab = "list" | "storage" | "history" | "photos";
+type Tab = "list" | "storage" | "history" | "rewards" | "photos";
 const monthOf = (iso: string) => iso.slice(0, 7);
 const shiftMonth = (m: string, n: number) => {
   const d = new Date(`${m}-01T12:00`);
@@ -89,14 +92,14 @@ export default function ShopPage() {
 
   return (
     <>
-      <XpHeader title="Shopping" />
+      <XpHeader title="Merchant" icon="🏪" subtitle="Supplies, gear and treasure for your adventure" />
 
       <AllowanceCard month={month} setMonth={setMonth} allowance={allowance} spent={spent} left={left} money={money} />
 
-      <div className="grid grid-cols-4 gap-1 p-1 mb-4 rounded-2xl bg-white/5">
-        {([["list", `🛒 List`], ["storage", "📦 Storage"], ["history", "🧾 History"], ["photos", "📸 Photos"]] as const).map(([k, l]) => (
+      <div className="grid grid-cols-5 gap-1 p-1 mb-4 rounded-2xl bg-white/5">
+        {([["list", "🛒 Supplies"], ["storage", "🎒 Bag"], ["history", "🧾 Ledger"], ["rewards", "🎁 Rewards"], ["photos", "📸 Photos"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
-            className={`rounded-xl py-2 text-xs font-semibold transition ${tab === k ? "bg-[var(--accent)] text-[#12051f]" : "text-muted"}`}>{l}</button>
+            className={`rounded-xl py-2 text-[11px] font-semibold transition ${tab === k ? "bg-[var(--accent2)] text-[#0b0420]" : "text-muted"}`}>{l}</button>
         ))}
       </div>
 
@@ -225,6 +228,8 @@ export default function ShopPage() {
         </>
       )}
 
+      {tab === "rewards" && <RewardShop />}
+
       {tab === "photos" && (
         <>
           <p className="text-sm text-muted mb-2">Tap two photos to compare them side by side in the store.</p>
@@ -290,7 +295,7 @@ export default function ShopPage() {
             return { ...d, shopping, pantry };
           });
           const row = logActivity("shopping", { item: buying.name, emoji: buying.emoji, qty, unit, price }, at);
-          celebrate({ title: "GOT IT!", subtitle: `${buying.emoji} ${qty} ${unit} ${buying.name}`, xp: row.xp });
+          celebrate({ title: "ITEM ACQUIRED!", subtitle: `${buying.emoji} ${qty} ${unit} ${buying.name}`, xp: row.xp });
           setBuying(null);
         }} />
       )}
@@ -471,5 +476,72 @@ function PantrySheet({ item, onClose, onSave, onDelete }: {
         })}>Save</button>
       </div>
     </Sheet>
+  );
+}
+
+// Spend gold earned from missions on real-life treats, guilt-free.
+function RewardShop() {
+  const { data, logActivity, celebrate } = useApp();
+  const { items, add, update, remove } = useCustomItems("reward");
+  const g = gold(data);
+  const [form, setForm] = useState<{ id?: string; name: string; cost: string; emoji: string } | null>(null);
+  const claimed = data.logs.filter((l) => l.kind === "redeem").slice(-5).reverse();
+
+  return (
+    <>
+      <section className="card frame p-4 mb-3 flex items-center justify-between">
+        <div><div className="text-xs text-muted">Your gold</div><div className="font-game text-3xl gold-text">🪙 {g.toLocaleString()}</div></div>
+        <p className="text-xs text-muted max-w-[55%] text-right">Earn gold by clearing missions. Spend it here on treats you&apos;ve truly earned.</p>
+      </section>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        {items.map((r) => {
+          const cost = Number(r.config.cost ?? 50);
+          const can = g >= cost;
+          return (
+            <div key={r.id} className="card p-3 text-center">
+              <button onClick={() => setForm({ id: r.id, name: r.name, cost: String(cost), emoji: String(r.config.emoji ?? emojiFor(r.name, "🎁")) })} className="w-full">
+                <div className="text-4xl">{String(r.config.emoji ?? emojiFor(r.name, "🎁"))}</div>
+                <div className="mt-1 text-sm font-semibold leading-tight">{r.name}</div>
+              </button>
+              <button disabled={!can} onClick={() => {
+                logActivity("redeem", { name: r.name, cost, emoji: r.config.emoji }, new Date(), 0);
+                celebrate({ kind: "achievement", big: true, icon: String(r.config.emoji ?? "🎁"), title: "REWARD CLAIMED", subtitle: r.name, quote: "You earned this, hero. Enjoy it completely, without guilt. Then return stronger." });
+              }} className="btn-primary btn-gold mt-2 w-full !py-1.5 text-xs">🪙 {cost}</button>
+            </div>
+          );
+        })}
+        <button onClick={() => setForm({ name: "", cost: "50", emoji: "" })} className="rounded-2xl border border-dashed border-white/20 p-3 text-muted">＋ New reward</button>
+      </div>
+      {claimed.length > 0 && (
+        <section className="card p-3">
+          <div className="section-title mb-2">Recently claimed</div>
+          {claimed.map((l) => (
+            <div key={l.id} className="flex justify-between text-sm py-1">
+              <span>{String(l.data.emoji ?? "🎁")} {String(l.data.name)}</span>
+              <span className="text-muted">{new Date(l.created_at).toLocaleDateString()} · 🪙 {String(l.data.cost)}</span>
+            </div>
+          ))}
+        </section>
+      )}
+      {form && (
+        <Sheet title={form.id ? "Edit reward" : "New reward"} onClose={() => setForm(null)}>
+          <div className="flex items-center gap-3">
+            <input aria-label="Picture" className="input !w-16 text-center text-2xl" value={form.emoji || emojiFor(form.name, "🎁")} onChange={(e) => setForm({ ...form, emoji: e.target.value })} />
+            <input autoFocus className="input" placeholder="e.g. 2 anime episodes" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          </div>
+          <label className="text-xs text-muted">Price in gold<input className="input mt-1" inputMode="numeric" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} /></label>
+          <p className="text-xs text-muted">{line("exam")}</p>
+          <div className="flex gap-2">
+            {form.id && <button className="btn-ghost text-rose-400" onClick={() => { remove(form.id!); setForm(null); }}>Delete</button>}
+            <button className="btn-primary flex-1" disabled={!form.name.trim()} onClick={() => {
+              const config = { cost: Number(form.cost) || 50, emoji: form.emoji || emojiFor(form.name, "🎁") };
+              if (form.id) update(form.id, { name: form.name.trim(), config });
+              else add(form.name.trim(), config);
+              setForm(null);
+            }}>Save</button>
+          </div>
+        </Sheet>
+      )}
+    </>
   );
 }

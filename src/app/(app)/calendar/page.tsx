@@ -53,7 +53,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <XpHeader title="Calendar" />
+      <XpHeader title="Chronicle" icon="📜" subtitle="Every day of your legend, recorded" />
       <div className="grid grid-cols-3 gap-2 mb-3">
         {(["month", "week", "day"] as const).map((v) => (
           <button key={v} onClick={() => { setView(v); if (v === "day") setCursor(new Date(selected)); }} className={`chip py-2 capitalize ${view === v ? "chip-on" : ""}`}>{v}</button>

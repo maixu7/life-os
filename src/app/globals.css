@@ -1,77 +1,130 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #0b0716;
-  --panel: rgba(255, 255, 255, 0.06);
-  --border: rgba(255, 255, 255, 0.12);
-  --text: #f4f0ff;
-  --muted: #a99fc7;
-  --accent: #ff4fd8;
-  --accent2: #46e6ff;
-  --gold: #ffd166;
+  --bg: #070512;
+  --panel: #120c26;
+  --border: rgba(140, 120, 255, 0.22);
+  --text: #f1edff;
+  --muted: #9c93c4;
+  --accent: #ff3fd2;
+  --accent2: #2ef2ff;
+  --gold: #ffcf4a;
+  --hp: #ff4d6d;
+  --mp: #4d7cff;
+  --sta: #3ee08f;
 }
-[data-theme="sakura"] { --bg: #170912; --accent: #ff8fb8; --accent2: #ffd1e3; }
-[data-theme="ocean"] { --bg: #04121c; --accent: #3ad1ff; --accent2: #7cffcb; }
-[data-theme="inferno"] { --bg: #160604; --accent: #ff6a2a; --accent2: #ffd166; }
+[data-theme="sakura"] { --bg: #12060e; --accent: #ff7fb0; --accent2: #ffd1e3; }
+[data-theme="ocean"] { --bg: #020d16; --accent: #2ab8ff; --accent2: #7cffcb; }
+[data-theme="inferno"] { --bg: #120402; --accent: #ff5a1f; --accent2: #ffd166; }
 
 @theme inline {
   --color-accent: var(--accent);
   --color-accent2: var(--accent2);
   --color-gold: var(--gold);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
 }
 
 html, body { background: var(--bg); color: var(--text); }
 body {
   min-height: 100dvh;
   background-image:
-    radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 45%),
-    radial-gradient(circle at 100% 30%, color-mix(in srgb, var(--accent2) 16%, transparent), transparent 40%);
+    radial-gradient(1px 1px at 20px 30px, #ffffffaa, transparent),
+    radial-gradient(1px 1px at 120px 80px, #ffffff77, transparent),
+    radial-gradient(1.5px 1.5px at 200px 160px, #ffffff99, transparent),
+    radial-gradient(1px 1px at 60px 220px, #ffffff66, transparent),
+    radial-gradient(circle at 10% -10%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 45%),
+    radial-gradient(circle at 110% 40%, color-mix(in srgb, var(--accent2) 18%, transparent), transparent 45%),
+    linear-gradient(180deg, #0d0822, var(--bg) 60%);
+  background-size: 250px 250px, 250px 250px, 250px 250px, 250px 250px, auto, auto, auto;
   background-attachment: fixed;
   -webkit-tap-highlight-color: transparent;
 }
+/* faint scanlines for a game-screen feel */
+body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 60;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px);
+}
+h1, h2, h3, .font-game { font-family: var(--font-display), sans-serif; letter-spacing: .02em; }
 
 @layer components {
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 1.25rem; backdrop-filter: blur(12px); }
+  .card {
+    position: relative;
+    background: linear-gradient(160deg, rgba(36, 24, 78, .78), rgba(14, 9, 32, .92));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 10px 30px rgba(0,0,0,.45);
+    backdrop-filter: blur(10px);
+  }
+  /* corner brackets like a game HUD frame */
+  .frame::before, .frame::after {
+    content: ""; position: absolute; width: 18px; height: 18px; pointer-events: none;
+    border-color: var(--accent2); filter: drop-shadow(0 0 4px var(--accent2));
+  }
+  .frame::before { top: -1px; left: -1px; border-top: 2px solid; border-left: 2px solid; border-top-left-radius: 16px; }
+  .frame::after { bottom: -1px; right: -1px; border-bottom: 2px solid; border-right: 2px solid; border-bottom-right-radius: 16px; }
   .text-muted { color: var(--muted); }
   .input {
-    width: 100%; border-radius: 0.9rem; padding: 0.7rem 0.9rem; background: rgba(0,0,0,0.35);
+    width: 100%; border-radius: 12px; padding: 0.7rem 0.9rem; background: rgba(0,0,0,0.45);
     border: 1px solid var(--border); color: var(--text); outline: none;
   }
-  .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .input:focus { border-color: var(--accent2); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 25%, transparent); }
   .btn-primary {
-    border-radius: 0.9rem; padding: 0.7rem 1rem; font-weight: 800; color: #12051f;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    box-shadow: 0 0 20px color-mix(in srgb, var(--accent) 45%, transparent);
-    transition: transform .1s;
+    position: relative; border-radius: 12px; padding: 0.7rem 1rem; font-weight: 800; color: #0b0420;
+    font-family: var(--font-display); letter-spacing: .04em; text-transform: uppercase; font-size: .85rem;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent2) 85%, white), var(--accent2));
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--accent2) 45%, black), 0 0 22px color-mix(in srgb, var(--accent2) 45%, transparent);
+    transition: transform .08s, box-shadow .08s;
   }
-  .btn-primary:active { transform: scale(0.96); }
-  .btn-primary:disabled { opacity: .5; }
-  .btn-ghost { border-radius: 0.9rem; padding: 0.5rem 0.8rem; border: 1px solid var(--border); background: rgba(255,255,255,.04); }
+  .btn-primary:active { transform: translateY(3px); box-shadow: 0 1px 0 color-mix(in srgb, var(--accent2) 45%, black); }
+  .btn-primary:disabled { opacity: .45; }
+  .btn-hot {
+    background: linear-gradient(180deg, #ff7ae6, var(--accent));
+    box-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 45%, black), 0 0 22px color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .btn-gold {
+    background: linear-gradient(180deg, #ffe58a, var(--gold));
+    box-shadow: 0 4px 0 #a67c00, 0 0 22px color-mix(in srgb, var(--gold) 45%, transparent);
+  }
+  .btn-ghost { border-radius: 12px; padding: 0.5rem 0.8rem; border: 1px solid var(--border); background: rgba(255,255,255,.04); }
   .btn-ghost:active { transform: scale(0.96); }
   .chip { border-radius: 999px; padding: 0.3rem 0.75rem; font-size: .8rem; border: 1px solid var(--border); }
-  .chip-on { background: var(--accent); color: #12051f; border-color: transparent; font-weight: 700; }
+  .chip-on { background: var(--accent2); color: #0b0420; border-color: transparent; font-weight: 700; }
   .glow-text {
     background: linear-gradient(90deg, var(--accent), var(--accent2));
     -webkit-background-clip: text; background-clip: text; color: transparent;
     filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 60%, transparent));
   }
-  .bar { height: 0.7rem; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .gold-text { color: var(--gold); text-shadow: 0 0 10px color-mix(in srgb, var(--gold) 60%, transparent); }
+  .bar { height: 0.7rem; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; border: 1px solid rgba(255,255,255,.06); }
   .bar > div {
     height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent2));
     box-shadow: 0 0 12px var(--accent); transition: width .6s cubic-bezier(.2,1.4,.4,1);
+    background-size: 200% 100%; animation: flow 3s linear infinite;
   }
+  .section-title { font-family: var(--font-display); font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent2); }
 }
 
+@keyframes flow { to { background-position: -200% 0; } }
 @keyframes slosh { 0%,100% { transform: translateX(-25%) rotate(0deg); } 50% { transform: translateX(0%) rotate(2deg); } }
-@keyframes pop { 0% { transform: scale(.2) rotate(-12deg); opacity: 0; } 60% { transform: scale(1.15) rotate(3deg); opacity: 1; } 100% { transform: scale(1) rotate(-3deg); } }
+@keyframes pop { 0% { transform: scale(.2); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
 @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 @keyframes banner { 0% { transform: translateY(-120%); } 15%, 85% { transform: translateY(0); } 100% { transform: translateY(-120%); } }
 @keyframes sheet-up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes slash { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes stamp { 0% { transform: scale(2.5) rotate(-12deg); opacity: 0; } 100% { transform: scale(1) rotate(-12deg); opacity: 1; } }
+@keyframes pulse-glow { 0%,100% { box-shadow: 0 0 10px var(--gold); } 50% { box-shadow: 0 0 28px var(--gold); } }
+@keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-4px) rotate(-2deg); } 75% { transform: translateX(4px) rotate(2deg); } }
 .animate-pop { animation: pop .5s cubic-bezier(.2,1.6,.4,1) both; }
 .animate-sheet { animation: sheet-up .25s ease-out both; }
-.animate-fade { animation: fade .2s ease-out both; }
+.animate-fade { animation: fade .25s ease-out both; }
+.animate-float { animation: float 3s ease-in-out infinite; }
+.animate-slash { animation: slash .5s ease-out both; }
+.animate-stamp { animation: stamp .35s cubic-bezier(.2,1.6,.4,1) both; }
+.animate-pulse-glow { animation: pulse-glow 1.6s ease-in-out infinite; }
+.animate-shake { animation: shake .5s ease-in-out infinite; }
 .animate-banner { animation: banner 3.2s ease-in-out both; }
 .shimmer::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;

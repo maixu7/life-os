@@ -36,8 +36,12 @@ export function Gate({ children }: { children: React.ReactNode }) {
       setAutoError(res.error);
       return setMode("password");
     }
+    const fixed = normalizeData(res.data);
+    if (!res.data.pantry || !res.data.profile.avatar || !res.data.items?.some((i) => i.category === "reward")) {
+      await save(res.session, fixed, mergeData).catch(() => {});
+    }
     setSession(res.session);
-    setData(normalizeData(res.data));
+    setData(fixed);
     setMode("pin");
   }, []);
 
@@ -73,7 +77,7 @@ export function Gate({ children }: { children: React.ReactNode }) {
   const done = async (s: Session, d: Data, viaPassword: boolean) => {
     const fixed = normalizeData(d);
     // Data from an older version: store the upgraded copy right away so every device shares it.
-    if (!d.pantry || !d.items?.some((i) => i.category === "activity")) await save(s, fixed, mergeData).catch(() => {});
+    if (!d.pantry || !d.profile.avatar || !d.items?.some((i) => i.category === "reward")) await save(s, fixed, mergeData).catch(() => {});
     setSession(s);
     setData(fixed);
     setMode(viaPassword && !(await remembered()) ? "setpin" : "pin");

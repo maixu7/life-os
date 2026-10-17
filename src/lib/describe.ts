@@ -1,3 +1,4 @@
+import { MEDIA, type MediaType } from "@/lib/media";
 import type { Log } from "@/lib/store";
 
 const fmt = (iso?: unknown) =>
@@ -36,6 +37,11 @@ export function describe(l: Log, currency = "Rs"): { emoji: string; title: strin
         emoji: "🍱", title: String(d.name ?? "Meal"),
         detail: join((d.tags as string[] | undefined)?.join(", "), d.kcal ? `${d.kcal} kcal` : "", d.protein ? `${d.protein} g protein` : "", note),
       };
+    case "media": {
+      const m = MEDIA[(d.type as MediaType) ?? "book"] ?? MEDIA.book;
+      const verb = d.mode === "watch" ? "Watched" : d.mode === "listen" ? "Listened" : "Read";
+      return { emoji: m.emoji, title: `${verb}: ${d.title ?? m.label}`, detail: join(m.label, d.minutes ? `${d.minutes} min` : "", m.good ? "😇 good deed" : "😈 time waste", note) };
+    }
     case "reading":
       return { emoji: "📚", title: "Reading", detail: join(d.minutes ? `${d.minutes} min` : "", d.title, note) };
     case "listening":
@@ -59,6 +65,14 @@ export function describe(l: Log, currency = "Rs"): { emoji: string; title: strin
         emoji: String(d.emoji ?? "✨"), title: String(d.name ?? "Activity"),
         detail: join(d.minutes ? `${d.minutes} min` : "", d.kcal ? `${d.kcal} kcal` : "", note),
       };
+    case "chest":
+      return { emoji: d.rare ? "💎" : "🎁", title: d.rare ? "Rare chest opened" : "Daily chest opened", detail: `+${d.gold} gold` };
+    case "redeem":
+      return { emoji: String(d.emoji ?? "🎁"), title: `Reward: ${d.name}`, detail: `-${d.cost} gold` };
+    case "bonus":
+      return { emoji: "🏅", title: `Mission complete: ${d.name}`, detail: `+${l.xp} XP` };
+    case "body":
+      return { emoji: "📏", title: "Body check", detail: join(d.weight ? `${d.weight} kg` : "", d.height ? `${d.height} cm` : "", d.waist ? `waist ${d.waist} cm` : "", note) };
     default:
       return { emoji: "✨", title: l.kind, detail: note };
   }
@@ -68,7 +82,7 @@ export function describe(l: Log, currency = "Rs"): { emoji: string; title: strin
 export function daySummary(logs: Log[], currency = "Rs") {
   const sum = (k: string, f: string) => logs.filter((l) => l.kind === k).reduce((s, l) => s + Number(l.data[f] ?? 0), 0);
   const sleepH = logs.filter((l) => l.kind === "sleep" && l.data.end).reduce((s, l) => s + hoursBetween(l.data.start, l.data.end), 0);
-  const minutes = logs.reduce((s, l) => s + (["reading", "focus", "listening", "activity"].includes(l.kind) ? Number(l.data.minutes ?? 0) : 0), 0);
+  const minutes = logs.reduce((s, l) => s + (["reading", "focus", "listening", "activity", "media"].includes(l.kind) ? Number(l.data.minutes ?? 0) : 0), 0);
   const spent = sum("shopping", "price");
   const sets = logs.filter((l) => l.kind === "workout").reduce((s, l) => s + Number(l.data.sets ?? 1), 0);
   return [

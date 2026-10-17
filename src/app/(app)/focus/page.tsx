@@ -77,7 +77,7 @@ export default function FocusPage() {
 
   return (
     <>
-      <XpHeader title="Focus mode" />
+      <XpHeader title="Mind Dojo" icon="🧘" subtitle="25-minute strikes of pure focus" />
 
       {daysToExam !== null && daysToExam >= 0 && (
         <section className="card p-4 mb-4 flex items-center justify-between">

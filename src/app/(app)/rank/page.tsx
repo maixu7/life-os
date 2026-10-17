@@ -1,11 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AvatarArt, CLASSES } from "@/components/AvatarArt";
+import { AvatarEditor, BodyStats } from "@/components/HeroSheet";
+import { ACHIEVEMENTS } from "@/lib/achievements";
+import { CHAPTERS, gold, TITLES } from "@/lib/economy";
 import { dailyGoals } from "@/lib/goals";
+import { karma } from "@/lib/karma";
+import { Deeds } from "@/components/Deeds";
 import { initialData, useApp, type Log } from "@/lib/store";
 import { LOCK_KEY, lockMinutes } from "@/components/Gate";
 import { addDecoy, exportBackup } from "@/lib/vault";
-import { ATTRIBUTES, BADGES, progress, RANKS, UNLOCKS } from "@/lib/xp";
+import { ATTRIBUTES, progress, RANKS, UNLOCKS } from "@/lib/xp";
 
 const THEMES = [
   { id: "neon", label: "Neon", unlock: null },
@@ -35,7 +41,9 @@ function Radar({ values }: { values: { label: string; v: number }[] }) {
 }
 
 export default function RankPage() {
-  const { data, profile, saveSettings, lock, signOut, hasPin, session } = useApp();
+  const { data, profile, saveSettings, saveProfile, lock, signOut, hasPin, session } = useApp();
+  const [editAvatar, setEditAvatar] = useState(false);
+  const k = useMemo(() => karma(data), [data]);
   const [lockMin, setLockMin] = useState(() => lockMinutes());
   const p = progress(profile.xp);
   const [decoyPw, setDecoyPw] = useState("");
@@ -83,35 +91,54 @@ export default function RankPage() {
 
   return (
     <>
-      <section className={`card p-6 mb-4 text-center relative overflow-hidden ${unlocked.has("aura-gold") ? "shadow-[0_0_50px_var(--gold)]" : ""}`}>
-        <div className="text-sm text-muted">{profile.display_name}</div>
-        <div className="my-2 text-7xl font-black glow-text animate-pop">{p.rank.name}</div>
-        <div className="font-bold tracking-widest text-[var(--gold)]">{p.rank.title.toUpperCase()}</div>
-        <div className="mt-1 text-sm text-muted">Level {p.level} · {profile.xp.toLocaleString()} XP</div>
-        <div className="mt-4 text-left text-xs text-muted">Level {p.level + 1}</div>
-        <div className="bar"><div style={{ width: `${p.levelPct}%` }} /></div>
+      <section className="card frame p-5 mb-4 text-center relative overflow-hidden">
+        <div className="absolute inset-0 opacity-40" style={{ background: `radial-gradient(circle at 50% 30%, ${k.color}55, transparent 60%)` }} />
+        <div className="relative">
+          <div className="mx-auto w-fit rounded-full animate-float" style={{ boxShadow: `0 0 40px ${k.color}` }}>
+            <AvatarArt a={profile.avatar} size={150} />
+          </div>
+          <div className="mt-3 font-game text-xl font-black">{profile.display_name}</div>
+          <div className="text-sm text-[var(--accent2)]">{CLASSES.find((c) => c.name === profile.avatar.heroClass)?.icon} {profile.avatar.heroClass} · {profile.title}</div>
+          <div className="mt-2 flex justify-center gap-2 text-sm">
+            <span className="chip">Lv {p.level}</span>
+            <span className="chip font-game">Rank {p.rank.name}</span>
+            <span className="chip gold-text">🪙 {gold(data).toLocaleString()}</span>
+            <span className="chip" style={{ color: k.color }}>{k.icon} {k.name}</span>
+          </div>
+          <button onClick={() => setEditAvatar(true)} className="btn-primary mt-4">Edit hero</button>
+        </div>
+        <div className="relative mt-4 text-left text-xs text-muted">Level {p.level + 1} · {profile.xp.toLocaleString()} XP</div>
+        <div className="relative bar"><div style={{ width: `${p.levelPct}%` }} /></div>
         {p.next && (
           <>
-            <div className="mt-2 text-left text-xs text-muted">Rank {p.next.name} at {p.next.min.toLocaleString()} XP</div>
-            <div className="bar"><div style={{ width: `${p.rankPct}%` }} /></div>
+            <div className="relative mt-2 text-left text-xs text-muted">Rank {p.next.name} ({p.next.title}) at {p.next.min.toLocaleString()} XP</div>
+            <div className="relative bar"><div style={{ width: `${p.rankPct}%` }} /></div>
           </>
         )}
       </section>
 
+      <Deeds />
+
       <section className="card p-4 mb-4">
-        <h2 className="font-bold mb-2">Attributes</h2>
+        <h2 className="section-title mb-2">📊 Attributes</h2>
         <Radar values={attrs} />
       </section>
 
+      <BodyStats />
+
       <section className="card p-4 mb-4">
-        <h2 className="font-bold mb-3">Badges</h2>
-        <div className="grid grid-cols-3 gap-3">
-          {BADGES.map((b) => {
-            const got = b.test(stats);
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="section-title">🏆 Achievements</h2>
+          <span className="text-xs text-muted">{Object.keys(profile.achievements).length}/{ACHIEVEMENTS.length}</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {ACHIEVEMENTS.map((a) => {
+            const got = profile.achievements[a.id];
             return (
-              <div key={b.id} className={`text-center rounded-xl p-2 ${got ? "bg-white/5" : "opacity-30 grayscale"}`}>
-                <div className={`text-3xl ${got ? "drop-shadow-[0_0_10px_var(--gold)]" : ""}`}>{b.icon}</div>
-                <div className="text-[11px] mt-1">{b.label}</div>
+              <div key={a.id} title={a.desc} className={`text-center rounded-xl p-2 border ${got ? "border-[var(--gold)]/50 bg-[var(--gold)]/10" : "border-white/5 opacity-35 grayscale"}`}>
+                <div className={`text-3xl ${got ? "drop-shadow-[0_0_10px_var(--gold)]" : ""}`}>{got ? a.icon : "🔒"}</div>
+                <div className="text-[11px] mt-1 font-semibold leading-tight">{a.name}</div>
+                <div className="text-[9px] text-muted leading-tight">{a.desc}</div>
               </div>
             );
           })}
@@ -119,7 +146,34 @@ export default function RankPage() {
       </section>
 
       <section className="card p-4 mb-4">
-        <h2 className="font-bold mb-3">Themes</h2>
+        <h2 className="section-title mb-3">🎖 Titles</h2>
+        <div className="flex flex-wrap gap-2">
+          {TITLES.map((t) => {
+            const ok = t.test(data);
+            return (
+              <button key={t.title} disabled={!ok} onClick={() => saveProfile({ title: t.title })} title={t.need}
+                className={`chip ${profile.title === t.title ? "chip-on" : ""} disabled:opacity-35`}>{ok ? t.title : `🔒 ${t.title}`}</button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="card p-4 mb-4">
+        <h2 className="section-title mb-3">📖 Story</h2>
+        <div className="space-y-3">
+          {CHAPTERS.map((c) => (
+            <div key={c.title} className={p.level >= c.level ? "" : "opacity-40"}>
+              <div className="font-game text-sm font-bold">{p.level >= c.level ? c.title : `🔒 ${c.title} · unlocks at level ${c.level}`}</div>
+              {p.level >= c.level && <p className="text-sm text-muted leading-relaxed">{c.text}</p>}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {editAvatar && <AvatarEditor onClose={() => setEditAvatar(false)} />}
+
+      <section className="card p-4 mb-4">
+        <h2 className="section-title mb-3">🎨 Themes</h2>
         <div className="grid grid-cols-4 gap-2">
           {THEMES.map((t) => {
             const ok = !t.unlock || unlocked.has(t.unlock);
@@ -136,7 +190,7 @@ export default function RankPage() {
       </section>
 
       <section className="card p-4 mb-4 space-y-2">
-        <h2 className="font-bold">Daily targets</h2>
+        <h2 className="section-title">🎯 Daily targets</h2>
         <div className="grid grid-cols-2 gap-2 text-xs text-muted">
           <label>Water ml<input className="input mt-1" inputMode="numeric" defaultValue={profile.settings.water_goal_ml} onBlur={set("water_goal_ml")} /></label>
           <label>Milk ml<input className="input mt-1" inputMode="numeric" defaultValue={profile.settings.milk_goal_ml} onBlur={set("milk_goal_ml")} /></label>
@@ -147,7 +201,7 @@ export default function RankPage() {
       </section>
 
       <section className="card p-4 mb-4 space-y-3">
-        <h2 className="font-bold">Security</h2>
+        <h2 className="section-title">🔐 Security</h2>
         {hasPin ? (
           <>
             <button onClick={lock} className="btn-primary w-full">🔒 Lock now</button>

@@ -85,7 +85,7 @@ export function CelebrationLayer() {
     chime(!!celebration.big);
     navigator.vibrate?.(celebration.big ? [60, 40, 120] : 40);
     const stop = hanabi(canvas.current, celebration.big ? 7 : 2);
-    const t = setTimeout(clearCelebration, celebration.big ? 3300 : 1600);
+    const t = setTimeout(clearCelebration, celebration.big ? (celebration.quote ? 5200 : 3400) : 1500);
     return () => {
       stop();
       clearTimeout(t);
@@ -94,30 +94,45 @@ export function CelebrationLayer() {
 
   if (!celebration) return null;
   const word = COMIC[Math.floor(Math.random() * COMIC.length)];
+  const color = celebration.kind === "achievement" ? "var(--gold)" : celebration.kind === "level" ? "var(--accent)" : "var(--accent2)";
   return (
-    <div className="fixed inset-0 z-50 pointer-events-none" onClick={clearCelebration}>
-      <canvas ref={canvas} className="absolute inset-0 w-full h-full" />
-      {celebration.big && <div className="absolute inset-0 shimmer" />}
+    <div className={`fixed inset-0 z-50 ${celebration.big ? "bg-black/70 animate-fade" : "pointer-events-none"}`} onClick={clearCelebration}>
+      <canvas ref={canvas} className="absolute inset-0 w-full h-full pointer-events-none" />
       {celebration.big ? (
-        <div className="absolute top-0 inset-x-0 animate-banner">
-          <div className="mx-auto mt-[22vh] max-w-md text-center px-6 py-5 card border-2 border-[var(--gold)] shadow-[0_0_40px_var(--gold)]">
-            <div className="text-[var(--gold)] text-sm font-bold tracking-[.3em]">{word}</div>
-            <div className="text-4xl font-black glow-text animate-pop">{celebration.title}</div>
-            {celebration.subtitle && <div className="mt-1 text-muted">{celebration.subtitle}</div>}
+        <div className="absolute inset-x-0 top-[18vh] px-6 text-center">
+          <div className="text-xs font-game font-bold tracking-[.4em]" style={{ color }}>{word}</div>
+          {celebration.icon && <div className="mt-2 text-6xl animate-pop">{celebration.icon}</div>}
+          <div className="relative mx-auto mt-2 max-w-lg overflow-hidden py-3 shimmer"
+            style={{ background: `linear-gradient(90deg, transparent, color-mix(in srgb, ${color} 35%, transparent), transparent)` }}>
+            <div className="animate-slash font-game text-3xl sm:text-4xl font-black italic tracking-wide"
+              style={{ color: "#fff", textShadow: `0 0 18px ${color}, 3px 3px 0 #000` }}>{celebration.title}</div>
           </div>
+          {celebration.subtitle && <div className="mt-2 text-lg font-bold animate-pop">{celebration.subtitle}</div>}
+          {celebration.xp ? (
+            <div className="mt-3 flex justify-center gap-2 animate-pop">
+              <span className="chip !border-[var(--accent2)] text-[var(--accent2)] font-bold">+{celebration.xp} XP</span>
+              <span className="chip !border-[var(--gold)] gold-text font-bold">+{Math.floor(celebration.xp / 2)} 🪙</span>
+            </div>
+          ) : null}
+          {celebration.quote && (
+            <div className="card mx-auto mt-6 max-w-md p-4 text-left flex gap-3 animate-sheet">
+              <span className="text-3xl">🥷</span>
+              <div>
+                <div className="font-game text-[10px] tracking-widest text-[var(--accent2)]">SENSEI KAITO</div>
+                <p className="text-sm leading-relaxed">{celebration.quote}</p>
+              </div>
+            </div>
+          )}
+          <div className="mt-6 text-xs text-muted">Tap to continue</div>
         </div>
       ) : (
-        <div className="absolute top-[30vh] inset-x-0 text-center">
-          <span className="inline-block animate-pop text-3xl font-black italic text-[var(--gold)] [text-shadow:3px_3px_0_#12051f,0_0_18px_var(--accent)]">
+        <div className="absolute top-[28vh] inset-x-0 text-center">
+          <span className="inline-block animate-pop font-game text-2xl font-black italic text-[var(--gold)] [text-shadow:3px_3px_0_#000,0_0_18px_var(--accent)]">
             {celebration.title}
           </span>
+          {celebration.xp ? <div className="mt-1 animate-pop font-bold text-[var(--accent2)]">+{celebration.xp} XP · +{Math.floor(celebration.xp / 2)} 🪙</div> : null}
         </div>
       )}
-      {celebration.xp ? (
-        <div className="absolute top-[42vh] inset-x-0 text-center animate-pop text-xl font-bold text-[var(--accent2)]">
-          +{celebration.xp} XP
-        </div>
-      ) : null}
     </div>
   );
 }

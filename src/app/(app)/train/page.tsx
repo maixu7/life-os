@@ -73,7 +73,7 @@ export default function TrainPage() {
 
   return (
     <>
-      <XpHeader title="Training" />
+      <XpHeader title="Training Grounds" icon="⚔️" subtitle="Every rep is XP for your body" />
 
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-bold">Exercises</h2>

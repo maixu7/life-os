@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Library } from "@/components/Library";
 import { LiquidGlass } from "@/components/LiquidGlass";
+import { MEDIA, type MediaType } from "@/lib/media";
 import { dtLocal, fmtDuration, fmtTime, Sheet } from "@/components/Sheet";
 import { XpHeader } from "@/components/XpHeader";
 import { daySummary, describe, MEAL_NAMES } from "@/lib/describe";
 import { emojiFor } from "@/lib/emoji";
-import { dailyGoals, sumMl } from "@/lib/goals";
+import { chestOpenedToday, rollChest } from "@/lib/economy";
+import { sumMl } from "@/lib/goals";
+import { logKarma } from "@/lib/karma";
+import { KIND_TOPIC, line } from "@/lib/lore";
+import { dailyMissions, streak, weeklyBoss, type Mission } from "@/lib/missions";
+import Link from "next/link";
 import { today, toDay, useApp, useCustomItems, useLogs, type CustomItem, type Log } from "@/lib/store";
 
 const shiftDay = (day: string, n: number) => {
@@ -33,8 +40,10 @@ export default function TodayPage() {
   const { profile, logActivity, celebrate, data } = useApp();
   const { logs } = useLogs(day);
   const settings = profile.settings;
-  const goals = dailyGoals(logs, settings);
-  const doneCount = goals.filter((g) => g.done).length;
+  const missions = dailyMissions(logs, settings);
+  const goals = missions;
+  const doneCount = missions.filter((g) => g.done).length;
+  const [brief, setBrief] = useState<Mission | null>(null);
   const isToday = day === today();
   const [editing, setEditing] = useState<Log | null>(null);
   const [adding, setAdding] = useState(false);
@@ -47,7 +56,7 @@ export default function TodayPage() {
       if (localStorage.getItem(key)) return;
       localStorage.setItem(key, "1");
     } catch {}
-    celebrate({ title: "PERFECT DAY!", subtitle: "Every goal complete. Legendary.", big: true });
+    celebrate({ kind: "mission", title: "PERFECT STAGE!", subtitle: "Every mission cleared", big: true, icon: "🎆", quote: line("perfect") });
   }, [doneCount, goals.length, day, isToday, celebrate]);
 
   useEffect(() => {
@@ -58,7 +67,8 @@ export default function TodayPage() {
 
   const log = (kind: string, payload: Record<string, unknown>, title: string) => {
     const row = logActivity(kind, payload, atFor(day));
-    celebrate({ title, xp: row.xp });
+    const k = logKarma(row);
+    celebrate({ title: k < 0 ? `🌒 THE SHADOW STIRS…` : title, xp: row.xp });
     setToast(row);
     return row;
   };
@@ -70,7 +80,7 @@ export default function TodayPage() {
 
   return (
     <>
-      <XpHeader title={isToday ? greet : "Day record"} />
+      <XpHeader title={isToday ? "Base Camp" : "Day record"} icon="🏯" subtitle={isToday ? `${greet}, hero. ${doneCount}/6 missions cleared.` : undefined} />
 
       <div className="card flex items-center gap-2 p-2 mb-4">
         <button aria-label="Previous day" onClick={() => setDay(shiftDay(day, -1))} className="btn-ghost h-10 w-10 !p-0">‹</button>
@@ -86,21 +96,36 @@ export default function TodayPage() {
 
       {isToday && <SleepCard onLogged={setToast} />}
 
-      <section className="card p-4 mb-4">
+      {isToday && <BossAndChest />}
+
+      <section className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-bold">Daily quest</h2>
-          <span className="text-sm text-muted">{doneCount}/{goals.length}</span>
+          <h2 className="section-title">⚔ Daily missions</h2>
+          <span className="font-game text-sm text-[var(--accent2)]">{doneCount}/{missions.length}</span>
         </div>
-        <div className="bar mb-3"><div style={{ width: `${(doneCount / goals.length) * 100}%` }} /></div>
-        <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-sm">
-          {goals.map((g) => (
-            <li key={g.id} className={`flex items-center gap-2 ${g.done ? "text-[var(--accent2)]" : "text-muted"}`}>
-              <span>{g.done ? "✦" : "◇"}</span>{g.label}
-            </li>
+        <div className="space-y-2">
+          {missions.map((m) => (
+            <button key={m.id} onClick={() => setBrief(m)}
+              className={`card frame w-full p-3 flex items-center gap-3 text-left transition active:scale-[.98] ${m.done ? "opacity-80" : ""}`}>
+              <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl text-2xl ${m.done ? "bg-[var(--accent2)]/20" : "bg-white/5"}`}>{m.icon}</span>
+              <span className="flex-1 min-w-0">
+                <span className="flex items-center gap-2">
+                  <span className="font-game text-sm font-bold truncate">{m.name}</span>
+                </span>
+                <span className="block text-xs text-muted truncate">{m.goal}</span>
+                <span className="mt-1.5 block bar !h-1.5"><span className="block h-full rounded-full bg-[var(--accent2)] shadow-[0_0_8px_var(--accent2)] transition-all duration-700" style={{ width: `${Math.min(100, (m.progress / m.target) * 100)}%` }} /></span>
+              </span>
+              {m.done ? (
+                <span className="animate-stamp font-game text-[10px] font-black text-[var(--accent2)] border-2 border-[var(--accent2)] rounded px-1.5 py-0.5">CLEAR</span>
+              ) : (
+                <span className="text-right shrink-0"><span className="block font-game text-xs text-[var(--accent2)]">+{m.reward}</span><span className="block text-[10px] text-muted">XP</span></span>
+              )}
+            </button>
           ))}
-        </ul>
+        </div>
       </section>
 
+      <h2 className="section-title mb-2">🧪 Potions</h2>
       <section className="grid grid-cols-2 gap-3 mb-4">
         <LiquidGlass label="Water" color="#46c8ff" ml={sumMl(logs, "water")} goal={settings.water_goal_ml}
           onAdd={(ml) => log("water", { ml }, "GULP!")} />
@@ -108,13 +133,15 @@ export default function TodayPage() {
           onAdd={(ml) => log("milk", { ml }, "STRONG BONES!")} />
       </section>
 
-      <Activities onLog={(a) => log("activity", { name: a.name, emoji: a.config.emoji ?? emojiFor(a.name) }, `${a.name.toUpperCase()}!`)} />
+      <Activities onLog={(a) => log("activity", { name: a.name, emoji: a.config.emoji ?? emojiFor(a.name), alignment: a.config.alignment }, `${a.name.toUpperCase()}!`)} />
+
+      <Library at={() => atFor(day)} onLogged={setToast} />
 
       <PantryStrip day={day} onLogged={setToast} />
 
       <section className="card p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold">What I did</h2>
+          <h2 className="section-title">📜 {isToday ? "Today's chronicle" : "Chronicle"}</h2>
           <button onClick={() => setAdding(true)} className="chip chip-on">+ Add</button>
         </div>
         {summary.length > 0 && (
@@ -122,6 +149,16 @@ export default function TodayPage() {
             {summary.map((s) => <span key={s.icon} className="chip bg-white/5">{s.icon} {s.value}</span>)}
           </div>
         )}
+        {logs.length > 0 && (() => {
+          const good = logs.reduce((n, l) => n + Math.max(0, logKarma(l)), 0);
+          const bad = logs.reduce((n, l) => n - Math.min(0, logKarma(l)), 0);
+          return (
+            <div className="flex gap-2 mb-3 text-xs">
+              <span className="chip" style={{ color: "#ffe066" }}>😇 Good deeds +{good}</span>
+              <span className="chip" style={{ color: "#ff6b9b" }}>😈 Bad deeds −{bad}</span>
+            </div>
+          );
+        })()}
         {logs.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted">Nothing recorded for this day yet.</p>
         ) : (
@@ -138,6 +175,9 @@ export default function TodayPage() {
                       <span className="block font-semibold truncate">{d.title}</span>
                       {d.detail && <span className="block text-xs text-muted truncate">{d.detail}</span>}
                     </span>
+                    {(() => { const k = logKarma(l); return k === 0 ? null : (
+                      <span className={`text-[11px] font-bold tabular-nums ${k > 0 ? "text-[#ffe066]" : "text-[#ff6b9b]"}`}>{k > 0 ? `😇+${k}` : `😈${k}`}</span>
+                    ); })()}
                     <span className="text-muted text-sm px-1">✎</span>
                   </button>
                 </li>
@@ -154,6 +194,7 @@ export default function TodayPage() {
         </div>
       )}
       {editing && <EditLog log={editing} onClose={() => setEditing(null)} />}
+      {brief && <MissionBrief m={missions.find((x) => x.id === brief.id) ?? brief} onClose={() => setBrief(null)} log={log} />}
       {adding && <AddEntry day={day} onClose={() => setAdding(false)} />}
     </>
   );
@@ -209,18 +250,18 @@ function SleepCard({ onLogged }: { onLogged: (l: Log) => void }) {
 function Activities({ onLog }: { onLog: (a: CustomItem) => void }) {
   const { items, add, update, remove } = useCustomItems("activity");
   const [edit, setEdit] = useState(false);
-  const [form, setForm] = useState<{ id?: string; name: string; emoji: string } | null>(null);
+  const [form, setForm] = useState<{ id?: string; name: string; emoji: string; alignment?: string } | null>(null);
 
   return (
     <section className="card p-4 mb-4">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-bold">What are you doing?</h2>
+        <h2 className="section-title">🗺 Side quests</h2>
         <button onClick={() => setEdit(!edit)} className={`chip ${edit ? "chip-on" : ""}`}>{edit ? "Done" : "Edit"}</button>
       </div>
       <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
         {items.map((a) => (
           <button key={a.id}
-            onClick={() => (edit ? setForm({ id: a.id, name: a.name, emoji: String(a.config.emoji ?? emojiFor(a.name)) }) : onLog(a))}
+            onClick={() => (edit ? setForm({ id: a.id, name: a.name, emoji: String(a.config.emoji ?? emojiFor(a.name)), alignment: a.config.alignment as string | undefined }) : onLog(a))}
             className={`relative rounded-2xl border border-white/10 bg-white/[.04] py-3 px-1 flex flex-col items-center gap-1 active:scale-95 transition ${edit ? "ring-1 ring-[var(--accent)]/60" : "hover:bg-white/10"}`}>
             <span className="text-2xl">{String(a.config.emoji ?? emojiFor(a.name))}</span>
             <span className="text-[11px] leading-tight text-center line-clamp-2">{a.name}</span>
@@ -242,12 +283,18 @@ function Activities({ onLog }: { onLog: (a: CustomItem) => void }) {
               onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
           <p className="text-xs text-muted">The picture is picked automatically from the name. Tap it to change.</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[["light", "😇 Light"], ["", "⚖️ Auto"], ["shadow", "😈 Shadow"]].map(([v, l]) => (
+              <button key={v} onClick={() => setForm({ ...form, alignment: v || undefined })}
+                className={`chip py-2 ${(form.alignment ?? "") === v ? "chip-on" : ""}`}>{l}</button>
+            ))}
+          </div>
           <div className="flex gap-2">
             {form.id && (
               <button onClick={() => { remove(form.id!); setForm(null); }} className="btn-ghost text-rose-400">Delete</button>
             )}
             <button className="btn-primary flex-1" disabled={!form.name.trim()} onClick={() => {
-              const config = { emoji: form.emoji || emojiFor(form.name) };
+              const config = { emoji: form.emoji || emojiFor(form.name), ...(form.alignment ? { alignment: form.alignment } : {}) };
               if (form.id) update(form.id, { name: form.name.trim(), config });
               else add(form.name.trim(), config);
               setForm(null);
@@ -272,7 +319,7 @@ function PantryStrip({ day, onLogged }: { day: string; onLogged: (l: Log) => voi
   };
   return (
     <section className="card p-4 mb-4">
-      <h2 className="font-bold mb-1">From my storage</h2>
+      <h2 className="section-title mb-1">🎒 Inventory</h2>
       <p className="text-xs text-muted mb-3">Tap when you eat or use one.</p>
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {stock.map((p) => (
@@ -305,8 +352,9 @@ function EditLog({ log, onClose }: { log: Log; onClose: () => void }) {
   const save = () => {
     const patch: Record<string, unknown> = { note: f.note || undefined };
     if (log.kind === "water" || log.kind === "milk") patch.ml = num("ml") ?? d.ml;
-    if (["reading", "listening", "activity", "focus"].includes(log.kind)) patch.minutes = num("minutes");
-    if (["reading", "listening"].includes(log.kind)) patch.title = f.title;
+    if (["reading", "listening", "activity", "focus", "media"].includes(log.kind)) patch.minutes = num("minutes");
+    if (["reading", "listening", "media"].includes(log.kind)) patch.title = f.title;
+    if (log.kind === "media") Object.assign(patch, { type: f.type, emoji: MEDIA[f.type as MediaType]?.emoji, good: MEDIA[f.type as MediaType]?.good });
     if (log.kind === "workout") Object.assign(patch, { sets: num("sets"), reps: num("reps"), weight: num("weight") });
     if (log.kind === "shopping") patch.price = num("price");
     if (isMeal) Object.assign(patch, { kcal: num("kcal"), protein: num("protein"), carbs: num("carbs"), fat: num("fat") });
@@ -347,12 +395,19 @@ function EditLog({ log, onClose }: { log: Log; onClose: () => void }) {
       )}
       <div className="grid grid-cols-2 gap-2">
         {(log.kind === "water" || log.kind === "milk") && field("ml", "Amount (ml)")}
-        {["reading", "listening", "activity", "focus"].includes(log.kind) && field("minutes", "Minutes")}
-        {["reading", "listening"].includes(log.kind) && field("title", "Title", "text")}
+        {["reading", "listening", "activity", "focus", "media"].includes(log.kind) && field("minutes", "Minutes")}
+        {["reading", "listening", "media"].includes(log.kind) && field("title", "Title", "text")}
         {log.kind === "workout" && <>{field("sets", "Sets")}{field("reps", "Reps")}{field("weight", "Weight (kg)", "decimal")}</>}
         {log.kind === "shopping" && field("price", "Price", "decimal")}
         {isMeal && <>{field("kcal", "kcal")}{field("protein", "Protein g")}{field("carbs", "Carbs g")}{field("fat", "Fat g")}</>}
       </div>
+      {log.kind === "media" && (
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(MEDIA) as MediaType[]).map((t) => (
+            <button key={t} onClick={() => setF({ ...f, type: t })} className={`chip ${f.type === t ? "chip-on" : ""}`}>{MEDIA[t].emoji} {MEDIA[t].label} {MEDIA[t].good ? "😇" : "😈"}</button>
+          ))}
+        </div>
+      )}
       <label className="text-xs text-muted">Note<input className="input mt-1" value={f.note ?? ""} onChange={set("note")} placeholder="Anything to remember" /></label>
       <div className="flex gap-2 pt-1">
         <button onClick={del} className="btn-ghost text-rose-400">Delete</button>
@@ -412,6 +467,86 @@ function AddEntry({ day, onClose }: { day: string; onClose: () => void }) {
       )}
       <label className="text-xs text-muted">Note<input className="input mt-1" value={note} onChange={(e) => setNote(e.target.value)} /></label>
       <button onClick={save} disabled={!pick && !name.trim()} className="btn-primary w-full">Add</button>
+    </Sheet>
+  );
+}
+
+function BossAndChest() {
+  const { data, logActivity, celebrate } = useApp();
+  const boss = weeklyBoss(data);
+  const opened = chestOpenedToday(data);
+  const openChest = () => {
+    const r = rollChest(streak(data));
+    logActivity("chest", { gold: r.gold, rare: r.rare }, new Date(), 0);
+    celebrate({ kind: "achievement", big: true, icon: r.rare ? "💎" : "🎁", title: r.rare ? "RARE CHEST!" : "DAILY CHEST", subtitle: `+${r.gold} gold`, quote: line("morning") });
+  };
+  const pct = (boss.left / boss.hp) * 100;
+  return (
+    <section className="grid grid-cols-[1fr_auto] gap-3 mb-4">
+      <div className="card frame p-3 overflow-hidden">
+        <div className="flex items-center gap-3">
+          <span className={`text-4xl ${boss.defeated ? "grayscale opacity-50" : "animate-float"}`}>{boss.icon}</span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] font-game tracking-widest text-rose-300">WEEKLY BOSS</div>
+            <div className="font-game text-sm font-bold truncate">{boss.name}</div>
+            <div className="text-[11px] text-muted italic truncate">{boss.defeated ? "Defeated! Glory to the hero." : `"${boss.taunt}"`}</div>
+          </div>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <div className="h-2.5 flex-1 rounded-full bg-white/10 overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-rose-600 to-rose-400 shadow-[0_0_10px_#ff4d6d] transition-all duration-700" style={{ width: `${pct}%` }} />
+          </div>
+          <span className="font-game text-[10px] text-rose-300">{boss.left} HP</span>
+        </div>
+        <div className="mt-1 text-[10px] text-muted">Every XP you earn this week is damage.</div>
+      </div>
+      <button disabled={opened} onClick={openChest}
+        className={`card w-24 flex flex-col items-center justify-center gap-1 ${opened ? "opacity-40" : "animate-pulse-glow"}`}>
+        <span className={`text-4xl ${opened ? "" : "animate-shake"}`}>{opened ? "📭" : "🎁"}</span>
+        <span className="font-game text-[10px]">{opened ? "OPENED" : "OPEN"}</span>
+      </button>
+    </section>
+  );
+}
+
+function MissionBrief({ m, onClose, log }: { m: Mission; onClose: () => void; log: (k: string, p: Record<string, unknown>, t: string) => unknown }) {
+  const [advice] = useState(() => line(KIND_TOPIC[m.topic] ?? m.topic));
+  const pct = Math.min(100, (m.progress / m.target) * 100);
+  return (
+    <Sheet title={`${m.icon} ${m.name}`} onClose={onClose}>
+      <div className="text-sm text-muted">{m.goal}</div>
+      <div className="bar"><div style={{ width: `${pct}%` }} /></div>
+      <div className="flex justify-between text-xs">
+        <span>{m.unit ? `${m.progress} / ${m.target} ${m.unit}` : m.done ? "Cleared" : "Not yet"}</span>
+        <span className="text-[var(--accent2)] font-game">Reward +{m.reward} XP</span>
+      </div>
+      <div className="card p-3 flex gap-3">
+        <span className="text-3xl">🥷</span>
+        <div><div className="font-game text-[10px] tracking-widest text-[var(--accent2)]">SENSEI KAITO</div><p className="text-sm">{advice}</p></div>
+      </div>
+      {m.done ? (
+        <p className="text-center font-game text-[var(--accent2)]">✦ MISSION CLEARED ✦</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          {m.id === "water" && <>
+            <button className="btn-primary" onClick={() => log("water", { ml: 250 }, "GULP!")}>+250 ml</button>
+            <button className="btn-primary" onClick={() => log("water", { ml: 500 }, "GULP GULP!")}>+500 ml</button>
+          </>}
+          {m.id === "milk" && <>
+            <button className="btn-primary" onClick={() => log("milk", { ml: 250 }, "STRONG BONES!")}>+250 ml</button>
+            <button className="btn-primary" onClick={() => log("milk", { ml: 500 }, "STRONG BONES!")}>+500 ml</button>
+          </>}
+          {m.id === "wake" && <button className="btn-primary col-span-2" onClick={() => {
+            const d = new Date();
+            log("wake", { time: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` }, "OHAYO!");
+            onClose();
+          }}>☀️ I&apos;m awake</button>}
+          {m.id === "meal" && ["Breakfast", "Lunch", "Dinner", "Snack"].map((n) => (
+            <button key={n} className="btn-primary" onClick={() => log("activity", { name: n, emoji: emojiFor(n) }, "ITADAKIMASU!")}>{emojiFor(n)} {n}</button>
+          ))}
+          {m.href && <Link href={m.href} className="btn-primary btn-hot col-span-2 text-center">Accept mission ➜</Link>}
+        </div>
+      )}
     </Sheet>
   );
 }
