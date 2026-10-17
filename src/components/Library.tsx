@@ -16,9 +16,10 @@ type Recent = { title: string; type: MediaType; mode: MediaMode; minutes?: numbe
 
 // "What are you reading or watching?" The app works out whether it is a good deed
 // (books, study, documentaries) or a bad one (manga, anime, movies, reels).
-export function Library({ at, onLogged }: { at: () => Date; onLogged: (l: Log) => void }) {
+export function Library({ at, onLogged, openSignal = 0 }: { at: () => Date; onLogged: (l: Log) => void; openSignal?: number }) {
   const { data } = useApp();
   const [open, setOpen] = useState<Recent | null>(null);
+  useEffect(() => { if (openSignal) setOpen({ title: "", type: "book", mode: "read" }); }, [openSignal]);
   const recent = useMemo(() => {
     const seen = new Set<string>();
     const out: Recent[] = [];

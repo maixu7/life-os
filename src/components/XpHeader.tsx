@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { AvatarArt } from "@/components/AvatarArt";
 import { gold, vitals } from "@/lib/economy";
-import { karma } from "@/lib/karma";
+import { karma, logKarma } from "@/lib/karma";
+import { describe } from "@/lib/describe";
 import { streak } from "@/lib/missions";
 import { today, useApp } from "@/lib/store";
 import { progress } from "@/lib/xp";
@@ -30,6 +31,11 @@ export function XpHeader({ title, icon, subtitle }: { title: string; icon?: stri
   const g = gold(data);
   const s = useMemo(() => streak(data), [data]);
   const k = useMemo(() => karma(data), [data]);
+  // The most recent deed and which side it pushes you toward.
+  const lastDeed = useMemo(() => {
+    const l = [...data.logs].sort((a, b) => b.created_at.localeCompare(a.created_at)).find((x) => logKarma(x) !== 0);
+    return l ? { l, k: logKarma(l) } : null;
+  }, [data.logs]);
 
   return (
     <header className="mb-5">
@@ -59,6 +65,11 @@ export function XpHeader({ title, icon, subtitle }: { title: string; icon?: stri
             <span className="text-[10px]">😇</span>
             <span className="text-[10px] font-bold w-24 truncate" style={{ color: k.color }}>{k.name}</span>
           </div>
+          {lastDeed && (
+            <div className="mt-0.5 text-[10px] truncate" style={{ color: lastDeed.k > 0 ? "#ffe066" : "#ff6b9b" }}>
+              {lastDeed.k > 0 ? "😇 walking toward Angel" : "😈 walking toward Devil"} · {describe(lastDeed.l).title} {lastDeed.k > 0 ? `+${lastDeed.k}` : lastDeed.k}
+            </div>
+          )}
           <div className="mt-1.5 grid grid-cols-3 gap-2">
             <Vital label="HP" value={v.hp} color="var(--hp)" />
             <Vital label="MP" value={v.mp} color="var(--mp)" />

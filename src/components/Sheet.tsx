@@ -15,7 +15,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm animate-fade" onClick={onClose}>
+    <div data-overlay className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm animate-fade" onClick={onClose}>
       <div
         role="dialog"
         aria-label={title}

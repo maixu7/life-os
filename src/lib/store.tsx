@@ -17,11 +17,13 @@ export type Settings = {
 };
 export type Avatar = {
   skin: string; hair: string; hairStyle: number; eyes: string; outfit: string; accessory: number; heroClass: string;
+  pants?: string; shoes?: string; expression?: number; gender?: "boy" | "girl";
 };
 export type Profile = {
   display_name: string; xp: number; settings: Settings; updated_at: string;
   avatar: Avatar; title: string; height_cm: number | null; birth_year: number | null;
   achievements: Record<string, string>; // id -> unlocked at
+  about?: string; // "About me", written by the hero; shapes habit quests
 };
 export const DEFAULT_AVATAR: Avatar = {
   skin: "#f6d2b8", hair: "#2b2d42", hairStyle: 0, eyes: "#4cc9f0", outfit: "#7b2cbf", accessory: 1, heroClass: "Ninja",

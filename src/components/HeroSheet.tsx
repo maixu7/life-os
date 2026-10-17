@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ACCESSORIES, AvatarArt, CLASSES, EYES, HAIR_STYLES, HAIRS, OUTFITS, SKINS } from "@/components/AvatarArt";
+import { ACCESSORIES, AvatarArt, CLASSES, EXPRESSIONS, EYES, HAIR_STYLES, HAIRS, OUTFITS, PANTS, SHOES, SKINS } from "@/components/AvatarArt";
 import { dtLocal, Sheet } from "@/components/Sheet";
-import { useApp, type Avatar } from "@/lib/store";
+import { ABOUT_HINTS, HABITS, suggestHabits } from "@/lib/habits";
+import { useApp, useCustomItems, type Avatar } from "@/lib/store";
 
 function Swatches({ list, value, onPick }: { list: string[]; value: string; onPick: (c: string) => void }) {
   return (
@@ -27,7 +28,7 @@ export function AvatarEditor({ onClose }: { onClose: () => void }) {
   const set = (patch: Partial<Avatar>) => setA({ ...a, ...patch });
   return (
     <Sheet title="Edit hero" onClose={onClose}>
-      <div className="flex justify-center"><AvatarArt a={a} size={140} /></div>
+      <div className="flex justify-center items-end gap-4"><AvatarArt a={a} size={220} full /><AvatarArt a={a} size={90} /></div>
       <input className="input text-center font-game" value={name} onChange={(e) => setName(e.target.value)} placeholder="Hero name" />
       <div className="text-xs text-muted">Class</div>
       <div className="grid grid-cols-3 gap-2">
@@ -39,6 +40,10 @@ export function AvatarEditor({ onClose }: { onClose: () => void }) {
       <div className="flex flex-wrap gap-2">
         {HAIR_STYLES.map((h, i) => <button key={h} onClick={() => set({ hairStyle: i })} className={`chip ${a.hairStyle === i ? "chip-on" : ""}`}>{h}</button>)}
       </div>
+      <div className="text-xs text-muted">Expression</div>
+      <div className="flex flex-wrap gap-2">
+        {EXPRESSIONS.map((x, i) => <button key={x} onClick={() => set({ expression: i })} className={`chip ${(a.expression ?? 0) === i ? "chip-on" : ""}`}>{x}</button>)}
+      </div>
       <div className="text-xs text-muted">Hair color</div>
       <Swatches list={HAIRS} value={a.hair} onPick={(hair) => set({ hair })} />
       <div className="text-xs text-muted">Eyes</div>
@@ -47,6 +52,10 @@ export function AvatarEditor({ onClose }: { onClose: () => void }) {
       <Swatches list={SKINS} value={a.skin} onPick={(skin) => set({ skin })} />
       <div className="text-xs text-muted">Outfit</div>
       <Swatches list={OUTFITS} value={a.outfit} onPick={(outfit) => set({ outfit })} />
+      <div className="text-xs text-muted">Pants</div>
+      <Swatches list={PANTS} value={a.pants ?? PANTS[0]} onPick={(pants) => set({ pants })} />
+      <div className="text-xs text-muted">Shoes</div>
+      <Swatches list={SHOES} value={a.shoes ?? SHOES[0]} onPick={(shoes) => set({ shoes })} />
       <div className="text-xs text-muted">Accessory</div>
       <div className="flex flex-wrap gap-2">
         {ACCESSORIES.map((x, i) => <button key={x} onClick={() => set({ accessory: i })} className={`chip ${a.accessory === i ? "chip-on" : ""}`}>{x}</button>)}
@@ -144,5 +153,56 @@ function BodySheet({ height, birthYear, onClose, onSave }: {
       <label className="text-xs text-muted">When<input type="datetime-local" className="input mt-1" value={when} onChange={(e) => setWhen(e.target.value)} /></label>
       <button className="btn-primary w-full" onClick={() => onSave({ weight: n(w), height: n(hh), waist: n(waist), birthYear: n(by), at: new Date(when) })}>Save</button>
     </Sheet>
+  );
+}
+
+// "About me": the hero writes about their habits and day; Sensei reads it and
+// offers habit quests that would make them stronger.
+export function AboutMe() {
+  const { data, profile, saveProfile } = useApp();
+  const { items: habits, add } = useCustomItems("habit");
+  const [text, setText] = useState(profile.about ?? "");
+  const [editing, setEditing] = useState(!profile.about);
+  const taken = new Set(habits.map((h) => String(h.config.tpl)));
+  const found = ABOUT_HINTS.filter(([re]) => re.test(profile.about ?? ""));
+  const offers = suggestHabits(data, habits).filter((s) => found.some(([, id]) => id === s.tpl.id));
+  return (
+    <section className="card p-4 mb-4">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="section-title">📝 About me</h2>
+        {!editing && <button onClick={() => setEditing(true)} className="chip">Edit</button>}
+      </div>
+      {editing ? (
+        <>
+          <textarea className="input min-h-36" value={text} onChange={(e) => setText(e.target.value)}
+            placeholder={"Write about yourself: your daily routine, habits, what you want to change.\ne.g. I'm a student, I wake up at 9, I watch anime till 2 am, I want to get stronger and stop skipping breakfast."} />
+          <button className="btn-primary w-full mt-2" onClick={() => { saveProfile({ about: text.trim() }); setEditing(false); }}>Save</button>
+        </>
+      ) : (
+        <p className="text-sm whitespace-pre-wrap">{profile.about}</p>
+      )}
+      {!editing && profile.about && (
+        <div className="mt-3 rounded-xl bg-white/5 p-3">
+          <div className="text-[10px] font-game tracking-widest text-[var(--accent2)]">🥷 SENSEI READ YOUR STORY</div>
+          {found.length === 0 ? (
+            <p className="mt-1 text-sm text-muted">Tell me more about your day (sleep, screen time, study, food, exercise) and I&apos;ll design habit quests for you.</p>
+          ) : (
+            <ul className="mt-1 text-sm space-y-1">
+              {found.map(([, id, why]) => {
+                const t = HABITS.find((x) => x.id === id)!;
+                const offer = offers.find((o) => o.tpl.id === id);
+                return (
+                  <li key={id} className="flex items-center gap-2">
+                    <span className="flex-1">{t.icon} {why[0].toUpperCase() + why.slice(1)} → <b>{t.name}</b></span>
+                    {taken.has(id) ? <span className="text-xs text-[var(--accent2)]">Active</span>
+                      : <button className="chip chip-on" onClick={() => add(t.name, { tpl: t.id, started: new Date().toISOString(), reason: offer?.reason ?? `Because ${why}.`, source: "about" })}>Accept</button>}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

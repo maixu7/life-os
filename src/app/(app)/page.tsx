@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { isNapTime } from "@/lib/slots";
+import { CoachCard } from "@/components/Coach";
+import { HabitQuests } from "@/components/Habits";
+import { ActivitySheet } from "@/components/ActivitySheet";
 import { Library } from "@/components/Library";
 import { Pic } from "@/components/Pic";
 import { LiquidGlass } from "@/components/LiquidGlass";
@@ -43,6 +47,24 @@ export default function TodayPage() {
     if (q && /^\d{4}-\d{2}-\d{2}$/.test(q)) setDay(q);
   }, []);
 
+  // Sensei's orders that need details open here: ?do=activity:Name or ?do=library.
+  const { items: activityItems } = useCustomItems("activity");
+  const [libOpen, setLibOpen] = useState(0);
+  useEffect(() => {
+    const go = (what: string) => {
+      if (what === "library") return setLibOpen((n) => n + 1);
+      if (!what.startsWith("activity:")) return;
+      const name = what.slice(9);
+      setActItem(activityItems.find((i) => i.name.toLowerCase() === name.toLowerCase())
+        ?? { id: `tmp-${name}`, category: "activity", name, config: { emoji: emojiFor(name) }, sort: 0 });
+    };
+    const q = new URLSearchParams(location.search).get("do");
+    if (q) { history.replaceState(null, "", "/"); go(q); }
+    const on = (e: Event) => go(String((e as CustomEvent).detail));
+    window.addEventListener("lifeos-do", on);
+    return () => window.removeEventListener("lifeos-do", on);
+  }, [activityItems]);
+
   const { profile, logActivity, celebrate, data } = useApp();
   const { logs } = useLogs(day);
   const settings = profile.settings;
@@ -54,6 +76,7 @@ export default function TodayPage() {
   const [editing, setEditing] = useState<Log | null>(null);
   const [adding, setAdding] = useState(false);
   const [toast, setToast] = useState<Log | null>(null);
+  const [actItem, setActItem] = useState<CustomItem | null>(null);
 
   useEffect(() => {
     if (!isToday || doneCount !== goals.length) return;
@@ -100,6 +123,8 @@ export default function TodayPage() {
         {!isToday && <button onClick={() => setDay(today())} className="chip chip-on">Today</button>}
       </div>
 
+      {isToday && <CoachCard />}
+
       {isToday && <SleepCard onLogged={setToast} />}
 
       {isToday && <BossAndChest />}
@@ -139,9 +164,11 @@ export default function TodayPage() {
           onAdd={(ml) => log("milk", { ml }, "STRONG BONES!")} />
       </section>
 
-      <Activities onLog={(a) => log("activity", { name: a.name, emoji: a.config.emoji ?? emojiFor(a.name), alignment: a.config.alignment }, `${a.name.toUpperCase()}!`)} />
+      <Activities onLog={setActItem} />
 
-      <Library at={() => atFor(day)} onLogged={setToast} />
+      {isToday && <HabitQuests />}
+
+      <Library at={() => atFor(day)} onLogged={setToast} openSignal={libOpen} />
 
       <PantryStrip day={day} onLogged={setToast} />
 
@@ -206,6 +233,7 @@ export default function TodayPage() {
       {editing && <EditLog log={editing} onClose={() => setEditing(null)} />}
       {brief && <MissionBrief m={missions.find((x) => x.id === brief.id) ?? brief} onClose={() => setBrief(null)} log={log} />}
       {adding && <AddEntry day={day} onClose={() => setAdding(false)} />}
+      {actItem && <ActivitySheet item={actItem} at={atFor(day)} onClose={() => setActItem(null)} onLogged={setToast} />}
     </>
   );
 }
@@ -242,12 +270,13 @@ function SleepCard({ onLogged }: { onLogged: (l: Log) => void }) {
   return (
     <section className="grid grid-cols-2 gap-3 mb-4">
       <button onClick={() => {
-        const row = logActivity("sleep", { start: new Date().toISOString(), end: null });
-        celebrate({ title: "OYASUMI!", subtitle: "Sleep well" });
+        const nap = isNapTime();
+        const row = logActivity("sleep", { start: new Date().toISOString(), end: null, type: nap ? "nap" : "night" });
+        celebrate({ title: nap ? "POWER NAP!" : "OYASUMI!", subtitle: nap ? "Day nap started. 20–30 min recharges best." : "Night sleep started. Sleep well, hero." });
         onLogged(row);
       }} className="card p-4 flex items-center gap-3 active:scale-95 transition bg-gradient-to-br from-indigo-500/25 to-transparent">
         <span className="text-3xl">🌙</span>
-        <span className="text-left"><span className="block font-bold">Going to sleep</span><span className="text-xs text-muted">Night or nap</span></span>
+        <span className="text-left"><span className="block font-bold">{isNapTime() ? "Taking a nap" : "Going to sleep"}</span><span className="text-xs text-muted">{isNapTime() ? "☀️ Day nap (auto)" : "🌙 Night sleep (auto)"}</span></span>
       </button>
       <button onClick={wake} className="card p-4 flex items-center gap-3 active:scale-95 transition bg-gradient-to-br from-amber-400/25 to-transparent">
         <span className="text-3xl">☀️</span>

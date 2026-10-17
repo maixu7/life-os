@@ -84,7 +84,7 @@ export function StageIntro() {
   };
 
   return (
-    <div className="fixed inset-0 z-[55] flex flex-col items-center justify-center bg-[#05030f]/95 px-6 text-center animate-fade" onClick={close}>
+    <div data-overlay className="fixed inset-0 z-[55] flex flex-col items-center justify-center bg-[#05030f]/95 px-6 text-center animate-fade" onClick={close}>
       <div className="font-game text-xs tracking-[.5em] text-[var(--accent2)]">DAY {dayN}</div>
       <div className="mt-3 overflow-hidden">
         <h1 className="animate-slash font-game text-4xl font-black italic glow-text">{report ? "STAGE REPORT" : STAGES[topic]}</h1>

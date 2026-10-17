@@ -1,6 +1,7 @@
 import { hoursBetween } from "@/lib/describe";
 import { guessMedia, MEDIA, mediaPoints, type MediaType } from "@/lib/media";
 import { dailyMissions } from "@/lib/missions";
+import { BAD_OPTION, REWARD_OPTION } from "@/lib/slots";
 import type { Data, Log } from "@/lib/store";
 import { toDay } from "@/lib/store";
 
@@ -31,6 +32,9 @@ export function logKarma(l: Log): number {
     }
     case "activity": {
       const name = String(l.data.name ?? "");
+      const opts = Array.isArray(l.data.options) ? (l.data.options as string[]) : [];
+      if (opts.some((o) => REWARD_OPTION.test(o))) return 0;
+      if (opts.some((o) => BAD_OPTION.test(o))) return -5;
       if (l.data.alignment === "shadow" || (l.data.alignment !== "light" && DEVIL.test(name))) return -5;
       return 2;
     }

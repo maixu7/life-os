@@ -83,6 +83,7 @@ h1, h2, h3, .font-game { font-family: var(--font-display), sans-serif; letter-sp
     box-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 45%, black), 0 0 22px color-mix(in srgb, var(--accent) 45%, transparent);
   }
   .btn-gold {
+    color: #2a1a00;
     background: linear-gradient(180deg, #ffe58a, var(--gold));
     box-shadow: 0 4px 0 #a67c00, 0 0 22px color-mix(in srgb, var(--gold) 45%, transparent);
   }

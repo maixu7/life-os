@@ -96,7 +96,7 @@ export function CelebrationLayer() {
   const word = COMIC[Math.floor(Math.random() * COMIC.length)];
   const color = celebration.kind === "achievement" ? "var(--gold)" : celebration.kind === "level" ? "var(--accent)" : "var(--accent2)";
   return (
-    <div className={`fixed inset-0 z-50 ${celebration.big ? "bg-black/70 animate-fade" : "pointer-events-none"}`} onClick={clearCelebration}>
+    <div data-overlay className={`fixed inset-0 z-50 ${celebration.big ? "bg-black/70 animate-fade" : "pointer-events-none"}`} onClick={clearCelebration}>
       <canvas ref={canvas} className="absolute inset-0 w-full h-full pointer-events-none" />
       {celebration.big ? (
         <div className="absolute inset-x-0 top-[18vh] px-6 text-center">

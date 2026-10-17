@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AvatarArt, CLASSES } from "@/components/AvatarArt";
-import { AvatarEditor, BodyStats } from "@/components/HeroSheet";
+import { AboutMe, AvatarEditor, BodyStats } from "@/components/HeroSheet";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 import { CHAPTERS, gold, TITLES } from "@/lib/economy";
 import { dailyGoals } from "@/lib/goals";
@@ -94,8 +94,8 @@ export default function RankPage() {
       <section className="card frame p-5 mb-4 text-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-40" style={{ background: `radial-gradient(circle at 50% 30%, ${k.color}55, transparent 60%)` }} />
         <div className="relative">
-          <div className="mx-auto w-fit rounded-full animate-float" style={{ boxShadow: `0 0 40px ${k.color}` }}>
-            <AvatarArt a={profile.avatar} size={150} />
+          <div className="mx-auto w-fit animate-float">
+            <AvatarArt a={profile.avatar} size={300} full aura={k.color} />
           </div>
           <div className="mt-3 font-game text-xl font-black">{profile.display_name}</div>
           <div className="text-sm text-[var(--accent2)]">{CLASSES.find((c) => c.name === profile.avatar.heroClass)?.icon} {profile.avatar.heroClass} · {profile.title}</div>
@@ -116,6 +116,8 @@ export default function RankPage() {
           </>
         )}
       </section>
+
+      <AboutMe />
 
       <Deeds />
 

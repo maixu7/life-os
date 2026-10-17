@@ -1,4 +1,5 @@
 import { MEDIA, type MediaType } from "@/lib/media";
+import { ordinal } from "@/lib/slots";
 import type { Log } from "@/lib/store";
 
 const fmt = (iso?: unknown) =>
@@ -63,7 +64,10 @@ export function describe(l: Log, currency = "Rs"): { emoji: string; title: strin
     case "activity":
       return {
         emoji: String(d.emoji ?? "✨"), title: String(d.name ?? "Activity"),
-        detail: join(d.minutes ? `${d.minutes} min` : "", d.kcal ? `${d.kcal} kcal` : "", note),
+        detail: join(
+          d.count && Number(d.count) > 1 ? `${ordinal(Number(d.count))} time` : "", (d.options as string[] | undefined)?.join(", "),
+          d.minutes ? `${d.minutes} min` : "", d.kcal ? `${d.kcal} kcal` : "", note,
+        ),
       };
     case "chest":
       return { emoji: d.rare ? "💎" : "🎁", title: d.rare ? "Rare chest opened" : "Daily chest opened", detail: `+${d.gold} gold` };
