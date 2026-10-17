@@ -1,26 +1,76 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0b0716;
+  --panel: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.12);
+  --text: #f4f0ff;
+  --muted: #a99fc7;
+  --accent: #ff4fd8;
+  --accent2: #46e6ff;
+  --gold: #ffd166;
 }
+[data-theme="sakura"] { --bg: #170912; --accent: #ff8fb8; --accent2: #ffd1e3; }
+[data-theme="ocean"] { --bg: #04121c; --accent: #3ad1ff; --accent2: #7cffcb; }
+[data-theme="inferno"] { --bg: #160604; --accent: #ff6a2a; --accent2: #ffd166; }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent2: var(--accent2);
+  --color-gold: var(--gold);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+html, body { background: var(--bg); color: var(--text); }
+body {
+  min-height: 100dvh;
+  background-image:
+    radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 45%),
+    radial-gradient(circle at 100% 30%, color-mix(in srgb, var(--accent2) 16%, transparent), transparent 40%);
+  background-attachment: fixed;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@layer components {
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 1.25rem; backdrop-filter: blur(12px); }
+  .text-muted { color: var(--muted); }
+  .input {
+    width: 100%; border-radius: 0.9rem; padding: 0.7rem 0.9rem; background: rgba(0,0,0,0.35);
+    border: 1px solid var(--border); color: var(--text); outline: none;
+  }
+  .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .btn-primary {
+    border-radius: 0.9rem; padding: 0.7rem 1rem; font-weight: 800; color: #12051f;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    box-shadow: 0 0 20px color-mix(in srgb, var(--accent) 45%, transparent);
+    transition: transform .1s;
+  }
+  .btn-primary:active { transform: scale(0.96); }
+  .btn-primary:disabled { opacity: .5; }
+  .btn-ghost { border-radius: 0.9rem; padding: 0.5rem 0.8rem; border: 1px solid var(--border); background: rgba(255,255,255,.04); }
+  .btn-ghost:active { transform: scale(0.96); }
+  .chip { border-radius: 999px; padding: 0.3rem 0.75rem; font-size: .8rem; border: 1px solid var(--border); }
+  .chip-on { background: var(--accent); color: #12051f; border-color: transparent; font-weight: 700; }
+  .glow-text {
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 60%, transparent));
+  }
+  .bar { height: 0.7rem; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .bar > div {
+    height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    box-shadow: 0 0 12px var(--accent); transition: width .6s cubic-bezier(.2,1.4,.4,1);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@keyframes slosh { 0%,100% { transform: translateX(-25%) rotate(0deg); } 50% { transform: translateX(0%) rotate(2deg); } }
+@keyframes pop { 0% { transform: scale(.2) rotate(-12deg); opacity: 0; } 60% { transform: scale(1.15) rotate(3deg); opacity: 1; } 100% { transform: scale(1) rotate(-3deg); } }
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+@keyframes banner { 0% { transform: translateY(-120%); } 15%, 85% { transform: translateY(0); } 100% { transform: translateY(-120%); } }
+.animate-pop { animation: pop .5s cubic-bezier(.2,1.6,.4,1) both; }
+.animate-banner { animation: banner 3.2s ease-in-out both; }
+.shimmer::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.45) 50%, transparent 70%);
+  animation: shimmer 1s ease-out 2;
 }

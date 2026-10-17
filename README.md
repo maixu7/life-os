@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Life OS
 
-## Getting Started
+A vibrant, gamified daily life tracker. Installable on iPhone, Android and desktop as a web app (PWA).
 
-First, run the development server:
+## Features
+
+- **Secure sign-in**: mandatory password on every open. All data is encrypted on your device (AES-256-GCM, key derived with PBKDF2 600k rounds) and never leaves it. Auto-locks after 3 idle minutes or 30 s in the background. Lockout after 5 wrong passwords. Optional decoy password that opens a separate empty profile.
+- **Today**: daily quest checklist, animated water and milk glasses, wake time, meals with tags and macros, sleep with quality tags and caffeine tips, reading and listening.
+- **Train**: custom exercises, sets/reps/weight, barbell plate calculator, rest timer with vibration and beeps.
+- **Shop**: to-buy list, purchased history with monthly budget barometer and category chart, encrypted photo gallery with side-by-side compare.
+- **Focus**: 25-minute timer with rain or lofi ambience, screen wake lock, exam countdown, formula vault.
+- **Calendar**: month heatmap, week XP chart, day timeline.
+- **Rank**: XP, levels, E to SSS ranks, attribute radar chart, badges, unlockable themes.
+- **Voice**: tap the mic and say "drank 2 glasses of milk", "completed 15 pushups", "read for 20 minutes", "woke up" or "study".
+- **Backup**: download an encrypted backup file and restore it on another device.
+
+## Run locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Import the repo in Vercel (framework: Next.js, no environment variables needed).
 
-## Learn More
+## Install on your phone
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open the deployed URL, then **Share → Add to Home Screen** (iPhone, Safari) or **⋮ → Install app** (Android, Chrome).
