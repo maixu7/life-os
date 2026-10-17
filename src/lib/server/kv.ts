@@ -10,7 +10,15 @@ type Store = { get<T>(k: string): Promise<T | null>; set(k: string, v: unknown):
 function makeStore(): Store | null {
   const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (url && token) return new Redis({ url, token });
+  // All keys get a "lifeos:" prefix so this can share a database with other apps.
+  if (url && token) {
+    const r = new Redis({ url, token });
+    return {
+      get: <T,>(k: string) => r.get<T>(`lifeos:${k}`),
+      set: (k, v) => r.set(`lifeos:${k}`, v),
+      del: (k) => r.del(`lifeos:${k}`),
+    };
+  }
   if (process.env.NODE_ENV === "production") return null;
   // Local development without a database: keep everything in memory.
   const g = globalThis as unknown as { __lifeosMem?: Map<string, unknown> };
