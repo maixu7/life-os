@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { dtLocal, fmtTime, Sheet } from "@/components/Sheet";
+import { WherePicker } from "@/components/Where";
 import type { Checkin } from "@/lib/tools";
 import { useApp } from "@/lib/store";
 
@@ -22,6 +23,7 @@ export function CheckinSheet({ c, onClose }: { c: Checkin; onClose: () => void }
   const { data, logActivity, celebrate } = useApp();
   const [v, setV] = useState<Record<string, unknown>>({});
   const [when, setWhen] = useState(dtLocal(new Date()));
+  const [where, setWhere] = useState("");
   const [tab, setTab] = useState<"new" | "history">("new");
   const history = useMemo(() => data.logs.filter((l) => l.kind === c.kind).sort((a, b) => b.created_at.localeCompare(a.created_at)), [data.logs, c.kind]);
   const set = (k: string, x: unknown) => setV({ ...v, [k]: x });
@@ -29,7 +31,7 @@ export function CheckinSheet({ c, onClose }: { c: Checkin; onClose: () => void }
 
   const save = () => {
     const at = new Date(when);
-    const row = logActivity(c.kind, v, at, c.xp);
+    const row = logActivity(c.kind, { ...v, ...(where ? { where } : {}) }, at, c.xp);
     const k = c.karma(v, at);
     celebrate({ title: k < 0 ? "😈 NOTED, HERO" : `${c.icon} ${c.name.toUpperCase()}`, subtitle: k > 0 ? `😇 +${k} angel points` : k < 0 ? `😈 ${k} devil points. Tomorrow is a new chance.` : undefined, xp: row.xp });
     onClose();
@@ -78,6 +80,7 @@ export function CheckinSheet({ c, onClose }: { c: Checkin; onClose: () => void }
               {f.type === "long" && <textarea className="input min-h-32" value={String(v[f.key] ?? "")} placeholder={f.placeholder} onChange={(e) => set(f.key, e.target.value)} />}
             </div>
           ))}
+          <WherePicker value={where} onChange={setWhere} />
           <label className="text-xs text-muted">When<input type="datetime-local" className="input mt-1" value={when} onChange={(e) => e.target.value && setWhen(e.target.value)} /></label>
           <button onClick={save} disabled={!ready} className="btn-primary w-full">Save</button>
         </>

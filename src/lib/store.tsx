@@ -1,7 +1,10 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import type { Schedule } from "@/lib/schedule";
+import type { Slot } from "@/lib/gear";
 import { emojiFor } from "@/lib/emoji";
+import { realityCheck } from "@/lib/reality";
 import { pull, save, type Session } from "@/lib/vault";
 import { XP } from "@/lib/xp";
 
@@ -14,10 +17,12 @@ export type Settings = {
   theme: string;
   currency: string;
   allowances: Record<string, number>; // "2026-10" -> allowance for that month
+  schedule?: Partial<Schedule>; // wake/sleep, work hours, breaks, holidays
 };
 export type Avatar = {
   skin: string; hair: string; hairStyle: number; eyes: string; outfit: string; accessory: number; heroClass: string;
   pants?: string; shoes?: string; expression?: number; gender?: "boy" | "girl";
+  gear?: Partial<Record<Slot, string>>; // equipped pixel gear per slot
 };
 export type Profile = {
   display_name: string; xp: number; settings: Settings; updated_at: string;
@@ -78,6 +83,8 @@ export const DEFAULT_ACTIVITIES = [
   "Read", "Listen", "Clean room", "Pray", "Anime", "Manga",
 ];
 
+const NEW_ACTIVITIES: [string, string][] = [["seed-drive", "Drive / ride"], ["seed-toilet", "Toilet"], ["seed-run", "Run"], ["seed-coding", "Coding"]];
+
 const DEFAULT_REWARDS: [string, number, string][] = [
   ["1 anime episode", 60, "📺"], ["1 manga chapter", 40, "📕"], ["30 min gaming", 80, "🎮"],
   ["Favorite snack", 100, "🍫"], ["Movie night", 300, "🎬"], ["Sleep in 1 hour", 150, "🛌"],
@@ -103,6 +110,9 @@ export function normalizeData(d: Data): Data {
       ...items,
       ...(hasActivities ? [] : DEFAULT_ACTIVITIES.map((n, i) => ({ id: id(), category: "activity", name: n, config: { emoji: emojiFor(n) }, sort: 100 + i }))),
       ...(items.some((i) => i.category === "reward") ? [] : rewardItems()),
+      // Added later; stable ids so every device adds the same ones, and a deletion sticks.
+      ...NEW_ACTIVITIES.filter(([sid]) => !items.some((i) => i.id === sid) && !(d.deleted ?? []).includes(sid))
+        .map(([sid, n], i) => ({ id: sid, category: "activity", name: n, config: { emoji: emojiFor(n) }, sort: 200 + i })),
     ],
     shopping: (d.shopping ?? []).map((x) => {
       const legacy = x as ShopItem & { quantity?: string };
@@ -223,9 +233,25 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
 
   const logActivity = useCallback((kind: string, payload: Record<string, unknown> = {}, at = new Date(), xpOverride?: number) => {
     const xp = xpOverride ?? XP[kind] ?? 5;
+    // Real-world common sense: move records that clash with sleep, driving, training…
+    const fix = realityCheck(kind, payload, at, latest.current.logs);
+    const extra: Log[] = [];
+    if (fix) {
+      at = fix.at;
+      if (fix.endSleep) {
+        const hm = `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`;
+        extra.push({ id: id(), day: toDay(at), kind: "wake", data: { time: hm, slept_from: fix.endSleep.data.start, auto: true }, xp: XP.wake ?? 15, created_at: new Date(at.getTime() - 1000).toISOString() });
+      }
+      setCelebration({ title: "🧠 REALITY CHECK", subtitle: fix.message, kind: "small" });
+    }
     const log: Log = { id: id(), day: toDay(at), kind, data: payload, xp, created_at: at.toISOString() };
     const before = latest.current.profile.xp;
-    update((d) => ({ ...d, logs: [...d.logs, log], profile: { ...d.profile, xp: d.profile.xp + xp } }));
+    const ended = fix?.endSleep?.id;
+    update((d) => ({
+      ...d,
+      logs: [...d.logs.map((l) => (l.id === ended ? { ...l, data: { ...l.data, end: at.toISOString() } } : l)), ...extra, log],
+      profile: { ...d.profile, xp: d.profile.xp + xp + extra.reduce((n, l) => n + l.xp, 0) },
+    }));
     if (Math.floor((before + xp) / 100) > Math.floor(before / 100)) {
       setCelebration({ title: "LEVEL UP!", subtitle: `Level ${Math.floor((before + xp) / 100) + 1}`, big: true, kind: "level", icon: "⬆️" });
     }

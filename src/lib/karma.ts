@@ -22,6 +22,7 @@ export function logKarma(l: Log): number {
     case "media": case "reading": return mediaPoints(mediaTypeOf(l), Number(l.data.minutes) || undefined);
     case "listening": return l.data.title ? mediaPoints(mediaTypeOf(l), Number(l.data.minutes) || undefined) : 2;
     case "water": case "milk": return 1;
+    case "coding": return l.data.sub === "typing" ? 2 : Math.max(3, Math.round((Number(l.data.minutes) || 30) / 10));
     case "wake": return String(l.data.time ?? "12:00") < "08:00" ? 3 : 1;
     case "bonus": return 4;
     case "redeem": return 0;

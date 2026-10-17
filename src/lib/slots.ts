@@ -38,6 +38,9 @@ const OPTIONS: [RegExp, string[]][] = [
   [/manga|comic/i, ["1 chapter", "Few chapters", "Binge", "Reward from shop"]],
   [/game|gaming|pubg/i, ["Quick match", "1 hour", "Binge", "Reward from shop"]],
   [/woke|wake/i, ["Alarm", "No alarm", "Fresh", "Tired"]],
+  [/drive|ride/i, ["Car", "Bike / scooter", "Bicycle", "Passenger (not driving)", "Bus / taxi (passenger)"]],
+  [/toilet/i, ["Pee", "Poop", "Freshen up"]],
+  [/^run$|jog/i, ["Morning run", "Evening run", "Treadmill", "Sprint", "Long run"]],
 ];
 
 export const BAD_OPTION = /junk|binge|skipped|^manga$/i;

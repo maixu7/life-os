@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { PixelHero } from "@/components/PixelHero";
 import { ACCESSORIES, AvatarArt, CLASSES, EXPRESSIONS, EYES, HAIR_STYLES, HAIRS, OUTFITS, PANTS, SHOES, SKINS } from "@/components/AvatarArt";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { ABOUT_HINTS, HABITS, suggestHabits } from "@/lib/habits";
@@ -28,7 +29,7 @@ export function AvatarEditor({ onClose }: { onClose: () => void }) {
   const set = (patch: Partial<Avatar>) => setA({ ...a, ...patch });
   return (
     <Sheet title="Edit hero" onClose={onClose}>
-      <div className="flex justify-center items-end gap-4"><AvatarArt a={a} size={220} full /><AvatarArt a={a} size={90} /></div>
+      <div className="flex justify-center items-end gap-3"><AvatarArt a={a} size={180} full /><PixelHero a={a} size={90} /></div>
       <input className="input text-center font-game" value={name} onChange={(e) => setName(e.target.value)} placeholder="Hero name" />
       <div className="text-xs text-muted">Class</div>
       <div className="grid grid-cols-3 gap-2">

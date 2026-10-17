@@ -1,6 +1,7 @@
 import { MEDIA, type MediaType } from "@/lib/media";
 import { ordinal } from "@/lib/slots";
 import { CHECKIN_BY_KIND } from "@/lib/tools";
+import { describeCoding } from "@/lib/coding";
 import type { Log } from "@/lib/store";
 
 const fmt = (iso?: unknown) =>
@@ -14,6 +15,16 @@ export const MEAL_NAMES = ["breakfast", "lunch", "dinner", "snack"];
 
 // One line for any record in the day table: picture, what, details.
 export function describe(l: Log, currency = "Rs"): { emoji: string; title: string; detail: string } {
+  const r = describeInner(l, currency);
+  const extra = [
+    l.kind === "media" && l.data.pages ? `p. ${l.data.pages_from}–${l.data.pages_to}${l.data.total_pages ? ` of ${l.data.total_pages}` : ""}` : "",
+    l.kind === "media" && l.data.episode ? String(l.data.episode) : "",
+    l.data.where ? `📍 ${String(l.data.where).replace(/^\S+\s/, "")}` : "",
+  ].filter(Boolean).join(" · ");
+  return extra ? { ...r, detail: r.detail ? `${r.detail} · ${extra}` : extra } : r;
+}
+
+function describeInner(l: Log, currency: string): { emoji: string; title: string; detail: string } {
   const d = l.data as Record<string, unknown>;
   const note = d.note ? `“${d.note}”` : "";
   switch (l.kind) {
@@ -67,6 +78,7 @@ export function describe(l: Log, currency = "Rs"): { emoji: string; title: strin
         emoji: String(d.emoji ?? "✨"), title: String(d.name ?? "Activity"),
         detail: join(
           d.count && Number(d.count) > 1 ? `${ordinal(Number(d.count))} time` : "", (d.options as string[] | undefined)?.join(", "),
+          d.amount ? `${d.amount} ${d.unit ?? ""}` : "",
           d.minutes ? `${d.minutes} min` : "", d.kcal ? `${d.kcal} kcal` : "", note,
         ),
       };
@@ -78,6 +90,7 @@ export function describe(l: Log, currency = "Rs"): { emoji: string; title: strin
       return { emoji: "🏅", title: `Mission complete: ${d.name}`, detail: `+${l.xp} XP` };
     case "body":
       return { emoji: "📏", title: "Body check", detail: join(d.weight ? `${d.weight} kg` : "", d.height ? `${d.height} cm` : "", d.waist ? `waist ${d.waist} cm` : "", note) };
+    case "coding": return describeCoding(d);
     case "breath": return { emoji: "🌬️", title: "Breathing exercise", detail: join(String(d.pattern ?? ""), d.rounds ? `${d.rounds} rounds` : "") };
     case "meditate": return { emoji: "🧘", title: "Meditation", detail: `${d.minutes} min` };
     case "task": return { emoji: "✅", title: `Task done: ${d.name}`, detail: join(String(d.list ?? ""), note) };

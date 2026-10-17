@@ -50,11 +50,13 @@ export default function TodayPage() {
   // Sensei's orders that need details open here: ?do=activity:Name or ?do=library.
   const { items: activityItems } = useCustomItems("activity");
   const [libOpen, setLibOpen] = useState(0);
+  const [codeOpen, setCodeOpen] = useState(0);
   useEffect(() => {
     const go = (what: string) => {
       if (what === "library") return setLibOpen((n) => n + 1);
       if (!what.startsWith("activity:")) return;
       const name = what.slice(9);
+      if (/^coding$/i.test(name)) return setCodeOpen((n) => n + 1);
       setActItem(activityItems.find((i) => i.name.toLowerCase() === name.toLowerCase())
         ?? { id: `tmp-${name}`, category: "activity", name, config: { emoji: emojiFor(name) }, sort: 0 });
     };
@@ -164,11 +166,11 @@ export default function TodayPage() {
           onAdd={(ml) => log("milk", { ml }, "STRONG BONES!")} />
       </section>
 
-      <Activities onLog={setActItem} />
+      <Activities onLog={(a) => (/^coding$/i.test(a.name) ? setCodeOpen((n) => n + 1) : setActItem(a))} />
 
       {isToday && <HabitQuests />}
 
-      <Library at={() => atFor(day)} onLogged={setToast} openSignal={libOpen} />
+      <Library at={() => atFor(day)} onLogged={setToast} openSignal={libOpen} codeSignal={codeOpen} />
 
       <PantryStrip day={day} onLogged={setToast} />
 

@@ -27,7 +27,7 @@ const MAP: [string[], string][] = [
   [["wake", "woke", "morning"], "🌅"], [["sleep", "nap", "bed"], "😴"], [["bath", "shower", "nuhau"], "🛁"],
   [["breakfast"], "🍳"], [["lunch"], "🍱"], [["dinner"], "🍽️"], [["snack", "khaja"], "🥨"], [["meal", "eat", "khana"], "🍽️"],
   [["study", "homework", "exam", "padhai"], "📖"], [["read"], "📚"], [["listen", "music", "song", "podcast"], "🎧"],
-  [["walk"], "🚶"], [["run", "jog"], "🏃"], [["cycle", "bike"], "🚴"], [["swim"], "🏊"], [["yoga", "meditat", "stretch"], "🧘"],
+  [["drive", "ride", "scooter"], "🛵"], [["toilet", "pee", "washroom"], "🚽"], [["walk"], "🚶"], [["run", "jog"], "🏃"], [["cycle", "bike"], "🚴"], [["swim"], "🏊"], [["yoga", "meditat", "stretch"], "🧘"],
   [["gym", "workout", "exercise", "train"], "🏋️"], [["push-up", "pushup", "pull-up", "pullup", "curl", "bench", "press"], "💪"],
   [["squat", "lunge"], "🦵"], [["clean", "sweep", "mop"], "🧹"], [["cook"], "🍳"], [["laundry", "clothes"], "🧺"],
   [["pray", "puja", "temple"], "🙏"], [["work", "office", "job"], "💼"], [["school", "college", "class"], "🏫"],
