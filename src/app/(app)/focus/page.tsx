@@ -5,6 +5,7 @@ import { fireAlarm } from "@/lib/alarm";
 import { useEffect, useRef, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { StudyPlan } from "@/components/StudyPlan";
+import { useFocusJail } from "@/components/StrictStudy";
 import { startAmbient } from "@/lib/ambient";
 import { useApp, useCustomItems } from "@/lib/store";
 
@@ -73,6 +74,7 @@ export default function FocusPage() {
     setEnd(null);
     try { localStorage.removeItem(KEY); } catch {}
   };
+  const jail = useFocusJail(!!end, giveUp);
 
   const mm = Math.floor(left / 60000);
   const ss = Math.floor((left % 60000) / 1000);
@@ -99,6 +101,7 @@ export default function FocusPage() {
           <defs><linearGradient id="fg"><stop offset="0" stopColor="var(--accent)" /><stop offset="1" stopColor="var(--accent2)" /></linearGradient></defs>
         </svg>
         <div className="-mt-36 mb-20 text-5xl font-black tabular-nums">{mm}:{String(ss).padStart(2, "0")}</div>
+        {jail.broken && !end && <button onClick={jail.clear} className="w-full rounded-xl bg-rose-500/15 border border-rose-400/40 p-3 text-sm text-rose-200 mb-3">📵 You left the app for over a minute, so this session failed (−30 XP). Keep Life OS open while you study. Tap to start again.</button>}
         {!end ? (
           <>
             <input className="input mb-3" placeholder="What are you studying?" value={subject} onChange={(e) => setSubject(e.target.value)} />

@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { sched, type Schedule } from "@/lib/schedule";
+import { studyGate } from "@/lib/worst";
+import { toDay } from "@/lib/store";
 import { useApp, useCustomItems, type CustomItem } from "@/lib/store";
 
 // Phone notifications while the app is closed: Sensei's reminders are sent
 // from the server at the right time (your reminders, wake, meals, study, bed).
 
-type Plan = { at: string; body: string; days?: number[] };
+type Plan = { at: string; body: string; days?: number[]; until?: "study" };
 const ON = "lifeos-push-on";
 const add = (t: string, mins: number) => { const [h, m] = t.split(":").map(Number); const x = (h * 60 + m + mins + 1440) % 1440; return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`; };
 const weekdays = [1, 2, 3, 4, 5], weekend = [0, 6];
@@ -20,13 +22,19 @@ export function buildPlan(s: Schedule, reminders: CustomItem[], studying: boolea
   t(s.breakfast, "🍳 Breakfast time. Log it with a photo for the real calories.");
   t(s.lunch, "🍱 Lunch time. Protein + veg, and snap it.");
   t(s.dinner, "🍛 Dinner time. Snap your meal so Sensei can count it.");
-  if (studying) t(s.studyStart, "📚 Study first, fun later. Start your focus session now.");
+  if (studying) {
+    t(s.studyStart, "📚 Study first, fun later. Start your focus session now.");
+    // Study nags every 20 minutes until bedtime, stopped for the day once study is done.
+    const NAGS = ["📚 Still no study today. Open Life OS and start a focus session.", "😈 Manga and anime can wait. Your exam can't. Study now.", "⏳ Every minute you wait makes tonight harder. 25 minutes, start now.", "⚔️ Sensei is watching. Study before anything else."];
+    const [a, b] = [s.studyStart, add(s.sleep, -(s.windDown || 30))].map((x) => { const [h, m] = x.split(":").map(Number); return h * 60 + m; });
+    for (let m = a + 20, i = 0; m < (b > a ? b : a + 300); m += 20, i++) p.push({ at: add("00:00", m), body: NAGS[i % NAGS.length], until: "study" });
+  }
   t(s.exercise, "💪 Training time. Even 15 minutes counts.");
   t(add(s.sleep, -(s.windDown || 30)), "🌙 Wind down: screens away, plan tomorrow.", weekdays);
   t(s.sleep, "😴 Bedtime. Phone away, Sensei says goodnight.", weekdays);
   t(s.weekendSleep, "😴 Bedtime. Phone away.", weekend);
   const seen = new Set<string>();
-  return p.filter((x) => (seen.has(x.at + x.body) ? false : (seen.add(x.at + x.body), true))).slice(0, 60);
+  return p.filter((x) => (seen.has(x.at + x.body) ? false : (seen.add(x.at + x.body), true))).slice(0, 90);
 }
 
 const b64 = (s: string) => { const p = "=".repeat((4 - (s.length % 4)) % 4); const r = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...r].map((c) => c.charCodeAt(0))); };
@@ -88,9 +96,18 @@ export function PushCard() {
   );
 }
 
-// Keeps the server's reminder list in step with the app when times change.
+// Keeps the server's reminder list in step with the app when times change,
+// and stops today's study nags once study is done.
 export function PushSync() {
-  const { session } = useApp();
+  const { session, data } = useApp();
+  const done = !studyGate(data).locked;
+  useEffect(() => {
+    const day = toDay(new Date());
+    let go = false;
+    try { go = done && localStorage.getItem(ON) === "1" && localStorage.getItem("lifeos-push-done") !== day; } catch {}
+    if (!go) return;
+    call({ action: "done", user: session.user, auth: session.auth, day }).then((r) => { if (r.ok) try { localStorage.setItem("lifeos-push-done", day); } catch {} }).catch(() => {});
+  }, [done, session]);
   const plan = usePlan();
   const key = JSON.stringify(plan);
   useEffect(() => {

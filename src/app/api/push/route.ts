@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
 
 const okPlan = (p: unknown): p is PushPlan[] =>
-  Array.isArray(p) && p.length <= 60 && p.every((x) => x && /^\d\d:\d\d$/.test(x.at) && typeof x.body === "string" && x.body.length <= 140);
+  Array.isArray(p) && p.length <= 90 && p.every((x) => x && /^\d\d:\d\d$/.test(x.at) && typeof x.body === "string" && x.body.length <= 140 && (x.until === undefined || x.until === "study"));
 
 // key: the public key to subscribe with · save: this device + the reminder list · test: send one now
 export async function POST(req: Request) {
@@ -30,6 +30,17 @@ export async function POST(req: Request) {
   if (action === "off") {
     await savePush(user, { ...cur, subs: cur.subs.filter((s) => s.endpoint !== body.endpoint) });
     return NextResponse.json({ ok: true });
+  }
+  // Today's study is done: stop the study nags for today.
+  if (action === "done") {
+    if (typeof body.day !== "string" || !/^\d{4}-\d\d-\d\d$/.test(body.day)) return bad("Invalid request.");
+    await savePush(user, { ...cur, studyDone: body.day });
+    return NextResponse.json({ ok: true });
+  }
+  // Sent right away, e.g. when you leave a study session for another app.
+  if (action === "nag") {
+    const text = typeof body.text === "string" ? body.text.slice(0, 140) : "Back to studying!";
+    return NextResponse.json({ devices: await send(user, cur, "⚠️ Sensei", text, "nag") });
   }
   if (action === "test") {
     const n = await send(user, cur, "Life OS ⚔️", "Notifications work! Sensei will remind you even when the app is closed.", "test");

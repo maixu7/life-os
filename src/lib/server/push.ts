@@ -6,8 +6,9 @@ import { kv } from "@/lib/server/kv";
 // The VAPID key pair is made once and kept in the database, so nothing has
 // to be set up in Vercel.
 
-export type PushPlan = { at: string; body: string; days?: number[] }; // at "HH:MM" in the user's time, days 0=Sun…6
-export type PushDoc = { subs: PushSubscription[]; plan: PushPlan[]; tz: number; last?: number };
+// at "HH:MM" in the user's time, days 0=Sun…6; until "study" = stop once today's study is done.
+export type PushPlan = { at: string; body: string; days?: number[]; until?: "study" };
+export type PushDoc = { subs: PushSubscription[]; plan: PushPlan[]; tz: number; last?: number; studyDone?: string };
 
 export async function vapid() {
   let v = await kv!.get<{ pub: string; priv: string }>("push:vapid");
@@ -55,6 +56,8 @@ export async function tick(now = Date.now()) {
         local.setUTCHours(h, m, 0, 0);
         const t = local.getTime() + doc.tz * 60_000 - back * 86400_000;
         const dow = new Date(t - doc.tz * 60_000).getUTCDay();
+        const day = new Date(t - doc.tz * 60_000).toISOString().slice(0, 10);
+        if (p.until === "study" && doc.studyDone === day) continue;
         if (t > from && t <= now && (!p.days?.length || p.days.includes(dow))) { await send(user, doc, "Life OS", p.body, `r-${p.at}`); sent++; }
       }
     }

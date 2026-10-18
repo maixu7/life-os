@@ -25,6 +25,7 @@ export function StudyPlan() {
       <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
         <label className="text-muted">Exam date<input type="date" className="input mt-0.5 !py-1 text-xs" value={profile.settings.exam_date ?? ""} onChange={(e) => saveSettings({ exam_date: e.target.value || null })} /></label>
         <label className="flex items-center gap-2 mt-4"><input type="checkbox" checked={profile.settings.study_lock !== false} onChange={(e) => saveSettings({ study_lock: e.target.checked })} />🔒 Fun waits until study is done</label>
+        <label className="col-span-2 flex items-center gap-2"><input type="checkbox" checked={profile.settings.study_wall !== false} onChange={(e) => saveSettings({ study_wall: e.target.checked })} />🧱 Strict mode: full-screen study wall after study time, fines for fun before study</label>
       </div>
       {day.goal > 0 && (
         <div className="mt-3 text-xs">

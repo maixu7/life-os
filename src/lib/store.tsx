@@ -22,6 +22,7 @@ export type Settings = {
   ui?: Ui; // bottom menu tabs and hidden Base Camp sections
   study_plan?: StudyItem[]; // what to study each day and how much
   study_lock?: boolean; // fun (anime, manga, games…) waits until today's study is done
+  study_wall?: boolean; // full-screen "study first" wall after study time (on unless turned off)
 };
 export type StudyItem = { id: string; subject: string; what: string; mins: number; pages?: number };
 export type Avatar = {
