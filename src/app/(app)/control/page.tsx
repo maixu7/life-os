@@ -244,7 +244,7 @@ const ACTIONS: [SlotAction["type"], string][] = [
   ["log", "✅ Log an activity"], ["page", "📱 Open a page"], ["meal", "🍽️ Add food (meal)"], ["photo", "📷 Food photo"], ["drink", "🥤 Log a drink"],
   ["water", "💧 Add water"], ["milk", "🥛 Add milk"], ["wake", "🌅 Woke up"], ["sleep", "😴 Going to sleep"], ["anything", "📝 Log anything"], ["url", "🔗 Open a website"],
 ];
-export function actionText(a: SlotAction): string {
+function actionText(a: SlotAction): string {
   switch (a.type) {
     case "log": return `log “${a.name}”`;
     case "page": return `open ${a.href}`;
