@@ -6,6 +6,7 @@ import { dtLocal, fmtDuration, Sheet } from "@/components/Sheet";
 import { describe, MEAL_NAMES } from "@/lib/describe";
 import { MEDIA, type MediaType } from "@/lib/media";
 import { useApp, type Log } from "@/lib/store";
+import { allTags, parseTags } from "@/lib/review";
 
 // Fix or delete a record. Rewards it no longer earns (mission bonus, habit
 // quest, achievements, level) are taken back automatically.
@@ -19,12 +20,17 @@ export function EditLog({ log, onClose }: { log: Log; onClose: () => void }) {
   const [sleepEnd, setSleepEnd] = useState(d.end ? dtLocal(new Date(String(d.end))) : "");
   const [sleepStart, setSleepStart] = useState(d.start ? dtLocal(new Date(String(d.start))) : "");
   const desc = describe(log);
+  // Tags like #exam #gym, for filtering in Search.
+  const [tags, setTags] = useState(() => (Array.isArray(d.hashtags) ? (d.hashtags as string[]) : []).map((t) => `#${t}`).join(" "));
+  const { data } = useApp();
+  const known = allTags(data.logs).map(([t]) => t).slice(0, 12);
+  const tagList = parseTags(tags.split(/[\s,]+/).filter(Boolean).map((t) => (t.startsWith("#") ? t : `#${t}`)).join(" "));
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
   const isMeal = log.kind === "meal" || (log.kind === "activity" && (!!d.meal || MEAL_NAMES.includes(String(d.name).toLowerCase())));
   const num = (k: string) => (f[k] === undefined || f[k] === "" ? undefined : Number(f[k]));
 
   const save = () => {
-    const patch: Record<string, unknown> = { note: f.note || undefined };
+    const patch: Record<string, unknown> = { note: f.note || undefined, hashtags: tagList.length ? [...new Set(tagList)] : undefined };
     if (log.kind === "water" || log.kind === "milk") patch.ml = num("ml") ?? d.ml;
     if (["reading", "listening", "activity", "focus", "media", "coding"].includes(log.kind)) patch.minutes = num("minutes");
     if (d.pages != null) patch.pages = num("pages");
@@ -85,6 +91,10 @@ export function EditLog({ log, onClose }: { log: Log; onClose: () => void }) {
         </div>
       )}
       <label className="text-xs text-muted">Note<input className="input mt-1" value={f.note ?? ""} onChange={set("note")} placeholder="Anything to remember" /></label>
+      <label className="text-xs text-muted">🏷️ Tags<input className="input mt-1" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="#exam #gym #friends" autoCapitalize="none" /></label>
+      {known.filter((t) => !tagList.includes(t)).length > 0 && (
+        <div className="flex flex-wrap gap-1.5">{known.filter((t) => !tagList.includes(t)).map((t) => <button key={t} type="button" onClick={() => setTags(`${tags} #${t}`.trim())} className="chip !py-0.5 text-xs">+#{t}</button>)}</div>
+      )}
       <div className="flex gap-2 pt-1">
         <button onClick={() => confirm("Delete this record? Its XP, gold and any mission reward or achievement it earned are taken back.") && del()} className="btn-ghost text-rose-400">Delete</button>
         <button onClick={save} className="btn-primary flex-1">Save</button>

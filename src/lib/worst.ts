@@ -16,7 +16,7 @@ const dayKey = (now: Date, back: number) => toDay(new Date(now.getTime() - back 
 // ---- Study plan and the "study first" lock ----
 
 const STUDY_RE = /study|homework|revision|revise|exam|practice|kanji|lesson|class|course|past paper|mock test|notes|chapter|tuition|lecture/i;
-const isStudy = (l: Log) =>
+export const isStudy = (l: Log) =>
   ["focus", "paper", "cards"].includes(l.kind) || (l.kind === "activity" && STUDY_RE.test(String(l.data.name ?? ""))) ||
   (l.kind === "media" && ["study", "course"].includes(mediaTypeOf(l)));
 const studyText = (l: Log) => `${l.data.subject ?? ""} ${l.data.name ?? ""} ${l.data.title ?? ""} ${l.data.note ?? ""}`.toLowerCase();

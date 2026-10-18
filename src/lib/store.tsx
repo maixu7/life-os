@@ -6,6 +6,7 @@ import type { Ui } from "@/lib/ui";
 import type { Slot } from "@/lib/gear";
 import { emojiFor } from "@/lib/emoji";
 import { realityCheck } from "@/lib/reality";
+import { markSynced, noteDeleted } from "@/lib/safety";
 import { pull, save, type Session } from "@/lib/vault";
 import { XP } from "@/lib/xp";
 
@@ -246,9 +247,13 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
   }, []);
   const update = useCallback((fn: (d: Data) => Data) => {
     apply(fn(latest.current));
+    let rev = 0;
     queue.current = queue.current
-      .then(() => save(session, latest.current, mergeData))
-      .then((merged) => merged && apply(mergeData(merged, latest.current)))
+      .then(() => { rev = session.rev; return save(session, latest.current, mergeData); })
+      .then((merged) => {
+        if (session.rev !== rev) markSynced(session.user); // the server took this save
+        if (merged) apply(mergeData(merged, latest.current));
+      })
       .catch(() => {});
   }, [session, apply]);
 
@@ -257,7 +262,10 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
     const sync = () => {
       queue.current = queue.current
         .then(() => pull<Data>(session))
-        .then((server) => server && apply(mergeData(server, latest.current)))
+        .then((server) => {
+          if (server || navigator.onLine) markSynced(session.user);
+          if (server) apply(mergeData(server, latest.current));
+        })
         .catch(() => {});
     };
     const onVis = () => document.visibilityState === "visible" && sync();
@@ -360,7 +368,9 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
       };
       return settleFn && old ? settleFn(d, next, [old.day, ...(at ? [toDay(at)] : [])]) : next;
     }),
-    deleteLog: (logId) => update((d) => {
+    deleteLog: (logId) => {
+      const before = latest.current.logs;
+      update((d) => {
       const l = d.logs.find((x) => x.id === logId);
       const next = {
         ...d,
@@ -369,7 +379,11 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
         profile: { ...d.profile, xp: Math.max(0, d.profile.xp - (l?.xp ?? 0)) },
       };
       return settleFn && l ? settleFn(d, next, [l.day]) : next;
-    }),
+      });
+      // Offer an undo for the record and any reward it took with it.
+      const kept = new Set(latest.current.logs.map((x) => x.id));
+      noteDeleted(before.filter((x) => !kept.has(x.id)));
+    },
     lock: onLock,
     signOut: onSignOut,
     hasPin,
@@ -401,6 +415,10 @@ export function useCustomItems(category: string) {
       update((d) => ({ ...d, items: [...d.items, { id: id(), category, name, config, sort: Date.now() }] })),
     update: (itemId: string, patch: Partial<CustomItem>) =>
       update((d) => ({ ...d, items: d.items.map((i) => (i.id === itemId ? { ...i, ...patch } : i)) })),
-    remove: (itemId: string) => update((d) => ({ ...d, items: d.items.filter((i) => i.id !== itemId), deleted: [...d.deleted, itemId] })),
+    remove: (itemId: string) => {
+      const gone = data.items.find((i) => i.id === itemId);
+      update((d) => ({ ...d, items: d.items.filter((i) => i.id !== itemId), deleted: [...d.deleted, itemId] }));
+      if (gone) noteDeleted([], [gone]);
+    },
   };
 }

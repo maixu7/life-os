@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CustomizeSheet } from "@/components/Customize";
 import { XpHeader } from "@/components/XpHeader";
@@ -8,9 +8,13 @@ import { ScheduleSheet } from "@/components/ScheduleSheet";
 import { MyFoodsSheet } from "@/components/FoodPicker";
 import { CheckinSheet } from "@/components/tools/Checkin";
 import { DailyChallenge, LoginCalendar, Pet, QuoteOfDay, SpinSheet } from "@/components/tools/Game";
-import { ExamCountdown, exportCsv, HeatmapSheet, RemindersSheet, ReportSheet, SearchSheet, SettingsSheet } from "@/components/tools/Insights";
+import { ExamCountdown, exportCsv, HeatmapSheet, RemindersSheet, ReportSheet, SettingsSheet } from "@/components/tools/Insights";
 import { BudgetsSheet, JarsSheet, PaydaySheet, ReceiptSheet, SubsSheet } from "@/components/Money";
 import { EatOutSheet, KonbiniSheet, RecipesSheet } from "@/components/FoodPlus";
+import { SearchAllSheet } from "@/components/tools/Search";
+import { MoodSheet, WeeklyReviewSheet, WhyDaySheet, YearSheet } from "@/components/Review";
+import { BackupCard, DisplaySheet } from "@/components/Safety";
+import { Sheet } from "@/components/Sheet";
 import { LISTS, ListSheet, type ListKind } from "@/components/tools/Lists";
 import { BreathingSheet, MeditationSheet, StopwatchSheet } from "@/components/tools/Mind";
 import { CHECKINS, type Checkin } from "@/lib/tools";
@@ -30,6 +34,9 @@ const TOOLS = [
   { id: "stretchrun", name: "After-study stretch", icon: "🤸" }, { id: "eyes", name: "Eye rest 20-20-20", icon: "👀" }, { id: "nap", name: "Nap timer", icon: "💤" }, { id: "walk", name: "Walk timer", icon: "🚶" },
   { id: "receipt", name: "Scan receipt", icon: "🧾" }, { id: "budgets", name: "Budgets", icon: "🎯" }, { id: "subs", name: "Subscriptions", icon: "📺" }, { id: "payday", name: "Payday", icon: "💴" },
   { id: "recipes", name: "Recipes", icon: "🧑‍🍳" }, { id: "konbini", name: "Konbini combo", icon: "🏪" }, { id: "eatout", name: "Eating out", icon: "🍜" },
+  { id: "review", name: "Weekly review", icon: "📅" }, { id: "why", name: "Why was today bad?", icon: "🤔" }, { id: "moodlinks", name: "Mood & energy", icon: "😊" },
+  { id: "year", name: "Year heatmap", icon: "🗓️" }, { id: "trophies", name: "Trophy room", icon: "🏆" }, { id: "safety", name: "Backup & safety", icon: "🛟" },
+  { id: "display", name: "Display & reading", icon: "🖥️" },
 ];
 
 function Tile({ icon, name, onClick }: { icon: string; name: string; onClick: () => void }) {
@@ -47,6 +54,11 @@ export default function ToolsPage() {
   const router = useRouter();
   const close = () => setOpen(null);
   const sections = [...new Set(CHECKINS.map((c) => c.section))];
+  // Links from Base Camp nudges: /tools?open=review
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("open");
+    if (id && TOOLS.some((t) => t.id === id)) { setOpen({ t: "tool", id }); history.replaceState(null, "", "/tools"); }
+  }, []);
 
   return (
     <>
@@ -76,7 +88,7 @@ export default function ToolsPage() {
       <section className="card p-4 mb-4">
         <h2 className="section-title mb-3">🛠 Tools & insights</h2>
         <div className="grid grid-cols-4 gap-2">
-          {TOOLS.map((t) => <Tile key={t.id} icon={t.icon} name={t.name} onClick={() => (t.id === "export" ? exportCsv(data, profile.settings.currency) : t.id === "doctor" ? router.push("/doctor") : setOpen({ t: "tool", id: t.id }))} />)}
+          {TOOLS.map((t) => <Tile key={t.id} icon={t.icon} name={t.name} onClick={() => (t.id === "export" ? exportCsv(data, profile.settings.currency) : t.id === "doctor" ? router.push("/doctor") : t.id === "trophies" ? router.push("/trophies") : setOpen({ t: "tool", id: t.id }))} />)}
         </div>
       </section>
 
@@ -88,7 +100,6 @@ export default function ToolsPage() {
       {open?.t === "tool" && open.id === "spin" && <SpinSheet onClose={close} />}
       {open?.t === "tool" && open.id === "report" && <ReportSheet onClose={close} />}
       {open?.t === "tool" && open.id === "heatmap" && <HeatmapSheet onClose={close} />}
-      {open?.t === "tool" && open.id === "search" && <SearchSheet onClose={close} />}
       {open?.t === "tool" && open.id === "savings" && <JarsSheet onClose={close} />}
       {open?.t === "tool" && open.id === "receipt" && <ReceiptSheet onClose={close} />}
       {open?.t === "tool" && open.id === "budgets" && <BudgetsSheet onClose={close} />}
@@ -97,6 +108,13 @@ export default function ToolsPage() {
       {open?.t === "tool" && open.id === "recipes" && <RecipesSheet onClose={close} />}
       {open?.t === "tool" && open.id === "konbini" && <KonbiniSheet onClose={close} />}
       {open?.t === "tool" && open.id === "eatout" && <EatOutSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "search" && <SearchAllSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "review" && <WeeklyReviewSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "why" && <WhyDaySheet onClose={close} />}
+      {open?.t === "tool" && open.id === "moodlinks" && <MoodSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "year" && <YearSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "display" && <DisplaySheet onClose={close} />}
+      {open?.t === "tool" && open.id === "safety" && <Sheet title="🛟 Backup & safety" onClose={close}><BackupCard /></Sheet>}
       {open?.t === "tool" && open.id === "reminders" && <RemindersSheet onClose={close} />}
       {open?.t === "tool" && open.id === "settings" && <SettingsSheet onClose={close} />}
       {open?.t === "tool" && open.id === "schedule" && <ScheduleSheet onClose={close} />}

@@ -17,6 +17,7 @@ export const ALL_TABS: Tab[] = [
   { href: "/shop", icon: "🏪", label: "Shop" },
   { href: "/rank", icon: "🦸", label: "Hero" },
   { href: "/have", icon: "🎒", label: "My stuff" },
+  { href: "/trophies", icon: "🏆", label: "Trophies" },
   { href: "/", icon: "🏯", label: "Base" },
 ];
 // Base sits on the right; the app opens on the leftmost tab.
