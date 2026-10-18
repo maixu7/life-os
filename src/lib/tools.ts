@@ -109,7 +109,7 @@ export function checkinKarma(l: Log) {
 
 // Extra record kinds made by the tools below.
 export const EXTRA_KARMA: Record<string, number> = { fine: -6, breath: 2, meditate: 3, task: 2, routine: 1, challenge: 5, spin: 0, login: 0, plan: 1, goalstep: 3, pages: 3,
-  cards: 3, paper: 6, mistake: 2, kanji: 2, bookadd: 2 };
+  cards: 3, paper: 6, mistake: 2, kanji: 2, bookadd: 2, detox: 6 };
 
 export const CHALLENGES = [
   "No sugar or junk food today", "Read 20 pages of a book", "No social media until 6 pm", "Drink 3 litres of water",

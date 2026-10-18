@@ -17,12 +17,14 @@ import { SafetyLayer } from "@/components/Safety";
 import { ResumeRoute } from "@/components/ResumeRoute";
 import { StageIntro } from "@/components/StageIntro";
 import { VoiceButton } from "@/components/VoiceButton";
+import { Fab, HubHost } from "@/components/hub/Hub";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <Gate>
       <main className="mx-auto max-w-2xl px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-28">{children}<PageExtras /></main>
       <VoiceButton />
+      <Fab />
       <Nav />
       <GameWatcher />
       <ResumeRoute />
@@ -40,6 +42,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <AlarmLayer />
       <SlotHost />
       <SafetyLayer />
+      <HubHost />
     </Gate>
   );
 }

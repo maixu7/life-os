@@ -9,6 +9,8 @@ import { describe } from "@/lib/describe";
 import { streak } from "@/lib/missions";
 import { today, useApp } from "@/lib/store";
 import { progress } from "@/lib/xp";
+import { Bell } from "@/components/hub/Talk";
+import { useT } from "@/lib/i18n";
 
 function Vital({ label, value, color }: { label: string; value: number; color: string }) {
   return (
@@ -24,6 +26,7 @@ function Vital({ label, value, color }: { label: string; value: number; color: s
 // The hero HUD at the top of every screen, plus the zone name.
 export function XpHeader({ title, icon, subtitle }: { title: string; icon?: string; subtitle?: string }) {
   const { profile, data } = useApp();
+  const t = useT();
   const p = progress(profile.xp);
   const day = today();
   const todays = useMemo(() => data.logs.filter((l) => l.day === day), [data.logs, day]);
@@ -80,9 +83,10 @@ export function XpHeader({ title, icon, subtitle }: { title: string; icon?: stri
       <div className="mt-4 flex items-end gap-2">
         {icon && <span className="text-2xl animate-float">{icon}</span>}
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-black glow-text uppercase">{title}</h1>
+          <h1 className="text-xl font-black glow-text uppercase">{t(title)}</h1>
           {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
         </div>
+        <Bell />
         <Link href="/control" aria-label="Control Centre" title="Control Centre" className="shrink-0 h-10 w-10 rounded-xl border border-white/15 bg-white/5 grid place-items-center text-lg active:scale-90">🎛️</Link>
       </div>
     </header>

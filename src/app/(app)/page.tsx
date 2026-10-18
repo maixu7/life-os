@@ -35,6 +35,9 @@ import { DrinkSheet } from "@/components/Drinks";
 import { TaskLog } from "@/components/TaskLog";
 import { Nudges } from "@/components/Safety";
 import { DayScoreChip } from "@/components/Review";
+import { PinsCard } from "@/components/hub/Hub";
+import { MorningCard } from "@/components/hub/Plan";
+import { EventCard, RivalCard } from "@/components/hub/Play";
 import { today, toDay, useApp, useCustomItems, useLogs, type CustomItem, type Log } from "@/lib/store";
 
 const shiftDay = (day: string, n: number) => {
@@ -146,6 +149,10 @@ export default function TodayPage() {
       <Blocks page="/" parts={{
         focus: isToday ? <FocusButton /> : null,
         exam: isToday ? <ExamTarget /> : null,
+        pins: isToday ? <PinsCard /> : null,
+        routine: isToday ? <MorningCard /> : null,
+        event: isToday ? <EventCard /> : null,
+        rival: isToday ? <RivalCard /> : null,
         coach: isToday ? <CoachCard /> : null,
         learn: isToday ? <LearnToday compact /> : null,
         gaps: isToday ? <GapsCard /> : null,

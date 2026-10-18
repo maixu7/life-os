@@ -7,6 +7,8 @@ import { describe } from "@/lib/describe";
 import { HABITS, habitStats, suggestHabits, type Suggestion } from "@/lib/habits";
 import { useApp, useCustomItems, type CustomItem } from "@/lib/store";
 import { HABIT_ACTION } from "@/lib/coach";
+import { ChainCalendar } from "@/components/hub/Play";
+import { openHub } from "@/components/hub/registry";
 
 const STAGE_ICON: Record<string, string> = { Seed: "🌱", Growing: "🌿", Formed: "🌳", Mastered: "🏆" };
 
@@ -25,7 +27,7 @@ export function HabitQuests() {
     <section className="card p-4 mb-4">
       <div className="flex items-center justify-between mb-1">
         <h2 className="section-title">🌱 Habit quests</h2>
-        <button onClick={() => setBrowse(true)} className="chip chip-on">+ Habit</button>
+        <span className="flex gap-1.5"><button onClick={() => openHub("chain")} className="chip">🔗 Chain</button><button onClick={() => setBrowse(true)} className="chip chip-on">+ Habit</button></span>
       </div>
       <p className="text-xs text-muted mb-3">Sensei builds new habits for you and checks them automatically from what you log. 21 days forms a habit, 66 makes it automatic.</p>
       {stats.length === 0 && <p className="py-3 text-center text-sm text-muted">No habit quests yet. Accept one below.</p>}
@@ -111,6 +113,7 @@ function HabitSheet({ h, onClose }: { h: CustomItem; onClose: () => void }) {
           ))}
         </div>
       </div>
+      <ChainCalendar h={h} />
       <div className="rounded-xl bg-white/5 p-3 text-sm space-y-1">
         <p><b className="text-[var(--accent2)]">Why: </b>{s.t.why}</p>
         <p><b className="text-[var(--accent2)]">Tiny step: </b>{s.t.tiny}</p>

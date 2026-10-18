@@ -21,6 +21,7 @@ import { CHECKINS, type Checkin } from "@/lib/tools";
 import { useApp } from "@/lib/store";
 import { RecordsSheet, TrendsSheet } from "@/components/Fitness";
 import { EyeRestSheet, NapSheet, StepCounterSheet, StretchSheet, WalkSheet } from "@/components/tools/BodyCare";
+import { HubTiles } from "@/components/hub/Hub";
 
 type Open = { t: "checkin"; c: Checkin } | { t: "list"; k: ListKind } | { t: "tool"; id: string } | null;
 
@@ -68,6 +69,11 @@ export default function ToolsPage() {
       <DailyChallenge />
       <LoginCalendar />
       <QuoteOfDay />
+
+      <section className="card p-4 mb-4">
+        <h2 className="section-title mb-3">🧭 Hero hub</h2>
+        <HubTiles />
+      </section>
 
       {sections.map((s) => (
         <section key={s} className="card p-4 mb-4">

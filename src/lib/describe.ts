@@ -113,6 +113,10 @@ function describeInner(l: Log, currency: string): { emoji: string; title: string
     case "mistake": return { emoji: "📕", title: d.added ? `Mistake noted: ${d.subject ?? ""}` : "Mistakes reviewed", detail: d.added ? String(d.name ?? "") : join(`${d.reviewed} reviewed`, d.fixed ? `${d.fixed} mastered` : "") };
     case "kanji": return { emoji: "🈶", title: `Kanji learned: ${d.chars ?? ""}`, detail: String(d.level ?? "") };
     case "bookadd": return { emoji: "📚", title: `New book: ${d.title ?? ""}`, detail: join(d.author ? String(d.author) : "", d.pages ? `${d.pages} pages` : "") };
+    case "loot": return { emoji: String(d.icon ?? "🎁"), title: d.item ? `Loot: ${d.item}` : `Event reward: ${d.quest ?? ""}`, detail: join(d.rarity ? String(d.rarity) : "", `+${d.gold} gold`) };
+    case "rival": return { emoji: "⚔️", title: "Beat rival Ryuji", detail: `+${d.gold} gold` };
+    case "freeze": return { emoji: "🛡️", title: "Streak freeze used", detail: `saved ${d.for}` };
+    case "detox": return { emoji: "📵", title: `Detox day: ${d.name}`, detail: "challenge won" };
     case "pages": return { emoji: "📖", title: `Read ${d.pages} pages`, detail: String(d.name ?? "") };
     default: {
       const c = CHECKIN_BY_KIND[l.kind];

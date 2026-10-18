@@ -32,6 +32,7 @@ export type Settings = {
   cat_budgets?: Record<string, number>; // monthly budget per spending category
   payday?: Payday; // allowance day and "pay yourself first"
   grocery_skip?: string[]; // names the auto grocery list should stop suggesting
+  hub?: { pins?: string[]; lang?: "en" | "ja" }; // Hero hub: actions pinned on Base Camp, menu language
 };
 export type Payday = { day: number; pct: number; amount?: number; jar?: string; auto: boolean };
 export type StudyItem = { id: string; subject: string; what: string; mins: number; pages?: number };

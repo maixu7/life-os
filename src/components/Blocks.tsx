@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { DrinkSheet } from "@/components/Drinks";
 import { MealSheet } from "@/components/Meals";
 import { TaskLog } from "@/components/TaskLog";
+import { WidgetBlock } from "@/components/hub/Widgets";
 import { emojiFor } from "@/lib/emoji";
 import { arrange, PAGE_SECTIONS, QUICK_DEFAULT, quickChoices, type Block, type MiniSlot, type SlotAction } from "@/lib/layout";
 import { today, useApp } from "@/lib/store";
@@ -126,6 +127,7 @@ export function OwnBlock({ b }: { b: Block }) {
       </span>
     </div>
   );
+  if (b.kind === "widget") return <WidgetBlock b={b} />;
   if (b.kind === "note") return <section className="card p-4 mb-4">{head}<p className="text-sm whitespace-pre-wrap">{b.text || <span className="text-muted">Empty note. Edit it in Control Centre.</span>}</p></section>;
   if (b.kind === "checklist") {
     const items = b.items ?? [];
