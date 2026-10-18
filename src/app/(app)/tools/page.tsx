@@ -8,7 +8,9 @@ import { ScheduleSheet } from "@/components/ScheduleSheet";
 import { MyFoodsSheet } from "@/components/FoodPicker";
 import { CheckinSheet } from "@/components/tools/Checkin";
 import { DailyChallenge, LoginCalendar, Pet, QuoteOfDay, SpinSheet } from "@/components/tools/Game";
-import { ExamCountdown, exportCsv, HeatmapSheet, RemindersSheet, ReportSheet, SavingsSheet, SearchSheet, SettingsSheet } from "@/components/tools/Insights";
+import { ExamCountdown, exportCsv, HeatmapSheet, RemindersSheet, ReportSheet, SearchSheet, SettingsSheet } from "@/components/tools/Insights";
+import { BudgetsSheet, JarsSheet, PaydaySheet, ReceiptSheet, SubsSheet } from "@/components/Money";
+import { EatOutSheet, KonbiniSheet, RecipesSheet } from "@/components/FoodPlus";
 import { LISTS, ListSheet, type ListKind } from "@/components/tools/Lists";
 import { BreathingSheet, MeditationSheet, StopwatchSheet } from "@/components/tools/Mind";
 import { CHECKINS, type Checkin } from "@/lib/tools";
@@ -22,10 +24,12 @@ const TOOLS = [
   { id: "schedule", name: "My schedule", icon: "🗓️" }, { id: "foods", name: "My foods", icon: "🍽️" }, { id: "doctor", name: "App doctor", icon: "🩺" }, { id: "customize", name: "Control Centre", icon: "🎛️" },
   { id: "breath", name: "Breathing", icon: "🌬️" }, { id: "meditate", name: "Meditation", icon: "🧘" }, { id: "stopwatch", name: "Stopwatch", icon: "⏱️" },
   { id: "spin", name: "Lucky spin", icon: "🎡" }, { id: "report", name: "Report card", icon: "📊" }, { id: "heatmap", name: "Heatmap", icon: "🔥" },
-  { id: "search", name: "Search", icon: "🔎" }, { id: "savings", name: "Savings", icon: "🐷" }, { id: "reminders", name: "Reminders", icon: "⏰" },
+  { id: "search", name: "Search", icon: "🔎" }, { id: "savings", name: "Savings jars", icon: "🫙" }, { id: "reminders", name: "Reminders", icon: "⏰" },
   { id: "export", name: "Export CSV", icon: "📤" }, { id: "settings", name: "Settings", icon: "⚙️" },
   { id: "records", name: "Records", icon: "🏆" }, { id: "trends", name: "Trends", icon: "📈" }, { id: "stepcount", name: "Step counter", icon: "👣" },
   { id: "stretchrun", name: "After-study stretch", icon: "🤸" }, { id: "eyes", name: "Eye rest 20-20-20", icon: "👀" }, { id: "nap", name: "Nap timer", icon: "💤" }, { id: "walk", name: "Walk timer", icon: "🚶" },
+  { id: "receipt", name: "Scan receipt", icon: "🧾" }, { id: "budgets", name: "Budgets", icon: "🎯" }, { id: "subs", name: "Subscriptions", icon: "📺" }, { id: "payday", name: "Payday", icon: "💴" },
+  { id: "recipes", name: "Recipes", icon: "🧑‍🍳" }, { id: "konbini", name: "Konbini combo", icon: "🏪" }, { id: "eatout", name: "Eating out", icon: "🍜" },
 ];
 
 function Tile({ icon, name, onClick }: { icon: string; name: string; onClick: () => void }) {
@@ -85,7 +89,14 @@ export default function ToolsPage() {
       {open?.t === "tool" && open.id === "report" && <ReportSheet onClose={close} />}
       {open?.t === "tool" && open.id === "heatmap" && <HeatmapSheet onClose={close} />}
       {open?.t === "tool" && open.id === "search" && <SearchSheet onClose={close} />}
-      {open?.t === "tool" && open.id === "savings" && <SavingsSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "savings" && <JarsSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "receipt" && <ReceiptSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "budgets" && <BudgetsSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "subs" && <SubsSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "payday" && <PaydaySheet onClose={close} />}
+      {open?.t === "tool" && open.id === "recipes" && <RecipesSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "konbini" && <KonbiniSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "eatout" && <EatOutSheet onClose={close} />}
       {open?.t === "tool" && open.id === "reminders" && <RemindersSheet onClose={close} />}
       {open?.t === "tool" && open.id === "settings" && <SettingsSheet onClose={close} />}
       {open?.t === "tool" && open.id === "schedule" && <ScheduleSheet onClose={close} />}

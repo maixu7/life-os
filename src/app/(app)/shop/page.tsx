@@ -11,6 +11,7 @@ import { line } from "@/lib/lore";
 import { useCustomItems } from "@/lib/store";
 import { UNITS, useApp, type PantryItem, type ShopItem } from "@/lib/store";
 import { deletePhoto, getPhoto, putPhoto } from "@/lib/vault";
+import { AutoGrocery, CategoryBudgets, MoneyTools } from "@/components/Money";
 
 type Tab = "list" | "storage" | "history" | "rewards" | "photos";
 const monthOf = (iso: string) => iso.slice(0, 7);
@@ -80,12 +81,6 @@ export default function ShopPage() {
   const monthBuys = bought.filter((b) => monthOf(b.purchased_at!) === month);
   const spent = monthBuys.reduce((s, b) => s + Number(b.price ?? 0), 0);
   const left = allowance - spent;
-  const byCat = Object.entries(monthBuys.reduce<Record<string, number>>((m, b) => {
-    const c = b.category || "Other";
-    m[c] = (m[c] ?? 0) + Number(b.price ?? 0);
-    return m;
-  }, {})).sort((a, b) => b[1] - a[1]);
-  const maxCat = Math.max(1, ...byCat.map((c) => c[1]));
   const byDay = monthBuys.reduce<Record<string, ShopItem[]>>((m, b) => {
     (m[b.purchased_at!.slice(0, 10)] ??= []).push(b);
     return m;
@@ -97,6 +92,7 @@ export default function ShopPage() {
       <XpHeader title="Merchant" icon="🏪" subtitle="Supplies, gear and treasure for your adventure" />
 
       <AllowanceCard month={month} setMonth={setMonth} allowance={allowance} spent={spent} left={left} money={money} />
+      <MoneyTools />
 
       <div className="grid grid-cols-5 gap-1 p-1 mb-4 rounded-2xl bg-white/5">
         {([["list", "🛒 Supplies"], ["storage", "🎒 Bag"], ["history", "🧾 Ledger"], ["rewards", "🎁 Rewards"], ["photos", "📸 Photos"]] as const).map(([k, l]) => (
@@ -107,6 +103,7 @@ export default function ShopPage() {
 
       {tab === "list" && (
         <>
+          <AutoGrocery />
           <form onSubmit={(e) => { e.preventDefault(); quickAdd(); }} className="flex gap-2 mb-2">
             <div className="relative flex-1">
               <span className="absolute left-2 top-1/2 -translate-y-1/2"><Pic name={quick} emoji={quick ? emojiFor(quick, "🛍️") : "🛍️"} size={34} /></span>
@@ -186,20 +183,7 @@ export default function ShopPage() {
 
       {tab === "history" && (
         <>
-          {byCat.length > 0 && (
-            <section className="card p-4 mb-4">
-              <h2 className="font-bold mb-2">Where the money went</h2>
-              <div className="space-y-1.5">
-                {byCat.map(([c, v]) => (
-                  <div key={c} className="flex items-center gap-2 text-xs">
-                    <span className="w-20 truncate text-muted">{c}</span>
-                    <div className="flex-1 bar !h-3"><div style={{ width: `${(v / maxCat) * 100}%` }} /></div>
-                    <span className="w-20 text-right tabular-nums">{money(v)}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+          <CategoryBudgets month={month} />
           {Object.keys(byDay).length === 0 && <p className="card p-6 text-center text-sm text-muted">No purchases this month.</p>}
           {Object.entries(byDay).map(([d, list]) => (
             <section key={d} className="mb-3">

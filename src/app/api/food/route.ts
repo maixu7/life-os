@@ -91,6 +91,11 @@ export async function POST(req: Request) {
   if (used >= 80) return bad("That's today's limit of food scans. Type the numbers or try tomorrow.", 429);
   await kv!.set(key, used + 1);
 
+  if (mode === "receipt") {
+    if (!m) return bad("Send a photo of the receipt.");
+    const img = { mime: m[1], data: m[2] };
+    return gemini ? receiptWithGemini(gemini, img) : receiptWithClaude(img);
+  }
   if (mode === "book") {
     const ask = `What book is this?${words ? ` Hint from me: ${words}` : ""}`;
     return gemini ? bookWithGemini(gemini, ask, m ? { mime: m[1], data: m[2] } : null) : bookWithClaude(ask, m ? { mime: m[1], data: m[2] } : null);
@@ -295,4 +300,81 @@ async function bookWithGemini(key: string, ask: string, img: { mime: string; dat
     }
   }
   return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the title instead, or try tomorrow." : why || "Couldn't reach the book reader.", why.includes(" 429") ? 429 : 502);
+}
+
+// ---------- Receipt reading (Money + What I have) ----------
+const RECEIPT_CATS = ["Food", "Eating out", "Snacks", "Drinks", "Household", "Transport", "Phone & net", "Subscriptions", "Study", "Fun", "Clothes", "Health & beauty", "Other"] as const;
+const Receipt = z.object({
+  found: z.boolean().describe("false if this is not a readable receipt"),
+  store: z.string().describe("Shop name in English or romaji, e.g. 'Lawson', 'Aeon', 'Daiso'; empty if unknown"),
+  date: z.string().describe("Purchase date as YYYY-MM-DD if printed (2026年10月18日 or 26/10/18), else empty"),
+  items: z.array(z.object({
+    name: z.string().describe("Short plain English name a shopper would use, e.g. 'Eggs (10 pack)', 'Salad chicken'"),
+    name_ja: z.string().describe("The line exactly as printed in Japanese; empty if none"),
+    qty: z.number().describe("How many were bought (the ×2 or 2個 on the line); 1 if not shown"),
+    unit: z.enum(["pcs", "pack", "bag", "box", "bottle", "can", "jar", "g", "kg", "ml", "L"]),
+    price: z.number().describe("Yen actually paid for this line in total, after line discounts (値引) and including consumption tax"),
+    category: z.enum(RECEIPT_CATS),
+    kind: z.enum(["food", "fruit", "veg", "drink", "other"]).describe("food/fruit/veg/drink for things to eat or drink; other for everything else"),
+    emoji: z.string(),
+  })),
+  total: z.number().describe("The receipt's total paid (合計), yen"),
+  note: z.string().describe("One short sentence: anything you were unsure about"),
+});
+const RECEIPT_SYSTEM = `You read Japanese shop receipts (レシート) for a personal money and pantry app.
+List every bought line as its own item. Skip lines that are not items: subtotal (小計), tax (消費税, 内税, 外税), points (ポイント), payment (お預り, お釣り, クレジット, PayPay), bag fees only if not bought.
+Prices: give what was paid for the whole line including tax. If the receipt shows prices before tax (外税 / 税抜), add 8% for food and drinks (marked ※ or 軽 for the reduced rate) and 10% for everything else, rounded. Apply line discounts (値引, 割引) to the line above them.
+Names: write a simple English name (Japanese abbreviations like ﾄｯﾌﾟﾊﾞﾘｭ or ｻﾗﾀﾞﾁｷﾝ should be expanded). Category: groceries = Food, ready meals at a restaurant = Eating out, sweets and chips = Snacks.`;
+const RECEIPT_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    found: { type: "BOOLEAN" }, store: str, date: str, total: num, note: str,
+    items: { type: "ARRAY", items: { type: "OBJECT", properties: {
+      name: str, name_ja: str, qty: num, unit: { type: "STRING", enum: ["pcs", "pack", "bag", "box", "bottle", "can", "jar", "g", "kg", "ml", "L"] }, price: num,
+      category: { type: "STRING", enum: [...RECEIPT_CATS] }, kind: { type: "STRING", enum: ["food", "fruit", "veg", "drink", "other"] }, emoji: str,
+    }, required: ["name", "name_ja", "qty", "unit", "price", "category", "kind", "emoji"] } },
+  },
+  required: ["found", "store", "date", "items", "total", "note"],
+};
+async function receiptWithClaude(img: { mime: string; data: string }) {
+  try {
+    const client = new Anthropic();
+    const msg = await client.beta.messages.parse({
+      model: "claude-opus-5-5", max_tokens: 4000, system: RECEIPT_SYSTEM,
+      messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: img.mime as "image/jpeg", data: img.data } }, { type: "text", text: "Read this receipt." }] }],
+      output_config: { format: betaZodOutputFormat(Receipt) },
+      fallbacks: "default", betas: ["server-side-fallback-2026-07-01"],
+    });
+    if (!msg.parsed_output) return bad("Couldn't read that receipt. Try a flat, bright photo.", 502);
+    return NextResponse.json(msg.parsed_output);
+  } catch (e) {
+    if (e instanceof Anthropic.RateLimitError) return bad("Busy right now. Try again in a minute.", 429);
+    return bad("Couldn't reach the receipt reader. Try again.", 502);
+  }
+}
+async function receiptWithGemini(key: string, img: { mime: string; data: string }) {
+  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+  let why = "";
+  for (const model of models) {
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: RECEIPT_SYSTEM }] }, contents: [{ role: "user", parts: [{ inline_data: { mime_type: img.mime, data: img.data } }, { text: "Read this receipt." }] }], generationConfig: { responseMimeType: "application/json", responseSchema: RECEIPT_SCHEMA, temperature: 0.1 } }),
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) {
+        why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
+        if (r.status === 404 || r.status === 429) continue;
+        return bad(why, 502);
+      }
+      const text = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
+      const out = Receipt.safeParse(JSON.parse(text || "null"));
+      if (out.success) return NextResponse.json(out.data);
+      why = "Gemini answer wasn't readable";
+    } catch (e) {
+      why = `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+    }
+  }
+  return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the receipt in instead, or try tomorrow." : why || "Couldn't reach the receipt reader.", why.includes(" 429") ? 429 : 502);
 }
