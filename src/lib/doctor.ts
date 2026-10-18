@@ -2,6 +2,8 @@
 // over-the-counter medicines and when to see a real doctor. It gives
 // first-aid level guidance from a fixed list, not a diagnosis.
 
+import { EXTRA_CONDITIONS, EXTRA_MEDS, EXTRA_SYMPTOMS } from "./doctor2";
+
 export type Area = "general" | "head" | "eent" | "chest" | "stomach" | "urinary" | "skin" | "body" | "mind" | "context";
 export type Symptom = { id: string; label: string; ja: string; area: Area; red?: boolean };
 
@@ -64,6 +66,7 @@ export const SYMPTOMS: Symptom[] = [
   S("injury", "Fell / hurt it", "けがをした", "context"), S("pollen", "Pollen season / dust", "花粉の季節", "context"), S("sickcontact", "Someone near me is sick", "周りに病人がいる", "context"),
   S("heatexp", "Was out in the heat", "暑い所にいた", "context"), S("newfood", "Ate a new food / took a new medicine", "新しい食べ物・薬", "context"), S("sitting", "Sit for long hours", "長時間座っている", "context"),
   S("travel", "Recent travel abroad", "海外旅行", "context"),
+  ...EXTRA_SYMPTOMS,
 ];
 export const symptom = (id: string) => SYMPTOMS.find((s) => s.id === id);
 
@@ -120,6 +123,7 @@ export const MEDS: Record<string, Med> = {
   candida: M("Femineena vaginal tablets (フェミニーナ腟カンジダ錠)", "miconazole", "Repeat yeast infection only.", "Only if a doctor diagnosed it before.", "第1類"),
   vitb: M("Alinamin EX Plus (アリナミンEXプラス)", "vitamin B1/B6/B12", "Tired eyes, stiff shoulders, nerve tingling.", "Safe.", "第3類"),
   aftercare: M("Calamine / cooling gel (カーマインローション)", "soothing lotion", "Sunburn, heat rash.", "Safe.", "第3類"),
+  ...EXTRA_MEDS,
 };
 
 export type Severity = "mild" | "moderate" | "serious" | "emergency";
@@ -237,6 +241,7 @@ export const CONDITIONS: Condition[] = [
   C("Crisis", "危機", "mind", "emergency", "selfharm:3", "You are going through something too heavy to carry alone.", ["Stay with someone or call someone now", "Remove anything you could hurt yourself with"], [], "Please call いのちの電話 0570-783-556, or 119 if you are in danger. You matter.", "救急 / 精神科", 0),
   C("Stress overload", "ストレス過多", "mind", "mild", "stress:3 headache:1 insomnia:1 neckpain:1 upperpain:1", "Too much pressure for too long.", ["Write your worries on paper", "Exercise", "Sleep before midnight", "Say no to one thing this week"], [], "If it lasts weeks or affects sleep and eating.", "心療内科", 7),
   C("Eye-screen headache combo", "VDT症候群", "eent", "mild", "screen:3 dryeye:2 headache:2 neckpain:2", "Computer vision syndrome: long screen hours.", ["20-20-20 rule", "Blink more", "Screen brightness = room brightness"], ["santear", "vitb"], "If vision changes.", "眼科", 7),
+  ...EXTRA_CONDITIONS,
 ];
 
 // ----- The consult -----

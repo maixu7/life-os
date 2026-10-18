@@ -186,6 +186,11 @@ export default function DoctorPage() {
           <div className="space-y-2">
             {lib.map((c) => <ConditionCard key={c.name} c={c} open={open === c.name} onToggle={() => setOpen(open === c.name ? null : c.name)} onConsult={() => consult(c)} />)}
             {!lib.length && <p className="text-sm text-muted">Nothing found. Try a symptom instead, or start a consult.</p>}
+            {lq.trim().length > 2 && (
+              <a href={`https://www.msdmanuals.com/home/SearchResults?query=${encodeURIComponent(lq)}`} target="_blank" rel="noreferrer" className="block rounded-xl bg-white/5 p-3 text-xs">
+                🔎 Look up “{lq}” in the MSD Manual (a free medical encyclopedia written by doctors) ›
+              </a>
+            )}
           </div>
         </section>
       )}
