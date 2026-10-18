@@ -10,9 +10,9 @@ import { GoodBadge } from "@/components/GoodBadge";
 
 // Any drink: pick it, pick how much, and the app logs calories, sugar and
 // caffeine. Water and milk count toward their goals.
-export function DrinkSheet({ onClose, at }: { onClose: () => void; at?: Date }) {
+export function DrinkSheet({ onClose, at, start, slot }: { onClose: () => void; at?: Date; start?: string; slot?: string }) {
   const { data, logActivity, celebrate } = useApp();
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(() => (start && DRINKS.some((d) => `${d.name} ${d.ja ?? ""}`.toLowerCase().includes(start.toLowerCase())) ? start : ""));
   const [cat, setCat] = useState<DrinkCat | "">("");
   const [pick, setPick] = useState<Drink | null>(null);
   const [ml, setMl] = useState(0);
@@ -23,17 +23,17 @@ export function DrinkSheet({ onClose, at }: { onClose: () => void; at?: Date }) 
   const save = () => {
     if (!pick) return;
     const kcal = Math.round(pick.kcal100 * k), sugar = +(pick.sugar100 * k).toFixed(1);
-    if (pick.cat === "water") logActivity("water", { ml, name: pick.name }, at);
-    else if (pick.cat === "milk" && /^(whole |low.?fat |skim |)milk/i.test(pick.name)) logActivity("milk", { ml, name: pick.name }, at);
+    if (pick.cat === "water") logActivity("water", { ml, name: pick.name, slot }, at);
+    else if (pick.cat === "milk" && /^(whole |low.?fat |skim |)milk/i.test(pick.name)) logActivity("milk", { ml, name: pick.name, slot }, at);
     else logActivity("drink", {
-      name: pick.name, emoji: pick.emoji, cat: pick.cat, ml, kcal, sugar, protein: pick.protein100 ? +(pick.protein100 * k).toFixed(1) : undefined,
+      name: pick.name, emoji: pick.emoji, cat: pick.cat, slot, ml, kcal, sugar, protein: pick.protein100 ? +(pick.protein100 * k).toFixed(1) : undefined,
       caffeine: pick.caffeine100 ? Math.round(pick.caffeine100 * k) : undefined, alcohol: pick.alcohol, water_ml: Math.round(ml * (pick.water ?? 0.9)),
     }, at);
     celebrate({ title: "GULP!", subtitle: `${pick.emoji} ${pick.name} ${ml} ml${kcal ? ` · ${kcal} kcal` : ""}${sugar >= 10 ? ` · ${sugar} g sugar` : ""}` });
     onClose();
   };
   return (
-    <Sheet title="🥤 What did you drink?" onClose={onClose}>
+    <Sheet title={slot ? `🥤 ${slot}` : "🥤 What did you drink?"} onClose={onClose}>
       <input className="input" placeholder={`Search ${DRINKS.length} drinks (pocari, cola, soy milk, 麦茶…)`} value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         <button onClick={() => setCat("")} className={`chip !py-0.5 text-[11px] shrink-0 ${!cat ? "chip-on" : ""}`}>All</button>

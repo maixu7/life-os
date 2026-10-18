@@ -132,6 +132,14 @@ export const withGear = (kit: Kit, g: Gear) => MOVES.filter((m) => m.kind === "b
 // A full day's workout from what you own: warm-up, one move per body part, a
 // finisher and a cool-down. It changes each day.
 export type PlanRow = { part: string; name: string; sets: number; reps: string; kg?: number };
+// "3 × 8-12" in plain words: "3 sets of 8–12 reps", "1 round of 60 seconds".
+export function setsText(sets: number, reps: string) {
+  const r = String(reps).trim().replace(/-/g, "–");
+  const secs = /^(\d+(?:–\d+)?)\s*s(ec(onds?)?)?$/i.exec(r);
+  const what = secs ? `${secs[1]} seconds` : /^\d+(–\d+)?$/.test(r) ? `${r} ${r === "1" ? "rep" : "reps"}` : r;
+  if (sets <= 1) return secs ? `1 round of ${what}` : `1 set of ${what}`;
+  return `${sets} sets of ${what}`;
+}
 export function dayPlan(kit: Kit, day = new Date()): PlanRow[] {
   const seed = Math.floor(day.getTime() / 86_400_000);
   const pick = <T,>(xs: T[], i = 0) => xs[(seed + i) % Math.max(1, xs.length)];

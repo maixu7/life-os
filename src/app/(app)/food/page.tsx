@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
+import { Blocks, QuickBar } from "@/components/Blocks";
 import { CareCard } from "@/components/CareCard";
 import { EatNextList } from "@/components/FixCard";
 import { DrinkSheet } from "@/components/Drinks";
@@ -26,11 +27,31 @@ export default function FoodPage() {
   return (
     <>
       <XpHeader title="Food" icon="🍱" subtitle="What you eat, with real calories" />
+      <Blocks page="/food" parts={{
+        quick: <QuickBar />,
+        meals: (
+        <>
       <MealsCard />
+        </>
+        ),
+        drink: (
+        <>
       <button onClick={() => setDrink(true)} className="btn-ghost w-full mb-4 border border-dashed border-white/25 text-sm">🥤 Log a drink (tea, coffee, sports drink, cola, soy milk…)</button>
       {drink && <DrinkSheet onClose={() => setDrink(false)} />}
+        </>
+        ),
+        next: (
+        <>
       <div className="mb-4"><EatNextList /></div>
+        </>
+        ),
+        care: (
+        <>
       <CareCard open />
+        </>
+        ),
+        have: (
+        <>
       <section className="card p-4 mb-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="section-title">🎒 Food you have</h2>
@@ -49,11 +70,19 @@ export default function FoodPage() {
         )}
       </section>
       {eat && <MealSheet start={[eat]} onClose={() => setEat(null)} />}
+        </>
+        ),
+        packet: (
+        <>
       <section className="card p-4 mb-4 space-y-3">
         <h2 className="section-title">🏷️ New packet food</h2>
         <LabelScan />
         <MyFoodForm />
       </section>
+        </>
+        ),
+        week: (
+        <>
       <section className="card p-4 mb-4">
         <h2 className="section-title mb-2">📅 Last 7 days</h2>
         <table className="w-full text-xs">
@@ -61,7 +90,7 @@ export default function FoodPage() {
           <tbody>
             {days.map((d) => {
               const e = energy(data, d);
-              const meals = data.logs.filter((l) => l.day === d && l.kind === "activity" && /breakfast|lunch|dinner|snack/i.test(String(l.data.name))).length;
+              const meals = data.logs.filter((l) => l.day === d && l.kind === "activity" && (!!l.data.meal || /breakfast|lunch|dinner|snack/i.test(String(l.data.name)))).length;
               return (
                 <tr key={d} className="border-t border-white/5">
                   <td className="py-1.5">{new Date(`${d}T12:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric" })}</td>
@@ -72,10 +101,17 @@ export default function FoodPage() {
           </tbody>
         </table>
       </section>
+        </>
+        ),
+        mine: (
+        <>
       <section className="card p-4 mb-4">
         <h2 className="section-title mb-2">🍽️ My foods</h2>
         <MyFoodsList />
       </section>
+        </>
+        ),
+      }} />
     </>
   );
 }

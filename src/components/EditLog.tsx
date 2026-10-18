@@ -20,7 +20,7 @@ export function EditLog({ log, onClose }: { log: Log; onClose: () => void }) {
   const [sleepStart, setSleepStart] = useState(d.start ? dtLocal(new Date(String(d.start))) : "");
   const desc = describe(log);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
-  const isMeal = log.kind === "meal" || (log.kind === "activity" && MEAL_NAMES.includes(String(d.name).toLowerCase()));
+  const isMeal = log.kind === "meal" || (log.kind === "activity" && (!!d.meal || MEAL_NAMES.includes(String(d.name).toLowerCase())));
   const num = (k: string) => (f[k] === undefined || f[k] === "" ? undefined : Number(f[k]));
 
   const save = () => {

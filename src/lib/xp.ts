@@ -19,7 +19,7 @@ export function progress(xp: number) {
 }
 
 export const XP: Record<string, number> = {
-  water: 5, milk: 5, drink: 3, meal: 10, wake: 15, sleep: 15, reading: 15, listening: 10, media: 15, coding: 20, workout: 20, focus: 40, shopping: 5, activity: 10, use: 3, body: 10, bonus: 0, chest: 0, redeem: 0, battle: 0, sick: 0,
+  water: 5, milk: 5, drink: 3, meal: 10, wake: 15, sleep: 15, reading: 15, listening: 10, media: 15, coding: 20, workout: 20, focus: 40, shopping: 5, activity: 10, use: 3, body: 10, counter: 2, bonus: 0, chest: 0, redeem: 0, battle: 0, sick: 0,
 };
 
 // Each attribute on the radar chart grows from these kinds of logs.

@@ -1,5 +1,7 @@
 "use client";
 
+import { alarmPrefs, ring } from "@/lib/alarm";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { nextTasks, snooze, type Action, type Task } from "@/lib/coach";
@@ -274,6 +276,7 @@ export function Popper() {
       if ((opened && once(`lifeos-phase:${n.phase}`, 45)) || (changed && !opened)) {
         if (document.querySelector("[data-overlay]")) return;
         setPop({ kind: "phase", n, line: pick(PHASE_LINES[n.phase]), top: true });
+        if (changed && !opened && alarmPrefs().phase && ["study", "work", "break", "winddown"].includes(n.phase)) ring({ rounds: 3 });
       }
     };
     const first = setTimeout(() => check(true), 2500);

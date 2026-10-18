@@ -9,9 +9,15 @@ import { aiPhoto, readMeal } from "@/lib/foodai";
 import { animeStyle, loadImage, smallPhoto } from "@/lib/foodphoto";
 import { energy, type Eaten } from "@/lib/body";
 import { haveFoods, recentFoods, takeFromPantry } from "@/lib/have";
+import { DrinkSheet } from "@/components/Drinks";
+import { allMealSlots, ICONS, MEAL_IDEAS, mealSlots, uid, type MealSlot } from "@/lib/layout";
+import type { Ui } from "@/lib/ui";
 import { toDay, useApp, type Log } from "@/lib/store";
 
 export const MEALS: [string, string][] = [["Breakfast", "🍳"], ["Lunch", "🍱"], ["Snack", "🍪"], ["Dinner", "🍛"]];
+// Every meal and drink button, including your own (Control Centre or the ＋ on Food today).
+export const useMealSlots = () => { const { profile } = useApp(); return mealSlots(profile.settings.ui); };
+export const iconOfMeal = (name: string, ui?: Ui) => allMealSlots(ui).find((m) => m.label.toLowerCase() === name.toLowerCase())?.icon ?? MEALS.find(([m]) => m === name)?.[1] ?? "🍽️";
 
 // Which meal fits the clock, so a photo at 1 PM becomes lunch.
 export function mealFor(d: Date) {
@@ -19,13 +25,16 @@ export function mealFor(d: Date) {
   return h >= 4 && h < 11 ? "Breakfast" : h >= 11 && h < 16 ? "Lunch" : h >= 16 && h < 19 ? "Snack" : "Dinner";
 }
 
-const isMealLog = (l: Log) => l.kind === "meal" || (l.kind === "activity" && MEALS.some(([m]) => m.toLowerCase() === String(l.data.name).toLowerCase()));
+export const isMealLog = (l: Log, ui?: Ui) => l.kind === "meal" || (l.kind === "activity" && (!!l.data.meal || MEALS.some(([m]) => m.toLowerCase() === String(l.data.name).toLowerCase()) || allMealSlots(ui).some((m) => m.label.toLowerCase() === String(l.data.name).toLowerCase())));
 
 // A meal is any number of foods. Each food has its own photo (shown in the
 // Today table) and its own label photo (read for the calories).
 export function MealSheet({ meal: initial, log, onClose, start }: { meal?: string; log?: Log; onClose: () => void; start?: string[] }) {
-  const { data, logActivity, updateLog, celebrate, update } = useApp();
+  const { data, profile, logActivity, updateLog, celebrate, update } = useApp();
+  const ui = profile.settings.ui;
+  const slots = mealSlots(ui);
   const [meal, setMeal] = useState(initial ?? (log ? String(log.data.name) : mealFor(new Date())));
+  const icon = iconOfMeal(meal, ui);
   const [when, setWhen] = useState(dtLocal(log ? new Date(log.created_at) : new Date()));
   const [dishes, setDishes] = useState<Dish[]>(() => {
     const had = dishesFrom(log?.data.foods as Eaten[] | undefined);
@@ -43,7 +52,7 @@ export function MealSheet({ meal: initial, log, onClose, start }: { meal?: strin
 
   const save = () => {
     const first = foods.find((f) => f.photo)?.photo;
-    const payload = { name: meal, emoji: MEALS.find(([m]) => m === meal)?.[1] ?? "🍽️", foods, kcal, note: contents || undefined, photo: first };
+    const payload = { name: meal, emoji: icon, meal: true, foods, kcal, note: contents || undefined, photo: first };
     if (log) updateLog(log.id, { data: payload, at: new Date(when) });
     else {
       const row = logActivity("activity", payload, new Date(when));
@@ -55,10 +64,10 @@ export function MealSheet({ meal: initial, log, onClose, start }: { meal?: strin
   };
 
   return (
-    <Sheet title={`${MEALS.find(([m]) => m === meal)?.[1] ?? "🍽️"} ${meal}`} onClose={onClose}>
+    <Sheet title={`${icon} ${meal}`} onClose={onClose}>
       <FoodNames />
-      <div className="grid grid-cols-4 gap-1.5">
-        {MEALS.map(([m, e]) => <button key={m} onClick={() => setMeal(m)} className={`chip justify-center !px-1 text-xs ${meal === m ? "chip-on" : ""}`}>{e} {m}</button>)}
+      <div className="flex flex-wrap gap-1.5">
+        {[...slots.filter((m) => !m.drink), ...(slots.some((m) => m.label === meal) ? [] : [{ id: "cur", icon, label: meal }])].map((m) => <button key={m.id} onClick={() => setMeal(m.label)} className={`chip !px-2 text-xs ${meal === m.label ? "chip-on" : ""}`}>{m.icon} {m.label}</button>)}
       </div>
       <WhenPicker label="When did you eat" value={when} onChange={setWhen} />
       <div className="flex items-center justify-between text-xs">
@@ -83,12 +92,18 @@ export function MealSheet({ meal: initial, log, onClose, start }: { meal?: strin
   );
 }
 
-// Base Camp: today's meals with their photos and the calories so far.
+// Base Camp and Food: today's meal and drink buttons with photos and the
+// calories so far. ＋ adds your own button (any name, any icon).
 export function MealsCard() {
-  const { data } = useApp();
+  const { data, profile } = useApp();
+  const ui = profile.settings.ui;
+  const slots = mealSlots(ui);
   const day = toDay(new Date());
   const [open, setOpen] = useState<{ meal?: string; log?: Log } | null>(null);
-  const logs = data.logs.filter((l) => l.day === day && isMealLog(l));
+  const [drink, setDrink] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const logs = data.logs.filter((l) => l.day === day && isMealLog(l, ui));
+  const drinks = data.logs.filter((l) => l.day === day && ["drink", "water", "milk"].includes(l.kind));
   const e = energy(data, day);
   const pct = Math.min(100, (e.intake / Math.max(1, e.out)) * 100);
   return (
@@ -99,22 +114,25 @@ export function MealsCard() {
       </div>
       <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-3"><div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-emerald-400" style={{ width: `${pct}%` }} /></div>
       <div className="grid grid-cols-5 gap-2">
-        {MEALS.map(([m, emo]) => {
-          const done = logs.filter((l) => String(l.data.name).toLowerCase() === m.toLowerCase());
+        {slots.map((m) => {
+          const done = m.drink ? drinks.filter((l) => l.data.slot === m.label) : logs.filter((l) => String(l.data.name).toLowerCase() === m.label.toLowerCase());
           const last = done[done.length - 1];
           const pic = last?.data.photo ? String(last.data.photo) : "";
           return (
-            <button key={m} onClick={() => setOpen(last ? { log: last } : { meal: m })}
+            <button key={m.id} onClick={() => (m.drink ? setDrink(m.label) : setOpen(last ? { log: last } : { meal: m.label }))}
               className={`relative rounded-2xl border bg-white/[.04] p-1 pb-1.5 flex flex-col items-center gap-1 active:scale-95 ${done.length ? "border-emerald-400/60" : "border-white/10"}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {pic ? <img src={pic} alt={m} className="h-10 w-10 rounded-xl object-cover" /> : <span className="text-2xl h-10 grid place-items-center">{emo}</span>}
-              <span className="text-[10px] leading-tight">{m}</span>
-              {done.length > 0 && <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-emerald-500 text-[11px] grid place-items-center">✓</span>}
+              {pic ? <img src={pic} alt={m.label} className="h-10 w-10 rounded-xl object-cover" /> : <span className="text-2xl h-10 grid place-items-center">{m.icon}</span>}
+              <span className="text-[10px] leading-tight text-center line-clamp-2">{m.label}</span>
+              {done.length > 0 && <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-emerald-500 text-[11px] grid place-items-center">{done.length > 1 ? done.length : "✓"}</span>}
             </button>
           );
         })}
         <button onClick={() => setOpen({})} className="rounded-2xl border border-dashed border-white/25 p-1 flex flex-col items-center justify-center gap-1 active:scale-95">
           <span className="text-2xl h-10 grid place-items-center">📷</span><span className="text-[10px]">Photo</span>
+        </button>
+        <button onClick={() => setAdding(true)} aria-label="Add a food or drink button" className="rounded-2xl border border-dashed border-[var(--accent2)]/50 p-1 flex flex-col items-center justify-center gap-1 active:scale-95">
+          <span className="text-2xl h-10 grid place-items-center text-[var(--accent2)]">＋</span><span className="text-[10px]">Add button</span>
         </button>
       </div>
       {logs.length > 0 && (
@@ -123,14 +141,66 @@ export function MealsCard() {
             <li key={l.id}><button onClick={() => setOpen({ log: l })} className="w-full flex gap-2 text-left">
               <span className="text-muted w-14 shrink-0">{new Date(l.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
               <FoodThumbs foods={l.data.foods as Eaten[] | undefined} />
-              <span className="flex-1 truncate">{String(l.data.name)}: {((l.data.foods as { name: string }[]) ?? []).map((f) => f.name).join(", ") || String(l.data.note ?? "no foods added")}</span>
+              <span className="flex-1 truncate">{String(l.data.emoji ?? "")} {String(l.data.name)}: {((l.data.foods as { name: string }[]) ?? []).map((f) => f.name).join(", ") || String(l.data.note ?? "no foods added")}</span>
               {Number(l.data.kcal) > 0 && <b>{String(l.data.kcal)} kcal</b>}
             </button></li>
           ))}
         </ul>
       )}
       {open && <MealSheet meal={open.meal} log={open.log} onClose={() => setOpen(null)} />}
+      {drink && <DrinkSheet slot={drink} start={drink} onClose={() => setDrink(null)} />}
+      {adding && <MealSlotSheet onClose={() => setAdding(false)} />}
     </section>
+  );
+}
+
+// Add or edit a food or drink button: name, icon, eat or drink. Built-in
+// buttons can be hidden but not deleted.
+export function MealSlotSheet({ slot, onClose }: { slot?: MealSlot; onClose: () => void }) {
+  const { profile, saveSettings } = useApp();
+  const ui = profile.settings.ui ?? {};
+  const [label, setLabel] = useState(slot?.label ?? "");
+  const [icon, setIcon] = useState(slot?.icon ?? "🍽️");
+  const [isDrink, setDrink] = useState(!!slot?.drink);
+  const save = () => {
+    if (!label.trim()) return;
+    if (slot?.builtIn) { saveSettings({ ui: { ...ui, names: { ...ui.names, [slot.id]: { icon, label: label.trim() } } } }); onClose(); return; }
+    const m: MealSlot = { id: slot?.id ?? `m-${uid()}`, icon, label: label.trim(), drink: isDrink };
+    const meals = ui.meals ?? [];
+    saveSettings({ ui: { ...ui, meals: meals.some((x) => x.id === m.id) ? meals.map((x) => (x.id === m.id ? m : x)) : [...meals, m] } });
+    onClose();
+  };
+  const del = () => { if (slot && !slot.builtIn) { saveSettings({ ui: { ...ui, meals: (ui.meals ?? []).filter((x) => x.id !== slot.id) } }); onClose(); } };
+  return (
+    <Sheet title={slot ? `✏️ ${slot.label}` : "＋ New food or drink button"} onClose={onClose}>
+      <div className="grid grid-cols-[4rem_1fr] gap-2">
+        <input aria-label="Icon" className="input text-center text-2xl" value={icon} onChange={(e) => setIcon(e.target.value)} />
+        <input className="input" placeholder="Name (Onigiri, Coffee, Protein shake…)" value={label} onChange={(e) => setLabel(e.target.value)} />
+      </div>
+      {!slot?.builtIn && (
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => setDrink(false)} className={`chip justify-center ${!isDrink ? "chip-on" : ""}`}>🍽️ Something I eat</button>
+          <button onClick={() => setDrink(true)} className={`chip justify-center ${isDrink ? "chip-on" : ""}`}>🥤 Something I drink</button>
+        </div>
+      )}
+      <div className="text-xs text-muted">Pick an icon (or type any emoji above)</div>
+      <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+        {ICONS.map((x) => <button key={x} onClick={() => setIcon(x)} className={`h-9 w-9 rounded-lg text-xl ${icon === x ? "bg-[var(--accent2)]/30 ring-1 ring-[var(--accent2)]" : "bg-white/5"}`}>{x}</button>)}
+      </div>
+      {!slot && (
+        <>
+          <div className="text-xs text-muted">Ideas</div>
+          <div className="flex flex-wrap gap-1">
+            {MEAL_IDEAS.map(([e, n, d]) => <button key={n} onClick={() => { setIcon(e); setLabel(n); setDrink(!!d); }} className="chip !py-0.5 text-[11px]">{e} {n}</button>)}
+          </div>
+        </>
+      )}
+      <div className="flex gap-2">
+        {slot && !slot.builtIn && <button onClick={del} className="btn-ghost text-rose-300">Delete</button>}
+        <button onClick={save} disabled={!label.trim()} className="btn-primary flex-1">Save</button>
+      </div>
+      <p className="text-[10px] text-muted">Move, hide or edit every button in 🎛️ Control Centre → Food buttons.</p>
+    </Sheet>
   );
 }
 

@@ -79,10 +79,11 @@ export function XpHeader({ title, icon, subtitle }: { title: string; icon?: stri
       </div>
       <div className="mt-4 flex items-end gap-2">
         {icon && <span className="text-2xl animate-float">{icon}</span>}
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-xl font-black glow-text uppercase">{title}</h1>
           {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
         </div>
+        <Link href="/control" aria-label="Control Centre" title="Control Centre" className="shrink-0 h-10 w-10 rounded-xl border border-white/15 bg-white/5 grid place-items-center text-lg active:scale-90">🎛️</Link>
       </div>
     </header>
   );

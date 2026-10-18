@@ -1,5 +1,6 @@
 "use client";
 
+import { Blocks, QuickBar } from "@/components/Blocks";
 import { DoingCard } from "@/components/Doing";
 import Link from "next/link";
 import { useState } from "react";
@@ -11,7 +12,9 @@ import { foodGoodness, scoreColor } from "@/lib/goodness";
 import { useTasks } from "@/components/Coach";
 import { useGoals } from "@/components/Gauges";
 import { learnedOn } from "@/components/Learn";
-import { FoodThumbs, MEALS } from "@/components/Meals";
+import { FoodThumbs } from "@/components/Meals";
+import { dayPlan, kitOf } from "@/lib/have";
+import { mealSlots } from "@/lib/layout";
 import type { Eaten } from "@/lib/body";
 import { bodyOf, energy } from "@/lib/body";
 import { describe } from "@/lib/describe";
@@ -45,6 +48,8 @@ export default function TodayPage() {
   const slept = data.logs.filter((l) => l.kind === "sleep" && l.data.end && toDay(new Date(String(l.data.end))) === day);
   const sleepH = slept.reduce((n, l) => n + (new Date(String(l.data.end)).getTime() - new Date(String(l.data.start)).getTime()) / 3.6e6, 0);
   const wake = first((l) => l.kind === "wake" || (l.kind === "activity" && /wake|woke/i.test(String(l.data.name))));
+  const plan = dayPlan(kitOf(data.pantry), new Date(`${day}T12:00:00`));
+  const movesDone = plan.filter((r) => logs.filter((l) => l.kind === "workout" && String(l.data.exercise).toLowerCase() === r.name.toLowerCase()).reduce((n, l) => n + (Number(l.data.sets) || 1), 0) >= r.sets).length;
   const meal = (m: string) => logs.filter((l) => l.kind === "activity" && String(l.data.name).toLowerCase() === m.toLowerCase());
 
   const basics: Row[] = [
@@ -52,12 +57,15 @@ export default function TodayPage() {
     { icon: "😴", name: "Sleep", did: sleepH ? `${sleepH.toFixed(1)} h` : "", goal: `${s.sleep_goal_h} h`, done: sleepH >= s.sleep_goal_h - 0.5 },
     { icon: "💧", name: "Water", did: sum("water") ? `${sum("water")} ml` : "", goal: `${s.water_goal_ml} ml`, done: sum("water") >= s.water_goal_ml },
     { icon: "🥛", name: "Milk", did: sum("milk") ? `${sum("milk")} ml` : "", goal: `${s.milk_goal_ml} ml`, done: sum("milk") >= s.milk_goal_ml },
-    ...MEALS.map(([m, ic]): Row => {
-      const ls = meal(m);
+    ...mealSlots(s.ui).map((ms): Row => {
+      const m = ms.label;
+      const ls = ms.drink ? logs.filter((l) => l.data.slot === m) : meal(m);
       const kcal = ls.reduce((n, l) => n + Number(l.data.kcal ?? 0), 0);
       const fs = ls.flatMap((l) => (l.data.foods as Eaten[] | undefined) ?? []);
-      return { icon: ic, name: m, did: ls.length ? <span className="inline-flex items-center gap-1"><FoodThumbs foods={fs} size={20} />{hm(ls[0].created_at)}{kcal ? ` · ${kcal} kcal` : ""}</span> : "", goal: m === "Snack" ? "optional" : "1", done: ls.length > 0 || m === "Snack", href: "/food" };
+      const optional = !["m-breakfast", "m-lunch", "m-dinner"].includes(ms.id);
+      return { icon: ms.icon, name: m, did: ls.length ? <span className="inline-flex items-center gap-1"><FoodThumbs foods={fs} size={20} />{hm(ls[0].created_at)}{ls.length > 1 ? ` (${ls.length}×)` : ""}{kcal ? ` · ${kcal} kcal` : ""}</span> : "", goal: optional ? "optional" : "1", done: ls.length > 0 || ms.id === "m-snack", href: "/food" };
     }),
+    { icon: "⚔️", name: "Workout", did: movesDone ? `${movesDone} of ${plan.length} moves` : "", goal: "today's plan", done: movesDone >= plan.length, href: "/train" },
     { icon: "🔥", name: "Calories", did: `${e.intake} eaten · ${e.active} burned`, goal: `${e.out} used`, done: e.intake > 0 },
     { icon: "🍗", name: "Protein", did: `${e.protein} g`, goal: `${need} g+`, done: e.protein >= need },
     { icon: "📖", name: "Learning", did: learn ? `${learn} min` : "", goal: `${sc.learnGoal} min`, done: learn >= sc.learnGoal, href: "/learn" },
@@ -71,9 +79,10 @@ export default function TodayPage() {
         <input type="date" className="input !w-auto text-center" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
         <button onClick={() => setDay(shift(day, 1))} disabled={isToday} className="btn-ghost !px-3 !py-1">▶</button>
       </div>
-      {isToday && <DoingCard />}
-      {isToday && <FixCard />}
-
+      <Blocks page="/today" parts={{
+        quick: isToday ? <QuickBar /> : null,
+        doing: isToday ? <DoingCard /> : null,
+        basics: (
       <section className="card p-3 mb-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="section-title">🗓️ Daily basics</h2>
@@ -91,20 +100,8 @@ export default function TodayPage() {
         )}
         <Table rows={basics} />
       </section>
-
-      <section className="card p-3 mb-4">
-        <h2 className="section-title mb-2">🎯 App quests &amp; goals</h2>
-        <Table rows={goals.filter((g) => g.id !== "learn" && !g.id.startsWith("meal-")).map((g) => ({ icon: g.icon, name: g.name, did: g.have ? `${Math.round(g.have)}${g.unit ? ` ${g.unit}` : ""}` : "", goal: `${g.need}${g.unit ? ` ${g.unit}` : ""}`, done: !!g.doneAt }))} />
-        {isToday && tasks.length > 0 && (
-          <>
-            <div className="text-xs text-muted mt-3 mb-1">Sensei says next</div>
-            <ul className="space-y-1 text-xs">
-              {tasks.slice(0, 6).map((t) => <li key={t.id} className="flex gap-2 rounded-lg bg-white/5 px-2 py-1.5"><span>{t.icon}</span><span className="flex-1">{t.title}</span><span className="text-muted">to do</span></li>)}
-            </ul>
-          </>
-        )}
-      </section>
-
+        ),
+        did: (
       <section className="card p-3 mb-4">
         <h2 className="section-title mb-2">✅ What you did ({logs.length})</h2>
         {logs.length === 0 ? <p className="text-xs text-muted">Nothing logged on this day yet.</p> : (
@@ -143,6 +140,23 @@ export default function TodayPage() {
         {editing && <EditLog log={editing} onClose={() => setEditing(null)} />}
         {logOpen && <TaskLog at={isToday ? undefined : new Date(`${day}T12:00:00`)} onClose={() => setLogOpen(false)} />}
       </section>
+        ),
+        fix: isToday ? <FixCard /> : null,
+        quests: (
+      <section className="card p-3 mb-4">
+        <h2 className="section-title mb-2">🎯 App quests &amp; goals</h2>
+        <Table rows={goals.filter((g) => g.id !== "learn" && !g.id.startsWith("meal-")).map((g) => ({ icon: g.icon, name: g.name, did: g.have ? `${Math.round(g.have)}${g.unit ? ` ${g.unit}` : ""}` : "", goal: `${g.need}${g.unit ? ` ${g.unit}` : ""}`, done: !!g.doneAt }))} />
+        {isToday && tasks.length > 0 && (
+          <>
+            <div className="text-xs text-muted mt-3 mb-1">Sensei says next</div>
+            <ul className="space-y-1 text-xs">
+              {tasks.slice(0, 6).map((t) => <li key={t.id} className="flex gap-2 rounded-lg bg-white/5 px-2 py-1.5"><span>{t.icon}</span><span className="flex-1">{t.title}</span><span className="text-muted">to do</span></li>)}
+            </ul>
+          </>
+        )}
+      </section>
+        ),
+      }} />
     </>
   );
 }

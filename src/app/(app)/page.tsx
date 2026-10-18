@@ -26,6 +26,8 @@ import { logKarma } from "@/lib/karma";
 import { KIND_TOPIC, line } from "@/lib/lore";
 import { dailyMissions, streak, weeklyBoss, type Mission } from "@/lib/missions";
 import Link from "next/link";
+import { Blocks } from "@/components/Blocks";
+import { arrange } from "@/lib/layout";
 import { CareCard } from "@/components/CareCard";
 import { FixCard } from "@/components/FixCard";
 import { DrinkSheet } from "@/components/Drinks";
@@ -81,7 +83,7 @@ export default function TodayPage() {
   const { profile, logActivity, celebrate, data } = useApp();
   const { logs } = useLogs(day);
   const settings = profile.settings;
-  const show = (id: string) => !settings.ui?.hide?.includes(id);
+  const show = (id: string) => arrange(settings.ui, "/").some((x) => x.id === id);
   const missions = dailyMissions(logs, settings);
   const goals = missions;
   const doneCount = missions.filter((g) => g.done).length;
@@ -136,19 +138,18 @@ export default function TodayPage() {
       </div>
 
       {isToday && <DoingCard />}
-      {isToday && show("coach") && <CoachCard />}
-      {isToday && show("learn") && <LearnToday compact />}
-      {isToday && show("gaps") && <GapsCard />}
-      {isToday && show("fix") && <FixCard open={false} />}
-      {isToday && show("care") && <CareCard />}
-
-      {isToday && show("sleep") && <SleepCard onLogged={setToast} />}
-      {isToday && show("meals") && <MealsCard />}
-
-      {isToday && show("gauges") && <GaugesCard />}
-      {isToday && show("boss") && <BossAndChest />}
-
-      {show("missions") && <section className="mb-4">
+      <Blocks page="/" parts={{
+        coach: isToday ? <CoachCard /> : null,
+        learn: isToday ? <LearnToday compact /> : null,
+        gaps: isToday ? <GapsCard /> : null,
+        fix: isToday ? <FixCard open={false} /> : null,
+        care: isToday ? <CareCard /> : null,
+        sleep: isToday ? <SleepCard onLogged={setToast} /> : null,
+        meals: isToday ? <MealsCard /> : null,
+        gauges: isToday ? <GaugesCard /> : null,
+        boss: isToday ? <BossAndChest /> : null,
+        missions: (
+      <section className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="section-title">⚔ Daily missions</h2>
           <span className="font-game text-sm text-[var(--accent2)]">{doneCount}/{missions.length}</span>
@@ -173,9 +174,10 @@ export default function TodayPage() {
             </button>
           ))}
         </div>
-      </section>}
-
-      {show("potions") && <>
+      </section>
+        ),
+        potions: (
+      <>
       <h2 className="section-title mb-2">🧪 Potions</h2>
       <section className="grid grid-cols-2 gap-3 mb-4">
         <LiquidGlass label="Water" color="#46c8ff" ml={sumMl(logs, "water")} goal={settings.water_goal_ml}
@@ -185,17 +187,22 @@ export default function TodayPage() {
       </section>
       <button onClick={() => setDrinkOpen(true)} className="btn-ghost w-full mb-4 border border-dashed border-white/25 text-sm">🥤 Other drinks: tea, coffee, sports drink, cola, soy milk, juice…</button>
       {drinkOpen && <DrinkSheet at={atFor(day)} onClose={() => setDrinkOpen(false)} />}
-      </>}
-
+      </>
+        ),
+        quests: (
+          <>
       <button onClick={() => setTaskOpen(true)} className="btn-ghost w-full mb-3 border border-dashed border-white/25 text-sm">📝 Log anything you did (2,000+ tasks, good or bad decided for you)</button>
       {taskOpen && <TaskLog at={atFor(day)} onClose={() => setTaskOpen(false)} />}
-      {show("quests") && <Activities onLog={(a) => (/^coding$/i.test(a.name) ? setCodeOpen((n) => n + 1) : setActItem(a))} />}
+      <Activities onLog={(a) => (/^coding$/i.test(a.name) ? setCodeOpen((n) => n + 1) : setActItem(a))} />
+          </>
+        ),
+        habits: isToday ? <HabitQuests /> : null,
+        library: <Library at={() => atFor(day)} onLogged={setToast} openSignal={libOpen} codeSignal={codeOpen} />,
+        pantry: <PantryStrip day={day} onLogged={setToast} />,
+      }} />
+      {/* The library keeps working (voice, Sensei's orders) even when hidden. */}
+      {!show("library") && <div className="hidden"><Library at={() => atFor(day)} onLogged={setToast} openSignal={libOpen} codeSignal={codeOpen} /></div>}
 
-      {isToday && show("habits") && <HabitQuests />}
-
-      <div className={show("library") ? "" : "hidden"}><Library at={() => atFor(day)} onLogged={setToast} openSignal={libOpen} codeSignal={codeOpen} /></div>
-
-      {show("pantry") && <PantryStrip day={day} onLogged={setToast} />}
 
       <section className="card p-4 mb-4">
         <div className="flex items-center justify-between mb-3">

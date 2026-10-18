@@ -17,7 +17,7 @@ import { useApp } from "@/lib/store";
 type Open = { t: "checkin"; c: Checkin } | { t: "list"; k: ListKind } | { t: "tool"; id: string } | null;
 
 const TOOLS = [
-  { id: "schedule", name: "My schedule", icon: "🗓️" }, { id: "foods", name: "My foods", icon: "🍽️" }, { id: "doctor", name: "App doctor", icon: "🩺" }, { id: "customize", name: "Customize", icon: "🎛️" },
+  { id: "schedule", name: "My schedule", icon: "🗓️" }, { id: "foods", name: "My foods", icon: "🍽️" }, { id: "doctor", name: "App doctor", icon: "🩺" }, { id: "customize", name: "Control Centre", icon: "🎛️" },
   { id: "breath", name: "Breathing", icon: "🌬️" }, { id: "meditate", name: "Meditation", icon: "🧘" }, { id: "stopwatch", name: "Stopwatch", icon: "⏱️" },
   { id: "spin", name: "Lucky spin", icon: "🎡" }, { id: "report", name: "Report card", icon: "📊" }, { id: "heatmap", name: "Heatmap", icon: "🔥" },
   { id: "search", name: "Search", icon: "🔎" }, { id: "savings", name: "Savings", icon: "🐷" }, { id: "reminders", name: "Reminders", icon: "⏰" },

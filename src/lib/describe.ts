@@ -30,6 +30,8 @@ function describeInner(l: Log, currency: string): { emoji: string; title: string
   switch (l.kind) {
     case "water":
       return { emoji: "💧", title: "Water", detail: join(`${d.ml} ml`, note) };
+    case "counter":
+      return { emoji: String(d.emoji ?? "🔢"), title: String(d.name ?? "Counter"), detail: join(`+${d.n ?? 1}${d.unit ? ` ${d.unit}` : ""}`, note) };
     case "milk":
       return { emoji: "🥛", title: "Milk", detail: join(`${d.ml} ml`, note) };
     case "drink":

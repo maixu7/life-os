@@ -4,18 +4,31 @@ import { isLite, liteChoice, setLite, type LiteChoice } from "@/lib/perf";
 import { useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { useApp } from "@/lib/store";
-import { ALL_TABS, DEFAULT_TABS, MAX_TABS, SECTIONS, tabOf, type Folder, type Ui } from "@/lib/ui";
+import Link from "next/link";
+import { allPages, DEFAULT_TABS, MAX_TABS, SECTIONS, tabOf, type Folder, type Ui } from "@/lib/ui";
 
 // Edit the bottom menu (order, names, icons, add, remove, folder tabs with
 // mini tabs inside) and hide Base Camp sections.
 export function CustomizeSheet({ onClose }: { onClose: () => void }) {
+  return (
+    <Sheet title="🎛️ Edit menu & screens" onClose={onClose}>
+      <Link href="/control" onClick={onClose} className="block rounded-xl bg-[var(--accent)]/20 border border-[var(--accent)]/40 p-3 text-sm">🎛️ Open the full <b>Control Centre</b>: move and add buttons, blocks and mini-slots on every page, make your own pages →</Link>
+      <MenuEditor onSaved={onClose} />
+    </Sheet>
+  );
+}
+
+// The bottom menu editor, used in the sheet above and in Control Centre.
+// live: every change is saved at once.
+export function MenuEditor({ onSaved, live }: { onSaved?: () => void; live?: boolean }) {
   const { profile, saveSettings } = useApp();
   const ui0 = profile.settings.ui ?? {};
   const [ui, setUi] = useState<Ui>({ ...ui0, tabs: ui0.tabs?.length ? ui0.tabs : DEFAULT_TABS, hide: ui0.hide ?? [], names: ui0.names ?? {}, folders: ui0.folders ?? [] });
   const tabs = ui.tabs!;
   const [editing, setEditing] = useState<string | null>(null);
   const [folder, setFolder] = useState<Folder | null>(null);
-  const set = (p: Partial<Ui>) => setUi({ ...ui, ...p });
+  const pages = allPages(ui);
+  const set = (p: Partial<Ui>) => { const n = { ...ui, ...p }; setUi(n); if (live) saveSettings({ ui: { ...(profile.settings.ui ?? {}), tabs: n.tabs, names: n.names, folders: n.folders, startLeft: n.startLeft, hide: n.hide } }); };
   const move = (i: number, d: number) => { const t = [...tabs]; const j = i + d; if (j < 0 || j >= t.length) return; [t[i], t[j]] = [t[j], t[i]]; set({ tabs: t }); };
   const rename = (h: string, k: "icon" | "label", v: string) => set({ names: { ...ui.names, [h]: { ...ui.names?.[h], [k]: v } } });
   const inFolders = new Set(ui.folders!.flatMap((f) => (tabs.includes(`folder:${f.id}`) ? f.items : [])));
@@ -29,7 +42,7 @@ export function CustomizeSheet({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Sheet title="🎛️ Edit menu & screens" onClose={onClose}>
+    <div className="space-y-3">
       <div className="text-xs text-muted">Bottom menu: up to {MAX_TABS} tabs. Use ▲▼ to move, ✏️ to rename or change the icon, ✕ to remove. Tip: long-press the menu to open this anytime.</div>
       <div className="space-y-1.5">
         {tabs.map((h, i) => {
@@ -57,7 +70,7 @@ export function CustomizeSheet({ onClose }: { onClose: () => void }) {
       </div>
       <div className="text-xs text-muted">Add a tab</div>
       <div className="flex flex-wrap gap-1.5">
-        {ALL_TABS.filter((t) => !tabs.includes(t.href)).map((t) => <button key={t.href} disabled={tabs.length >= MAX_TABS} onClick={() => set({ tabs: [...tabs, t.href] })} className="chip !py-1 text-xs">+ {t.icon} {t.label}</button>)}
+        {pages.filter((t) => !tabs.includes(t.href)).map((t) => <button key={t.href} disabled={tabs.length >= MAX_TABS} onClick={() => set({ tabs: [...tabs, t.href] })} className="chip !py-1 text-xs">+ {t.icon} {t.label}</button>)}
         <button disabled={tabs.length >= MAX_TABS && !folder} onClick={() => setFolder({ id: String(Date.now()), icon: "📁", label: "", items: [] })} className="chip !py-1 text-xs border-dashed">+ 📁 Folder (main tab with mini tabs)</button>
       </div>
       {inFolders.size > 0 && <div className="text-[10px] text-muted">Pages inside folders: {[...inFolders].map((h) => tabOf(h, ui)?.label).join(", ")}</div>}
@@ -71,7 +84,7 @@ export function CustomizeSheet({ onClose }: { onClose: () => void }) {
           </div>
           <div className="text-xs text-muted">Mini tabs inside</div>
           <div className="flex flex-wrap gap-1.5">
-            {ALL_TABS.map((t) => (
+            {pages.map((t) => (
               <button key={t.href} onClick={() => setFolder({ ...folder, items: folder.items.includes(t.href) ? folder.items.filter((x) => x !== t.href) : [...folder.items, t.href] })}
                 className={`chip !py-1 text-xs ${folder.items.includes(t.href) ? "chip-on" : ""}`}>{t.icon} {t.label}</button>
             ))}
@@ -89,6 +102,7 @@ export function CustomizeSheet({ onClose }: { onClose: () => void }) {
 
       <SmoothMode />
 
+      {!live && <>
       <div className="text-xs text-muted pt-2">Base Camp sections</div>
       <div className="grid gap-1.5">
         {SECTIONS.map(([id, l]) => (
@@ -98,11 +112,15 @@ export function CustomizeSheet({ onClose }: { onClose: () => void }) {
           </label>
         ))}
       </div>
-      <div className="flex gap-2">
-        <button onClick={() => setUi({ tabs: DEFAULT_TABS, hide: [], names: {}, folders: [] })} className="btn-ghost">Reset</button>
-        <button onClick={() => { saveSettings({ ui }); onClose(); }} className="btn-primary flex-1">Save</button>
-      </div>
-    </Sheet>
+      </>}
+      {!live && (
+        <div className="flex gap-2">
+          <button onClick={() => setUi({ ...ui, tabs: DEFAULT_TABS, hide: [], names: {}, folders: [] })} className="btn-ghost">Reset</button>
+          <button onClick={() => { saveSettings({ ui: { ...(profile.settings.ui ?? {}), tabs: ui.tabs, names: ui.names, folders: ui.folders, startLeft: ui.startLeft, hide: ui.hide } }); onSaved?.(); }} className="btn-primary flex-1">Save</button>
+        </div>
+      )}
+      {live && <button onClick={() => set({ tabs: DEFAULT_TABS, names: {}, folders: [] })} className="btn-ghost w-full text-muted">↺ Reset the menu to the original</button>}
+    </div>
   );
 }
 

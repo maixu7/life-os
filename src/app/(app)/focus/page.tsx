@@ -1,5 +1,7 @@
 "use client";
 
+import { fireAlarm } from "@/lib/alarm";
+
 import { useEffect, useRef, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { StudyPlan } from "@/components/StudyPlan";
@@ -57,7 +59,7 @@ export default function FocusPage() {
     setEnd(null);
     try { localStorage.removeItem(KEY); } catch {}
     setSound("off");
-    navigator.vibrate?.([300, 100, 300]);
+    fireAlarm({ title: "🧘 FOCUS COMPLETE", body: "Take a 5 minute break.", icon: "🏆" });
     const row = logActivity("focus", { minutes: FOCUS_MIN, subject: subject || undefined });
     celebrate({ title: "FOCUS COMPLETE!", subtitle: "Every session brings exam victory closer. Take a 5 min break!", xp: row.xp, big: true });
   }, [left, end, subject, logActivity, celebrate]);

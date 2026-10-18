@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { CustomizeSheet } from "@/components/Customize";
 import { useApp } from "@/lib/store";
 import { tabOf, tabsOf } from "@/lib/ui";
 
@@ -14,7 +13,6 @@ export function Nav() {
   const ui = profile.settings.ui;
   const TABS = tabsOf(ui);
   const [folder, setFolder] = useState<string | null>(null);
-  const [edit, setEdit] = useState(false);
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
   const long = useRef(false);
 
@@ -31,7 +29,7 @@ export function Nav() {
 
   // Long-press any tab to edit the menu.
   const hold = {
-    onPointerDown: () => { long.current = false; press.current = setTimeout(() => { long.current = true; setEdit(true); navigator.vibrate?.(30); }, 550); },
+    onPointerDown: () => { long.current = false; press.current = setTimeout(() => { long.current = true; navigator.vibrate?.(30); router.push("/control?tab=menu"); }, 550); },
     onPointerUp: () => press.current && clearTimeout(press.current),
     onPointerLeave: () => press.current && clearTimeout(press.current),
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
@@ -74,7 +72,6 @@ export function Nav() {
           })}
         </div>
       </nav>
-      {edit && <CustomizeSheet onClose={() => setEdit(false)} />}
     </>
   );
 }

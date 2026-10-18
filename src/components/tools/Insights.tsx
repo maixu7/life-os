@@ -1,11 +1,15 @@
 "use client";
 
+import { AlarmSettings } from "@/components/AlarmSettings";
+import { alarmPrefs, fireAlarm } from "@/lib/alarm";
+
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { fmtTime, Sheet } from "@/components/Sheet";
 import { describe } from "@/lib/describe";
 import { logKarma } from "@/lib/karma";
 import { MEDIA, type MediaType } from "@/lib/media";
 import { sleepHours } from "@/lib/missions";
+import { sched } from "@/lib/schedule";
 import { toDay, useApp, useCustomItems, type Data, type Log } from "@/lib/store";
 
 type Range = "week" | "month" | "year";
@@ -276,6 +280,7 @@ export function RemindersSheet({ onClose }: { onClose: () => void }) {
           <button key={t} className="chip" onClick={() => add(x, { time: t })}>+ {t} {x}</button>
         ))}
       </div>
+      <AlarmSettings />
       <ul className="divide-y divide-white/5">
         {[...items].sort((a, b) => String(a.config.time).localeCompare(String(b.config.time))).map((r) => (
           <li key={r.id} className="py-2 flex items-center gap-3"><span className="font-game">{String(r.config.time)}</span><span className="flex-1">{r.name}</span><button onClick={() => remove(r.id)} className="text-muted">✕</button></li>
@@ -287,7 +292,8 @@ export function RemindersSheet({ onClose }: { onClose: () => void }) {
 
 export function ReminderWatcher() {
   const { items } = useCustomItems("reminder");
-  const { celebrate } = useApp();
+  const { profile } = useApp();
+  const sc = sched(profile.settings.schedule);
   useEffect(() => {
     const check = () => {
       const now = new Date();
@@ -296,16 +302,29 @@ export function ReminderWatcher() {
         if (r.config.time !== hm) continue;
         const key = `lifeos-rem:${r.id}:${toDay(now)}`;
         try { if (localStorage.getItem(key)) continue; localStorage.setItem(key, "1"); } catch {}
-        celebrate({ title: "⏰ REMINDER", subtitle: r.name, big: true, icon: "⏰", quote: "Sensei is reminding you, hero." });
+        fireAlarm({ title: "⏰ REMINDER", body: r.name, icon: String(r.config.emoji ?? "⏰") });
         if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           navigator.serviceWorker?.getRegistration().then((reg) => { if (reg) return reg.showNotification("Life OS", { body: r.name, icon: "/icons/icon-192.png" }); new Notification("Life OS", { body: r.name }); }).catch(() => {});
         }
       }
     };
-    check();
-    const t = setInterval(check, 20_000);
+    // Wake-up and bedtime alarms from your schedule (turn them on in Alarm settings).
+    const daily = () => {
+      const now = new Date();
+      const hm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      const p = alarmPrefs();
+      const fire = (id: string, title: string, body: string, icon: string) => {
+        const key = `lifeos-alarm:${id}:${toDay(now)}`;
+        try { if (localStorage.getItem(key)) return; localStorage.setItem(key, "1"); } catch {}
+        fireAlarm({ title, body, icon });
+      };
+      if (p.wake && hm === sc.wake) fire("wake", "🌅 WAKE UP", "Good morning, hero. Water, light, stretch.", "🌅");
+      if (p.bed && hm === sc.sleep) fire("bed", "😴 BEDTIME", "Phone away. Brush teeth and sleep.", "😴");
+    };
+    check(); daily();
+    const t = setInterval(() => { check(); daily(); }, 15_000);
     return () => clearInterval(t);
-  }, [items, celebrate]);
+  }, [items, sc.wake, sc.sleep]);
   return null;
 }
 
@@ -321,6 +340,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
     <Sheet title="⚙️ Game settings" onClose={onClose}>
       <button onClick={() => toggle("lifeos-sound", !sound, setSound)} className="btn-ghost w-full flex justify-between"><span>🔊 Sounds</span><span>{sound ? "On" : "Off"}</span></button>
       <button onClick={() => toggle("lifeos-vibrate", !vib, setVib)} className="btn-ghost w-full flex justify-between"><span>📳 Vibration</span><span>{vib ? "On" : "Off"}</span></button>
+      <AlarmSettings />
       <label className="text-xs text-muted">📝 Exam date (shows a countdown)
         <input type="date" className="input mt-1" value={profile.settings.exam_date ?? ""} onChange={(e) => saveSettings({ exam_date: e.target.value || null })} /></label>
       <div className="rounded-xl bg-white/5 p-3 text-sm">

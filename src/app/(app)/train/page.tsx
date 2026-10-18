@@ -1,14 +1,17 @@
 "use client";
 
+import { fireAlarm } from "@/lib/alarm";
+
 import { EditLog } from "@/components/EditLog";
 import { StartButton } from "@/components/Doing";
 import { useEffect, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
+import { Blocks } from "@/components/Blocks";
 import { ImpactCard, LiftCard } from "@/components/RealMe";
 import { Sheet } from "@/components/Sheet";
 import { PoseDemo, type Prop } from "@/components/PoseDemo";
 import { howTo, variantFromName } from "@/lib/howto";
-import { canDo, dayPlan, kitOf, kitText } from "@/lib/have";
+import { canDo, dayPlan, kitOf, kitText, setsText, type PlanRow } from "@/lib/have";
 import Link from "next/link";
 import { type Pattern } from "@/lib/exercises";
 import { moveOf, MOVES, myMove, variantOf } from "@/lib/moves";
@@ -25,21 +28,6 @@ function platesPerSide(total: number, bar: number) {
   return { out, leftover: Math.round(rest * 2 * 100) / 100 };
 }
 
-function beep() {
-  try {
-    const ctx = new AudioContext();
-    [0, 0.25, 0.5].forEach((t) => {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.frequency.value = 880;
-      g.gain.setValueAtTime(0.3, ctx.currentTime + t);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.2);
-      o.connect(g).connect(ctx.destination);
-      o.start(ctx.currentTime + t);
-      o.stop(ctx.currentTime + t + 0.2);
-    });
-  } catch {}
-}
 
 const PATTERNS: [Pattern, string][] = [["push", "Push"], ["pull", "Pull"], ["squat", "Squat"], ["hinge", "Hinge"], ["lunge", "Lunge"], ["plank", "Plank"], ["crunch", "Crunch"], ["jump", "Jump"], ["curl", "Curl"], ["press", "Press up"], ["row", "Row"], ["run", "Run"], ["raise", "Leg raise"], ["bridge", "Bridge"], ["dip", "Dip"], ["twist", "Twist"], ["stretch", "Stretch"]];
 
@@ -113,7 +101,7 @@ function ExerciseEditor({ item, onClose }: { item: CustomItem; onClose: () => vo
 
 export default function TrainPage() {
   const { items, add, remove } = useCustomItems("exercise");
-  const { data, logActivity, celebrate } = useApp();
+  const { data, logActivity, celebrate, doing } = useApp();
   const { logs } = useLogs(today());
   const [sel, setSel] = useState<string | null>(null);
   const [sets, setSets] = useState("3");
@@ -137,10 +125,18 @@ export default function TrainPage() {
   const kit = kitOf(data.pantry);
   const plan = dayPlan(kit);
   const vr = variantOf(move, variant ?? (ex ? variantFromName(move, ex.name) : undefined));
-  const pick = (name: string, t?: string) => {
+  const pick = (name: string, t?: string, row?: PlanRow) => {
     const have = items.find((i) => i.name === name);
     if (have) setSel(have.id); else { add(name, { type: t ?? "reps" }); setSel(null); setPending(name); }
     setVariant(null);
+    if (row) { setSets(String(row.sets)); setReps(String(parseInt(row.reps) || 10)); if (row.kg) setWeight(String(row.kg)); }
+  };
+  // Sets of a move logged today (a log of "3 sets" counts as 3).
+  const setsDone = (name: string) => logs.filter((l) => l.kind === "workout" && String(l.data.exercise).toLowerCase() === name.toLowerCase()).reduce((n, l) => n + (Number(l.data.sets) || 1), 0);
+  const finishRow = (r: PlanRow) => {
+    const left = Math.max(1, r.sets - setsDone(r.name));
+    const row = logActivity("workout", { exercise: r.name, sets: left, reps: parseInt(r.reps) || 0, ...(r.reps.endsWith("s") ? { seconds: parseInt(r.reps) || 0 } : {}), weight: r.kg, from_plan: true });
+    celebrate({ title: "✓ DONE!", subtitle: `${r.name} · ${setsText(r.sets, r.reps)}`, xp: row.xp, kind: "small" });
   };
   const library = MOVES.filter((m) => m.kind === "body" && (!family || m.pattern === family) && (!mine || canDo(m, kit)) && (!q || `${m.name} ${m.muscles?.join(" ")} ${m.pattern}`.toLowerCase().includes(q.toLowerCase())));
 
@@ -154,8 +150,7 @@ export default function TrainPage() {
     if (rest <= 0) return;
     const t = setTimeout(() => {
       if (rest === 1) {
-        navigator.vibrate?.([200, 100, 200, 100, 400]);
-        beep();
+        fireAlarm({ title: "💪 REST OVER", body: "Time for your next set.", icon: "💪", rounds: 8 });
       } else if (rest <= 4) navigator.vibrate?.(30);
       setRest(rest - 1);
     }, 1000);
@@ -182,6 +177,9 @@ export default function TrainPage() {
     <>
       <XpHeader title="Training Grounds" icon="⚔️" subtitle="Every rep is XP for your body" />
 
+      <Blocks page="/train" parts={{
+        list: (
+        <>
       <div className="flex items-center justify-between mb-2">
         <h2 className="font-bold">Exercises</h2>
         <button onClick={() => setEditing(!editing)} className="text-sm text-muted">{editing ? "Done" : "Edit"}</button>
@@ -197,21 +195,51 @@ export default function TrainPage() {
           </span>
         ))}
       </div>
+      {editing && (
+        <div className="card p-3 mb-4 flex gap-2">
+          <input className="input" placeholder="New exercise" value={newEx} onChange={(e) => setNewEx(e.target.value)} />
+          <select className="input !w-32" value={newType} onChange={(e) => setNewType(e.target.value)}>
+            <option value="reps">Reps</option>
+            <option value="weight">Weight</option>
+            <option value="barbell">Barbell</option>
+            <option value="time">Time</option>
+          </select>
+          <button className="btn-primary" onClick={() => { if (newEx.trim()) { add(newEx.trim(), { type: newType }); setNewEx(""); } }}>Add</button>
+        </div>
+      )}
+        </>
+        ),
+        plan: (
+        <>
       <details className="card p-3 mb-3" open={Object.keys(kit).length > 0 || !items.length}>
         <summary className="text-sm font-semibold cursor-pointer">📅 Today&apos;s full workout (made from what you have)</summary>
         <p className="text-xs text-muted mt-2">{Object.keys(kit).length ? <>You have {kitText(kit)}.</> : <>No equipment yet, so this is bodyweight only. <Link href="/have" className="text-[var(--accent2)] underline">Add your dumbbells, kettlebell or pull-up bar</Link> and it changes.</>} A new plan each day.</p>
-        <table className="w-full text-xs mt-2">
-          <tbody>
-            {plan.map((r) => (
-              <tr key={r.part} className="border-t border-white/5">
-                <td className="py-1.5 pr-2 text-muted whitespace-nowrap">{r.part}</td>
-                <td className="py-1.5"><button onClick={() => pick(r.name, MOVES.find((m) => m.name === r.name)?.type)} className="underline decoration-white/20 text-left">{r.name}</button></td>
-                <td className="py-1.5 text-right whitespace-nowrap">{r.sets} × {r.reps}{r.kg ? ` @ ${r.kg} kg` : ""}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <p className="text-[11px] text-muted mt-1">How to read it: <b>3 sets of 8–12 reps</b> = do the move 8 to 12 times, rest about 1 minute, and do that 3 times. Tap ✓ when a move is finished.</p>
+        <ul className="mt-2 space-y-1.5">
+          {plan.map((r) => {
+            const done = setsDone(r.name);
+            const full = done >= r.sets;
+            const going = doing.some((d) => (d.config as { data?: { exercise?: string } }).data?.exercise === r.name);
+            return (
+              <li key={r.part} className={`rounded-xl px-2.5 py-2 flex items-center gap-2 ${full ? "bg-emerald-500/15 ring-1 ring-emerald-400/40" : "bg-white/[.04]"}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[10px] uppercase tracking-wide text-muted">{r.part}</div>
+                  <button onClick={() => pick(r.name, MOVES.find((m) => m.name === r.name)?.type, r)} className={`text-sm font-semibold text-left underline decoration-white/20 ${full ? "line-through decoration-emerald-300/60" : ""}`}>{r.name}</button>
+                  <div className="text-xs text-muted">{setsText(r.sets, r.reps)}{r.kg ? ` · ${r.kg} kg` : ""}{done > 0 && !full ? ` · ${done} of ${r.sets} done` : ""}{going ? " · ▶ in progress" : ""}</div>
+                </div>
+                {full
+                  ? <span aria-label="Done" className="h-8 w-8 shrink-0 rounded-full bg-emerald-500 grid place-items-center text-base">✓</span>
+                  : <button aria-label={`Mark ${r.name} done`} onClick={() => finishRow(r)} className="h-8 w-8 shrink-0 rounded-full border-2 border-white/30 grid place-items-center text-base text-muted active:scale-90">✓</button>}
+              </li>
+            );
+          })}
+        </ul>
+        <div className="text-xs text-muted mt-2">{plan.filter((r) => setsDone(r.name) >= r.sets).length} of {plan.length} moves done today</div>
       </details>
+        </>
+        ),
+        library: (
+        <>
       <details className="card p-3 mb-3">
         <summary className="text-sm font-semibold cursor-pointer">📚 All exercises ({MOVES.filter((m) => m.kind === "body").length}) · tap one to train it</summary>
         <div className="space-y-2 mt-2">
@@ -230,19 +258,10 @@ export default function TrainPage() {
           </div>
         </div>
       </details>
-      {editing && (
-        <div className="card p-3 mb-4 flex gap-2">
-          <input className="input" placeholder="New exercise" value={newEx} onChange={(e) => setNewEx(e.target.value)} />
-          <select className="input !w-32" value={newType} onChange={(e) => setNewType(e.target.value)}>
-            <option value="reps">Reps</option>
-            <option value="weight">Weight</option>
-            <option value="barbell">Barbell</option>
-            <option value="time">Time</option>
-          </select>
-          <button className="btn-primary" onClick={() => { if (newEx.trim()) { add(newEx.trim(), { type: newType }); setNewEx(""); } }}>Add</button>
-        </div>
-      )}
-
+        </>
+        ),
+        move: (
+        <>
       {ex && (
         <section className="card p-4 mb-4 space-y-3">
           <div className="flex items-start gap-2">
@@ -286,13 +305,20 @@ export default function TrainPage() {
             </div>
           )}
 
-          <button onClick={log} className="btn-primary w-full">Log set (done)</button>
+          <button onClick={log} className="btn-primary w-full">✓ Log {setsText(Number(sets) || 1, type === "time" ? `${reps} s` : reps)} (done)</button>
           <StartButton onClick={log} label="▶ Start this set, tick Complete after" />
         </section>
       )}
       {editEx && <ExerciseEditor item={editEx} onClose={() => setEditEx(null)} />}
+        </>
+        ),
+        lift: (
+        <>
       {ex && <LiftCard name={`${ex.name}${vr && vr.name !== "Standard" ? ` (${vr.name})` : ""}`} />}
-
+        </>
+        ),
+        rest: (
+        <>
       <section className="card p-4 mb-4 text-center">
         <h2 className="font-bold mb-2">Rest timer</h2>
         <div className={`text-5xl font-black tabular-nums ${rest > 0 && rest <= 5 ? "text-[var(--gold)] animate-pulse" : ""}`}>
@@ -303,7 +329,10 @@ export default function TrainPage() {
           {rest > 0 && <button onClick={() => setRest(0)} className="btn-ghost text-rose-400">Stop</button>}
         </div>
       </section>
-
+        </>
+        ),
+        done: (
+        <>
       <section>
         <h2 className="font-bold mb-2">Today {volume > 0 && <span className="text-sm text-muted font-normal">· {volume.toLocaleString()} kg volume</span>}</h2>
         {todays.length === 0 && <p className="text-sm text-muted">No sets yet. You&apos;ve got this!</p>}
@@ -311,7 +340,7 @@ export default function TrainPage() {
           {todays.map((l) => (
             <li key={l.id}>
               <button onClick={() => setFixing(l)} className="card px-3 py-2 w-full flex justify-between text-left">
-                <span>{String(l.data.exercise)}: {String(l.data.sets ?? 1)}×{String(l.data.reps)}{l.data.weight ? ` @ ${l.data.weight} kg` : ""}</span>
+                <span>✓ {String(l.data.exercise)}: {setsText(Number(l.data.sets ?? 1), l.data.seconds ? `${l.data.seconds} s` : String(l.data.reps))}{l.data.weight ? ` · ${l.data.weight} kg` : ""}</span>
                 <span className="text-muted">✏️ fix</span>
               </button>
             </li>
@@ -319,6 +348,9 @@ export default function TrainPage() {
         </ul>
         {fixing && <EditLog log={fixing} onClose={() => setFixing(null)} />}
       </section>
+        </>
+        ),
+      }} />
     </>
   );
 }
