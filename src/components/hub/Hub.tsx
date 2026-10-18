@@ -1,17 +1,40 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { openSlotSheet, useRunSlot } from "@/components/Blocks";
 import { Sheet } from "@/components/Sheet";
 import { CheckinSheet } from "@/components/tools/Checkin";
-import { DetoxSheet, NightLayer, NightSheet, SleepPlanSheet, SosSheet, UrgeSheet } from "@/components/hub/Calm";
-import { BrainDumpSheet, MorningSheet, PlannerSheet, SurpriseSheet } from "@/components/hub/Plan";
-import { ChainSheet, EventsSheet, FreezeSheet, LootSheet, RivalSheet, SkillTreeSheet, WorldMapSheet } from "@/components/hub/Play";
-import { BuddySheet, CameraSheet, ChatSheet, InboxSheet, InboxWatcher, LangSheet, ShareSheet } from "@/components/hub/Talk";
+import { NightLayer } from "@/components/hub/Calm";
+import { InboxWatcher } from "@/components/hub/Talk";
 import { DEFAULT_PINS, HUB, hubOf, openHub, type HubId } from "@/components/hub/registry";
 import { CHECKIN_BY_KIND } from "@/lib/tools";
 import { useApp } from "@/lib/store";
+
+// Sheets load only when opened, so every page stays light on the tablet.
+const DetoxSheet = dynamic(() => import("@/components/hub/Calm").then((x) => x.DetoxSheet));
+const NightSheet = dynamic(() => import("@/components/hub/Calm").then((x) => x.NightSheet));
+const SleepPlanSheet = dynamic(() => import("@/components/hub/Calm").then((x) => x.SleepPlanSheet));
+const SosSheet = dynamic(() => import("@/components/hub/Calm").then((x) => x.SosSheet));
+const UrgeSheet = dynamic(() => import("@/components/hub/Calm").then((x) => x.UrgeSheet));
+const BrainDumpSheet = dynamic(() => import("@/components/hub/Plan").then((x) => x.BrainDumpSheet));
+const MorningSheet = dynamic(() => import("@/components/hub/Plan").then((x) => x.MorningSheet));
+const PlannerSheet = dynamic(() => import("@/components/hub/Plan").then((x) => x.PlannerSheet));
+const SurpriseSheet = dynamic(() => import("@/components/hub/Plan").then((x) => x.SurpriseSheet));
+const ChainSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.ChainSheet));
+const EventsSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.EventsSheet));
+const FreezeSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.FreezeSheet));
+const LootSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.LootSheet));
+const RivalSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.RivalSheet));
+const SkillTreeSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.SkillTreeSheet));
+const WorldMapSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.WorldMapSheet));
+const BuddySheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.BuddySheet));
+const CameraSheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.CameraSheet));
+const ChatSheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.ChatSheet));
+const InboxSheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.InboxSheet));
+const LangSheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.LangSheet));
+const ShareSheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.ShareSheet));
 
 // Shows whichever hub tool was asked for, on any page. Mounted once in the app layout.
 export function HubHost() {
@@ -22,7 +45,7 @@ export function HubHost() {
     return () => window.removeEventListener("lifeos-hub", go);
   }, []);
   const close = () => setId(null);
-  const S: Record<string, (p: { onClose: () => void }) => React.ReactNode> = {
+  const S: Record<string, React.ComponentType<{ onClose: () => void }>> = {
     camera: CameraSheet, sleepplan: SleepPlanSheet, urge: UrgeSheet, detox: DetoxSheet, sos: SosSheet, night: NightSheet, morning: MorningSheet,
     dump: BrainDumpSheet, planner: PlannerSheet, surprise: SurpriseSheet, chain: ChainSheet, skills: SkillTreeSheet, map: WorldMapSheet,
     freeze: FreezeSheet, rival: RivalSheet, loot: LootSheet, events: EventsSheet, buddy: BuddySheet, chat: ChatSheet, inbox: InboxSheet,
