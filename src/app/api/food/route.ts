@@ -120,8 +120,9 @@ async function readWithGemini(key: string, ask: string, img: { mime: string; dat
       if (!r.ok) {
         // Google's own message (never contains the key), so the app can say what went wrong.
         why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
-        if (r.status === 404) continue;
-        return bad(why, r.status === 429 ? 429 : 502);
+        // Not found, or this model's free daily limit is used up: each model has its own limit.
+        if (r.status === 404 || r.status === 429) continue;
+        return bad(why, 502);
       }
       const text = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
       const meal = Meal.safeParse(JSON.parse(text || "null"));
@@ -131,5 +132,5 @@ async function readWithGemini(key: string, ask: string, img: { mime: string; dat
       why = `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
     }
   }
-  return bad(why || "Couldn't reach the food reader.", 502);
+  return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the meal instead (it's free), or try tomorrow." : why || "Couldn't reach the food reader.", why.includes(" 429") ? 429 : 502);
 }
