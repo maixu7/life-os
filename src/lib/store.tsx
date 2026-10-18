@@ -49,6 +49,7 @@ export type ShopItem = {
 export type PantryItem = {
   id: string; name: string; emoji: string; qty: number; unit: string; last_price: number | null; updated_at: string;
   kind?: string; photo?: string; kg?: number; note?: string; // "What I have": type, picture, weight of each piece
+  ja?: string; brand?: string; expiry?: string; per?: string; kcal?: number; protein?: number; // read from the packet or the shop list
 };
 export type Data = {
   profile: Profile; logs: Log[]; items: CustomItem[]; shopping: ShopItem[]; pantry: PantryItem[]; deleted: string[];

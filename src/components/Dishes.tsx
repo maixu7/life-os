@@ -1,5 +1,8 @@
 "use client";
 
+import { GoodsSuggest } from "@/components/GoodsSuggest";
+import { goodFor, norm, type Good } from "@/lib/goods";
+
 import { useRef } from "react";
 import { aiPhoto, readMeal } from "@/lib/foodai";
 import { readFood, readMealText, type MealFood } from "@/lib/foodtext";
@@ -74,8 +77,14 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
       const s = (v: unknown) => (v != null && v !== "" ? String(v) : "");
       return { per: fd.per, kcal: String(fd.kcal), protein: String(fd.protein), fat: s(c.fat), carbs: s(c.carbs), sugar: s(c.sugar), salt: s(c.salt), contents: fd.contents, photo: d.photo || (c.photo ? String(c.photo) : undefined), auto: true, size: undefined };
     }
+    // A Japanese shop item with exactly this name, then the dish tables, then a close shop match.
+    const g = name.trim() ? goodFor(name) : undefined;
+    const exact = g && (norm(g.name) === norm(name) || norm(g.ja) === norm(name));
+    const fromGood = (x: Good): Partial<Dish> => ({ per: x.per, kcal: String(x.kcal), protein: String(x.protein), fat: "", carbs: "", sugar: "", salt: "", contents: undefined, auto: true, size: undefined });
+    if (g && exact && g.kcal) return fromGood(g);
     const f = name.trim() ? readFood(name, data.items) : null;
     if (f) { const { name: _n, ...rest } = dishFrom(f, d.photo); void _n; return rest; }
+    if (g && g.kcal) return fromGood(g);
     return force ? { ...blank, auto: false } : {};
   };
   // "rice and ramen" typed in one box becomes two foods.
@@ -182,6 +191,7 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
       )}
       <div className="grid grid-cols-6 gap-1">{num("kcal", "kcal")}{num("protein", "Prot g")}{num("fat", "Fat g")}{num("carbs", "Carb g")}{num("sugar", "Sugar g")}{num("salt", "Salt g")}</div>
       {d.name.trim().length > 2 && <GoodBadge compact g={foodGoodness({ ...dishTotals(d), contents: d.contents })} />}
+      {!d.kcal && <GoodsSuggest q={d.name} kinds={["food", "drink", "fruit", "veg"]} onPick={(x) => set({ name: x.name, per: x.per, kcal: String(x.kcal), protein: String(x.protein), auto: true, size: undefined })} />}
       {d.status && <p className={`text-[11px] ${d.busy ? "animate-pulse text-[var(--accent2)]" : "text-muted"}`}>{d.status}</p>}
       {n(d.kcal) > 0 && <div className="text-[11px] text-right">= <b>{Math.round(n(d.kcal) * d.qty)} kcal</b> · {r1(n(d.protein) * d.qty)} g protein</div>}
     </div>

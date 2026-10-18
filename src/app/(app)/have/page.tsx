@@ -11,6 +11,9 @@ import { foodGoodness } from "@/lib/goodness";
 import { GoodBadge } from "@/components/GoodBadge";
 import { emojiFor } from "@/lib/emoji";
 import { loadImage, recognise, smallPhoto } from "@/lib/foodphoto";
+import { aiPhoto, readProduct } from "@/lib/foodai";
+import { GoodsSuggest } from "@/components/GoodsSuggest";
+import type { Good } from "@/lib/goods";
 import { fromPhoto, itemKind, kindOf, KINDS, kitOf, kitText, whenToEat, withGear, type Kind } from "@/lib/have";
 import { UNITS, useApp, type PantryItem } from "@/lib/store";
 
@@ -55,6 +58,7 @@ export default function HavePage() {
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold truncate">{p.name}</span>
                     <span className="block text-[11px] text-muted">{KINDS.find(([x]) => x === k)?.[1]} {p.qty} {p.unit}{p.kg ? ` · ${p.kg} kg each` : ""}</span>
+                    {p.expiry && p.qty > 0 && (() => { const days = Math.ceil((new Date(`${p.expiry}T23:59`).getTime() - Date.now()) / 86_400_000); return days <= 7 ? <span className={`block text-[10px] ${days < 0 ? "text-rose-400" : days <= 2 ? "text-amber-300" : "text-muted"}`}>{days < 0 ? `⚠️ expired ${-days} d ago` : days === 0 ? "⏳ best before today" : `⏳ ${days} d left`}</span> : null; })()}
                   </span>
                 </button>
                 <div className="mt-1.5 flex items-center gap-1.5">
@@ -89,6 +93,18 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
   const [note, setNote] = useState(item?.note ?? "");
   const [photo, setPhoto] = useState(item?.photo ?? "");
   const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [ja, setJa] = useState(item?.ja ?? "");
+  const [brand, setBrand] = useState(item?.brand ?? "");
+  const [expiry, setExpiry] = useState(item?.expiry ?? "");
+  const [nut, setNut] = useState<{ per: string; kcal: number; protein: number } | null>(item?.kcal != null ? { per: item.per ?? "1", kcal: item.kcal, protein: item.protein ?? 0 } : null);
+  const { session } = useApp();
+  const pickGood = (g: Good) => {
+    setName(g.name); setJa(g.ja);
+    setKind(g.kind === "utensil" ? "other" : g.kind === "other" ? (kindOf(g.name) === "equipment" ? "equipment" : "other") : g.kind);
+    if (g.kcal) setNut({ per: g.per, kcal: g.kcal, protein: g.protein });
+    setMsg(`${g.emoji} ${g.name}${g.ja ? ` (${g.ja})` : ""}${g.kcal ? ` · ${g.kcal} kcal per ${g.per}` : ""}`);
+  };
   const file = useRef<HTMLInputElement>(null);
   const k: Kind = kind || kindOf(name);
   const kit = kitOf(data.pantry);
@@ -96,7 +112,27 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
   const snap = async (f: File) => {
     const img = await loadImage(f);
     setPhoto(smallPhoto(img, 160));
-    setMsg("Looking at it…");
+    setBusy(true);
+    setMsg("Reading the packet (English and 日本語)…");
+    // 1) The AI reader reads the packet: name, amount, calories, best-before date.
+    const r0 = await readProduct(session, aiPhoto(img), name);
+    setBusy(false);
+    const p = r0.product;
+    if (p && p.found !== false && p.name) {
+      setName(p.name); setJa(p.name_ja || ""); setBrand(p.brand || "");
+      const k = (["food", "fruit", "veg", "drink", "book", "equipment", "other"] as Kind[]).includes(p.kind as Kind) ? (p.kind as Kind) : kindOf(p.name);
+      setKind(k);
+      if (p.qty > 0) setQty(String(p.qty));
+      if (p.unit && UNITS.includes(p.unit)) setUnit(p.unit);
+      if (p.expiry) setExpiry(p.expiry);
+      if (p.kcal || p.protein) setNut({ per: p.per || "1 serving", kcal: Math.round(p.kcal), protein: p.protein });
+      const extra = [p.storage, p.allergens ? `Allergens: ${p.allergens}` : ""].filter(Boolean).join(". ");
+      if (extra && !note) setNote(extra);
+      setMsg(`🤖 ${p.emoji ?? ""} ${p.name}${p.name_ja ? ` · ${p.name_ja}` : ""}${p.brand ? ` · ${p.brand}` : ""}${p.kcal ? ` · ${Math.round(p.kcal)} kcal per ${p.per}` : ""}${p.expiry ? ` · best before ${p.expiry}` : ""}. ${p.note}`);
+      return;
+    }
+    // 2) No AI (offline or switched off): the small on-device model guesses.
+    setMsg(`${r0.error && r0.error !== "offline" ? `${r0.error} ` : ""}Trying the offline detector…`);
     try {
       const r = await recognise(img);
       const hit = fromPhoto(r.seen);
@@ -111,8 +147,17 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
       ...item, id: item?.id ?? crypto.randomUUID(), name: name.trim(), emoji: item?.emoji || emojiFor(name, KINDS.find(([x]) => x === k)?.[1] ?? "📦"),
       qty: Number(qty) || 0, unit, last_price: item?.last_price ?? null, updated_at: new Date().toISOString(),
       kind: k, photo: photo || undefined, kg: Number(kg) || undefined, note: note || undefined,
+      ja: ja || undefined, brand: brand || undefined, expiry: expiry || undefined,
+      per: nut?.per, kcal: nut?.kcal, protein: nut?.protein,
     };
-    update((d) => ({ ...d, pantry: d.pantry.some((x) => x.id === p.id) ? d.pantry.map((x) => (x.id === p.id ? p : x)) : [...d.pantry, p] }));
+    update((d) => {
+      const next = { ...d, pantry: d.pantry.some((x) => x.id === p.id) ? d.pantry.map((x) => (x.id === p.id ? p : x)) : [...d.pantry, p] };
+      // Food with calories also goes to My foods, so eating it counts the right calories.
+      if (nut && ["food", "fruit", "veg", "drink"].includes(k) && !d.items.some((i) => i.category === "food" && i.name.toLowerCase() === p.name.toLowerCase())) {
+        next.items = [...d.items, { id: crypto.randomUUID(), category: "food", name: p.name, sort: Date.now(), config: { per: nut.per, kcal: nut.kcal, protein: nut.protein, emoji: p.emoji, ja: ja || undefined, photo: photo || undefined } }];
+      }
+      return next;
+    });
     onClose();
   };
   const del = () => { if (item && confirm(`Remove ${item.name}?`)) { update((d) => ({ ...d, pantry: d.pantry.filter((x) => x.id !== item.id), deleted: [...d.deleted, item.id] })); onClose(); } };
@@ -128,8 +173,9 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
         </button>
         <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) snap(f); e.target.value = ""; }} />
         <div className="flex-1 min-w-0 space-y-2">
-          <input className="input" placeholder="Name (Apple, Dumbbell 10 kg, Atomic Habits…)" value={name} onChange={(e) => setName(e.target.value)} />
-          {msg && <p className="text-[11px] text-muted">{msg}</p>}
+          <input className="input" placeholder="Name or 日本語 (ウインナー, Apple, Dumbbell 10 kg…)" value={name} onChange={(e) => { setName(e.target.value); setNut(null); }} />
+          {!nut && <GoodsSuggest q={name} onPick={pickGood} max={5} />}
+          {msg && <p className={`text-[11px] ${busy ? "animate-pulse text-[var(--accent2)]" : "text-muted"}`}>{msg}</p>}
           <div className="flex flex-wrap gap-1">
             {KINDS.map(([x, e, l]) => <button key={x} onClick={() => setKind(x)} className={`chip !px-2 !py-0.5 text-[11px] ${k === x ? "chip-on" : ""}`}>{e} {l}</button>)}
           </div>
@@ -140,7 +186,14 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
         <label className="text-xs text-muted">Unit<select className="input mt-1" value={unit} onChange={(e) => setUnit(e.target.value)}>{UNITS.map((u) => <option key={u}>{u}</option>)}</select></label>
         {k === "equipment" && <label className="text-xs text-muted">kg each<input className="input mt-1" inputMode="decimal" placeholder="10" value={kg} onChange={(e) => setKg(e.target.value)} /></label>}
       </div>
-      <textarea className="input min-h-12 text-sm" placeholder="Notes (where it is, expiry date…)" value={note} onChange={(e) => setNote(e.target.value)} />
+      {["food", "fruit", "veg", "drink"].includes(k) && (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="text-xs text-muted">Best before (賞味期限)<input type="date" className="input mt-1" value={expiry} onChange={(e) => setExpiry(e.target.value)} /></label>
+          <label className="text-xs text-muted">kcal per serving<input className="input mt-1" inputMode="numeric" value={nut?.kcal ?? ""} onChange={(e) => setNut({ per: nut?.per ?? "1 serving", kcal: Number(e.target.value) || 0, protein: nut?.protein ?? 0 })} /></label>
+        </div>
+      )}
+      {(ja || brand || nut) && <div className="text-[11px] text-muted">{ja && <>🇯🇵 {ja} </>}{brand && <>· {brand} </>}{nut && <>· {nut.kcal} kcal, {nut.protein} g protein per {nut.per}</>}</div>}
+      <textarea className="input min-h-12 text-sm" placeholder="Notes (where it is…)" value={note} onChange={(e) => setNote(e.target.value)} />
 
       {name && ["food", "fruit", "veg", "drink"].includes(k) && (
         <div className="rounded-xl bg-white/5 p-3 text-xs space-y-1">

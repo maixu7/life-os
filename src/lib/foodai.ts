@@ -35,3 +35,17 @@ export async function readMeal(s: Session, { photo, text = "" }: { photo?: strin
   }
   return { foods: [], note: "", ai: false, error };
 }
+
+// "What is this?" for What I have: reads the packet (Japanese labels too).
+export type ProductRead = {
+  found: boolean; name: string; name_ja: string; brand: string; kind: string; emoji: string; qty: number; unit: string; grams: number;
+  per: string; kcal: number; protein: number; fat: number; carbs: number; salt: number; expiry: string; storage: string; allergens: string; note: string;
+};
+export async function readProduct(s: Session, photo: string, hint = ""): Promise<{ product?: ProductRead; error?: string }> {
+  try {
+    const r = await fetch("/api/food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: s.user, auth: s.auth, image: photo, text: hint, mode: "product" }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && typeof j.name === "string") return { product: j as ProductRead };
+    return { error: j.error ?? "Couldn't read it" };
+  } catch { return { error: "offline" }; }
+}

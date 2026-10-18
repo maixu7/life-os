@@ -29,6 +29,33 @@ const Meal = z.object({
 });
 export type AiFood = z.infer<typeof Food>;
 
+// "What is this thing?" for the What I have list: one product, read from its
+// packaging (Japanese labels included), with nutrition per pack.
+const Product = z.object({
+  found: z.boolean().describe("false if no product or item can be identified"),
+  name: z.string().describe("Short English name a shopper would use, e.g. 'Mini skinless sausages', 'Yakisoba noodles (boiled)', 'Peanut senbei crackers'"),
+  name_ja: z.string().describe("The Japanese product name exactly as printed, e.g. '皮なしミニウインナー'; empty if none"),
+  brand: z.string().describe("Brand or maker if visible, e.g. 'Topvalu Best Price'; empty if unknown"),
+  kind: z.enum(["food", "fruit", "veg", "drink", "book", "equipment", "other"]),
+  emoji: z.string().describe("One emoji for it"),
+  qty: z.number().describe("How many units are in the pack (e.g. 12 crackers, 10 sausages, 1 bag). 1 if unclear"),
+  unit: z.enum(["pcs", "pack", "bag", "box", "bottle", "can", "jar", "g", "kg", "ml", "L"]),
+  grams: z.number().describe("Net weight or volume of the whole pack in g or ml (内容量); 0 if unknown"),
+  per: z.string().describe("The serving the numbers below are for, e.g. '1 pack (73 g)', '1 cracker (~19 g)'"),
+  kcal: z.number().describe("kcal for that serving; read the label (栄養成分表示) when visible, else standard values"),
+  protein: z.number(), fat: z.number(), carbs: z.number(), salt: z.number().describe("salt equivalent g (食塩相当量)"),
+  expiry: z.string().describe("Best-before or use-by date (賞味期限/消費期限) as YYYY-MM-DD if printed, else empty. '26.11.11' means 2026-11-11"),
+  storage: z.string().describe("Storage note in English, e.g. 'Keep refrigerated (10°C or below)'; empty if none"),
+  allergens: z.string().describe("Allergens printed (卵, 乳, 小麦, 落花生, えび, かに, そば…) in English, comma separated; empty if none"),
+  note: z.string().describe("One short helpful sentence: what it is and how to eat it"),
+});
+const PRODUCT_SYSTEM = `You identify one product from a photo for a home inventory app used in Japan.
+Read the packaging text carefully, including Japanese (katakana, kanji), the nutrition label (栄養成分表示, often per 100 g or per pack), the net amount (内容量, e.g. 73g, 12枚入), and printed dates (賞味期限 26.11.11 = 2026-11-11).
+Supermarket private brands (Topvalu トップバリュ, Best Price ベストプライス, Seven Premium, Famima, Lawson) are common.
+Give nutrition for the serving you describe in "per"; if the label is per 100 g, convert to the whole pack or to one piece and say which.
+Write the English name simply. kind: packaged or cooked food = food, fresh fruit = fruit, fresh vegetables = veg, drinks = drink.
+If it is not food (book, dumbbell, etc.) still name it and set kind, with nutrition 0.`;
+
 const SYSTEM = `You are a nutritionist who estimates what someone ate from a photo and/or their description.
 Write every name, portion, ingredient and note in English, even if the food or packaging is Japanese.
 List each separate food or drink as its own item (rice and ramen are two items).
@@ -47,7 +74,7 @@ const tidy = (m: z.infer<typeof Meal>) => ({
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-  const { user, auth, text, image } = body ?? {};
+  const { user, auth, text, image, mode } = body ?? {};
   if (!validUser(user) || !validAuth(auth)) return bad("Invalid request.");
   const gemini = process.env.GEMINI_API_KEY;
   if (!gemini && !process.env.ANTHROPIC_API_KEY) return bad("AI food reading isn't switched on yet.", 501);
@@ -64,6 +91,10 @@ export async function POST(req: Request) {
   if (used >= 80) return bad("That's today's limit of food scans. Type the numbers or try tomorrow.", 429);
   await kv!.set(key, used + 1);
 
+  if (mode === "product") {
+    const ask = `What product is this?${words ? ` Hint from me: ${words}` : ""}`;
+    return gemini ? productWithGemini(gemini, ask, m ? { mime: m[1], data: m[2] } : null) : productWithClaude(ask, m ? { mime: m[1], data: m[2] } : null);
+  }
   const ask = words ? `What I ate: ${words}` : "What is in this photo, how much, and its nutrition?";
   if (gemini) return readWithGemini(gemini, ask, m ? { mime: m[1], data: m[2] } : null);
 
@@ -133,4 +164,65 @@ async function readWithGemini(key: string, ask: string, img: { mime: string; dat
     }
   }
   return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the meal instead (it's free), or try tomorrow." : why || "Couldn't reach the food reader.", why.includes(" 429") ? 429 : 502);
+}
+
+// ---------- Product reading (What I have) ----------
+async function productWithClaude(ask: string, img: { mime: string; data: string } | null) {
+  const content: Anthropic.Beta.BetaContentBlockParam[] = [];
+  if (img) content.push({ type: "image", source: { type: "base64", media_type: img.mime as "image/jpeg", data: img.data } });
+  content.push({ type: "text", text: ask });
+  try {
+    const client = new Anthropic();
+    const msg = await client.beta.messages.parse({
+      model: "claude-opus-5-5", max_tokens: 2000, system: PRODUCT_SYSTEM,
+      messages: [{ role: "user", content }],
+      output_config: { format: betaZodOutputFormat(Product) },
+      fallbacks: "default", betas: ["server-side-fallback-2026-07-01"],
+    });
+    if (!msg.parsed_output) return bad("Couldn't read that one. Try a closer photo of the front or the label.", 502);
+    return NextResponse.json(msg.parsed_output);
+  } catch (e) {
+    if (e instanceof Anthropic.RateLimitError) return bad("Busy right now. Try again in a minute.", 429);
+    return bad("Couldn't reach the product reader. Try again.", 502);
+  }
+}
+
+const PRODUCT_SCHEMA = {
+  type: "OBJECT",
+  properties: {
+    found: { type: "BOOLEAN" }, name: str, name_ja: str, brand: str,
+    kind: { type: "STRING", enum: ["food", "fruit", "veg", "drink", "book", "equipment", "other"] }, emoji: str,
+    qty: num, unit: { type: "STRING", enum: ["pcs", "pack", "bag", "box", "bottle", "can", "jar", "g", "kg", "ml", "L"] },
+    grams: num, per: str, kcal: num, protein: num, fat: num, carbs: num, salt: num, expiry: str, storage: str, allergens: str, note: str,
+  },
+  required: ["found", "name", "name_ja", "brand", "kind", "emoji", "qty", "unit", "grams", "per", "kcal", "protein", "fat", "carbs", "salt", "expiry", "storage", "allergens", "note"],
+};
+async function productWithGemini(key: string, ask: string, img: { mime: string; data: string } | null) {
+  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+  const parts: object[] = [];
+  if (img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
+  parts.push({ text: ask });
+  let why = "";
+  for (const model of models) {
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: PRODUCT_SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", responseSchema: PRODUCT_SCHEMA, temperature: 0.1 } }),
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) {
+        why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
+        if (r.status === 404 || r.status === 429) continue;
+        return bad(why, 502);
+      }
+      const text = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
+      const out = Product.safeParse(JSON.parse(text || "null"));
+      if (out.success) return NextResponse.json(out.data);
+      why = "Gemini answer wasn't readable";
+    } catch (e) {
+      why = `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+    }
+  }
+  return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the name instead, or try tomorrow." : why || "Couldn't reach the product reader.", why.includes(" 429") ? 429 : 502);
 }

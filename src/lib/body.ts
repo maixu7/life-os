@@ -1,3 +1,4 @@
+import { goodFor } from "@/lib/goods";
 import { logKarma } from "@/lib/karma";
 import { moveOf, MOVES } from "@/lib/moves";
 import { sleepHours } from "@/lib/missions";
@@ -43,7 +44,13 @@ export function myFoods(items: CustomItem[]): Food[] {
   }));
 }
 export const allFoods = (items: CustomItem[]) => [...myFoods(items), ...FOODS];
-export const guessFood = (name: string, items: CustomItem[] = []) => allFoods(items).find((x) => x.re.test(name));
+export const guessFood = (name: string, items: CustomItem[] = []): Food | undefined => {
+  const hit = allFoods(items).find((x) => x.re.test(name));
+  if (hit) return hit;
+  // 5,000+ Japanese shop items as a fallback (food and drinks only).
+  const g = name.trim().length >= 2 ? goodFor(name) : undefined;
+  return g && g.kcal ? { name: g.name, re: new RegExp(`^${esc(g.name)}$`, "i"), per: g.per, kcal: g.kcal, protein: g.protein, emoji: g.emoji } : undefined;
+};
 
 export type Eaten = { name: string; qty: number; kcal: number; protein: number; fat?: number; carbs?: number; sugar?: number; salt?: number; photo?: string; per?: string; contents?: string };
 
