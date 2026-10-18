@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { CareCard } from "@/components/CareCard";
+import { DrinkSheet } from "@/components/Drinks";
 import { FoodThumbs, MealSheet, MealsCard } from "@/components/Meals";
 import { Pic } from "@/components/Pic";
 import { haveFoods, whenToEat } from "@/lib/have";
@@ -18,12 +19,15 @@ import { toDay, useApp } from "@/lib/store";
 export default function FoodPage() {
   const { data } = useApp();
   const [eat, setEat] = useState<string | null>(null);
+  const [drink, setDrink] = useState(false);
   const mine = haveFoods(data.pantry);
   const days = Array.from({ length: 7 }, (_, i) => toDay(new Date(Date.now() - i * 86_400_000)));
   return (
     <>
       <XpHeader title="Food" icon="🍱" subtitle="What you eat, with real calories" />
       <MealsCard />
+      <button onClick={() => setDrink(true)} className="btn-ghost w-full mb-4 border border-dashed border-white/25 text-sm">🥤 Log a drink (tea, coffee, sports drink, cola, soy milk…)</button>
+      {drink && <DrinkSheet onClose={() => setDrink(false)} />}
       <CareCard open />
       <section className="card p-4 mb-4">
         <div className="flex items-center justify-between mb-2">

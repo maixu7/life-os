@@ -32,6 +32,8 @@ function describeInner(l: Log, currency: string): { emoji: string; title: string
       return { emoji: "💧", title: "Water", detail: join(`${d.ml} ml`, note) };
     case "milk":
       return { emoji: "🥛", title: "Milk", detail: join(`${d.ml} ml`, note) };
+    case "drink":
+      return { emoji: String(d.emoji ?? "🥤"), title: String(d.name ?? "Drink"), detail: join(`${d.ml} ml`, d.kcal ? `${d.kcal} kcal` : "", d.sugar ? `${d.sugar} g sugar` : "", d.caffeine ? `${d.caffeine} mg caffeine` : "", note) };
     case "wake":
       return { emoji: "🌅", title: "Woke up", detail: join(d.time ? `at ${d.time}` : "", note) };
     case "sleep": {

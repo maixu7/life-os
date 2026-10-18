@@ -57,6 +57,8 @@ export function eaten(logs: Log[], items: CustomItem[] = []): Eaten[] {
       const fd = guessFood(String(l.data.name ?? "") + " " + String(l.data.note ?? ""), items);
       const qty = Number(l.data.qty) || 1;
       if (fd) out.push({ name: fd.name, qty, kcal: fd.kcal * qty, protein: fd.protein * qty });
+    } else if (l.kind === "drink") {
+      out.push({ name: String(l.data.name ?? "Drink"), qty: 1, kcal: Number(l.data.kcal) || 0, protein: Number(l.data.protein) || 0, sugar: Number(l.data.sugar) || undefined });
     } else if (l.kind === "milk") {
       const ml = Number(l.data.ml) || 250;
       out.push({ name: "Milk", qty: ml / 250, kcal: (ml / 250) * 150, protein: (ml / 250) * 8 });
