@@ -1,4 +1,5 @@
 import { AlarmLayer } from "@/components/AlarmLayer";
+import { BodyCareWatcher } from "@/components/tools/BodyCare";
 import { PageExtras, SlotHost } from "@/components/Blocks";
 import { CelebrationLayer } from "@/components/Celebration";
 import { DoingTray } from "@/components/Doing";
@@ -25,6 +26,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Popper />
       <BattleWatcher />
       <ReminderWatcher />
+      <BodyCareWatcher />
       <PushSync />
       <DoingTray />
       <CelebrationLayer />

@@ -5,6 +5,7 @@ import { fireAlarm } from "@/lib/alarm";
 import { useEffect, useRef, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { StudyPlan } from "@/components/StudyPlan";
+import { StudyCareCard } from "@/components/tools/BodyCare";
 import { startAmbient } from "@/lib/ambient";
 import { useApp, useCustomItems } from "@/lib/store";
 
@@ -118,6 +119,8 @@ export default function FocusPage() {
           ))}
         </div>
       </section>
+
+      <StudyCareCard />
 
       <StudyPlan />
 

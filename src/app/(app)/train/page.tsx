@@ -8,6 +8,8 @@ import { useEffect, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { Blocks } from "@/components/Blocks";
 import { ImpactCard, LiftCard } from "@/components/RealMe";
+import { MuscleMap, OverloadHint, RecordsBoard, WorkoutStreakCard } from "@/components/Fitness";
+import { personalBest } from "@/lib/fitness";
 import { Sheet } from "@/components/Sheet";
 import { PoseDemo, type Prop } from "@/components/PoseDemo";
 import { howTo, variantFromName } from "@/lib/howto";
@@ -159,13 +161,13 @@ export default function TrainPage() {
 
   const log = async () => {
     if (!ex) return;
+    // Checked before logging, against every earlier set of this move and type.
+    const pb = personalBest(data.logs, ex.name, vr?.name, Number(reps) || 0, Number(weight) || 0);
     const row = logActivity("workout", {
       exercise: ex.name, sets: Number(sets) || 1, reps: Number(reps) || 0, weight: weight ? Number(weight) : undefined,
       ...(vr ? { variant: vr.name, factor: vr.factor } : {}),
     });
-    const prev = Math.max(0, ...data.logs.filter((l) => l.kind === "workout" && l.data.exercise === ex.name && (l.data.variant ?? "Standard") === (vr?.name ?? "Standard")).map((l) => Number(l.data.reps) || 0));
-    const r = Number(reps) || 0;
-    celebrate({ title: r > prev && prev > 0 ? "🔥 NEW PERSONAL BEST!" : "POWER UP!", subtitle: r > prev && prev > 0 ? `${ex.name}: ${r} reps (was ${prev}). Real strength gained.` : ex.name, xp: row.xp });
+    celebrate({ title: pb ? "🔥 NEW PERSONAL BEST!" : "POWER UP!", subtitle: pb ? `${ex.name}: ${pb}` : ex.name, xp: row.xp, ...(pb ? { big: true, icon: "🏆" } : {}) });
   };
 
   const [fixing, setFixing] = useState<Log | null>(null);
@@ -279,6 +281,7 @@ export default function TrainPage() {
           {move ? <ImpactCard name={ex.name} variant={vr?.name} move={move} /> : (
             <button onClick={() => setEditEx(ex)} className="w-full rounded-xl border border-dashed border-white/20 p-3 text-xs text-muted text-left">I don&apos;t know “{ex.name}” yet. Tap to add what it works, its types, a moving guide and how to do it.</button>
           )}
+          <OverloadHint exercise={ex.name} type={type} variant={vr?.name} onUse={(n) => { setSets(String(n.sets)); setReps(String(n.reps)); if (n.weight) setWeight(String(n.weight)); }} />
           <div className="grid grid-cols-3 gap-2">
             <label className="text-xs text-muted">Sets<input className="input mt-1" inputMode="numeric" value={sets} onChange={(e) => setSets(e.target.value)} /></label>
             <label className="text-xs text-muted">{type === "time" ? "Seconds" : "Reps"}<input className="input mt-1" inputMode="numeric" value={reps} onChange={(e) => setReps(e.target.value)} /></label>
@@ -316,6 +319,14 @@ export default function TrainPage() {
         <>
       {ex && <LiftCard name={`${ex.name}${vr && vr.name !== "Standard" ? ` (${vr.name})` : ""}`} />}
         </>
+        ),
+        streak: <WorkoutStreakCard />,
+        muscles: <MuscleMap />,
+        records: (
+      <details className="card p-3 mb-4">
+        <summary className="text-sm font-semibold cursor-pointer">🏆 Personal records</summary>
+        <div className="mt-2"><RecordsBoard /></div>
+      </details>
         ),
         rest: (
         <>

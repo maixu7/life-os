@@ -7,6 +7,7 @@ import { AvatarArt, CLASSES } from "@/components/AvatarArt";
 import { AboutMe, AvatarEditor, BodyStats } from "@/components/HeroSheet";
 import { CharacterPanel } from "@/components/Character";
 import { RealMe } from "@/components/RealMe";
+import { BodyPhotos } from "@/components/Fitness";
 import { GapsCard } from "@/components/Gaps";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 import { CHAPTERS, gold, TITLES } from "@/lib/economy";
@@ -146,6 +147,8 @@ export default function RankPage() {
       </section>
 
       <BodyStats />
+
+      <BodyPhotos />
 
       <section className="card p-4 mb-4">
         <div className="flex items-center justify-between mb-3">

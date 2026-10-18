@@ -13,6 +13,8 @@ import { LISTS, ListSheet, type ListKind } from "@/components/tools/Lists";
 import { BreathingSheet, MeditationSheet, StopwatchSheet } from "@/components/tools/Mind";
 import { CHECKINS, type Checkin } from "@/lib/tools";
 import { useApp } from "@/lib/store";
+import { RecordsSheet, TrendsSheet } from "@/components/Fitness";
+import { EyeRestSheet, NapSheet, StepCounterSheet, StretchSheet, WalkSheet } from "@/components/tools/BodyCare";
 
 type Open = { t: "checkin"; c: Checkin } | { t: "list"; k: ListKind } | { t: "tool"; id: string } | null;
 
@@ -22,6 +24,8 @@ const TOOLS = [
   { id: "spin", name: "Lucky spin", icon: "🎡" }, { id: "report", name: "Report card", icon: "📊" }, { id: "heatmap", name: "Heatmap", icon: "🔥" },
   { id: "search", name: "Search", icon: "🔎" }, { id: "savings", name: "Savings", icon: "🐷" }, { id: "reminders", name: "Reminders", icon: "⏰" },
   { id: "export", name: "Export CSV", icon: "📤" }, { id: "settings", name: "Settings", icon: "⚙️" },
+  { id: "records", name: "Records", icon: "🏆" }, { id: "trends", name: "Trends", icon: "📈" }, { id: "stepcount", name: "Step counter", icon: "👣" },
+  { id: "stretchrun", name: "After-study stretch", icon: "🤸" }, { id: "eyes", name: "Eye rest 20-20-20", icon: "👀" }, { id: "nap", name: "Nap timer", icon: "💤" }, { id: "walk", name: "Walk timer", icon: "🚶" },
 ];
 
 function Tile({ icon, name, onClick }: { icon: string; name: string; onClick: () => void }) {
@@ -87,6 +91,13 @@ export default function ToolsPage() {
       {open?.t === "tool" && open.id === "schedule" && <ScheduleSheet onClose={close} />}
       {open?.t === "tool" && open.id === "foods" && <MyFoodsSheet onClose={close} />}
       {open?.t === "tool" && open.id === "customize" && <CustomizeSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "records" && <RecordsSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "trends" && <TrendsSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "stepcount" && <StepCounterSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "stretchrun" && <StretchSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "eyes" && <EyeRestSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "nap" && <NapSheet onClose={close} />}
+      {open?.t === "tool" && open.id === "walk" && <WalkSheet onClose={close} />}
     </>
   );
 }

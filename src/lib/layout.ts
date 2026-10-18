@@ -35,7 +35,7 @@ export const customHref = (id: string) => `/custom/${id}`;
 export const PAGE_SECTIONS: Record<string, [string, string][]> = {
   "/today": [["quick", "⚡ Quick add (top icons)"], ["doing", "▶ In progress"], ["basics", "🗓️ Daily basics table"], ["did", "✅ What you did"], ["fix", "🚨 Fix my worst habits"], ["quests", "🎯 App quests & goals"]],
   "/food": [["quick", "⚡ Quick add"], ["meals", "🍱 Food today"], ["drink", "🥤 Log a drink"], ["next", "🍽️ What to eat next"], ["care", "🩺 Take care of me"], ["have", "🎒 Food you have"], ["packet", "🏷️ New packet food"], ["week", "📅 Last 7 days"], ["mine", "🍽️ My foods"]],
-  "/train": [["list", "🏋️ My exercises"], ["plan", "📅 Today's full workout"], ["library", "📚 All exercises"], ["move", "🎯 Selected exercise"], ["lift", "📈 Strength forecast"], ["rest", "⏱️ Rest timer"], ["done", "✅ Today's sets"]],
+  "/train": [["list", "🏋️ My exercises"], ["plan", "📅 Today's full workout"], ["library", "📚 All exercises"], ["move", "🎯 Selected exercise"], ["lift", "📈 Strength forecast"], ["rest", "⏱️ Rest timer"], ["done", "✅ Today's sets"], ["streak", "🔥 Workout streak"], ["muscles", "🗺️ Muscle map"], ["records", "🏆 Personal records"]],
   "/learn": [["plan", "🗓️ Study plan"], ["today", "📖 Learning today"], ["books", "📚 Books you have"], ["library", "📚 Library (read, listen, watch)"], ["skills", "🧠 Skills: noob to expert"]],
   "/": [["coach", "🥷 Sensei's next tasks"], ["learn", "📖 Learning today"], ["gaps", "🔍 What you're lacking"], ["fix", "🚨 Fix my worst habits"], ["care", "🩺 Take care of me"], ["sleep", "😴 Sleep and wake"],
     ["meals", "🍱 Food today"], ["gauges", "🎯 Today's gauges"], ["boss", "👹 Weekly boss and chest"], ["missions", "⚔ Daily missions"],
