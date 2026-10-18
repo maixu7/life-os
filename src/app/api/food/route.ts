@@ -91,6 +91,10 @@ export async function POST(req: Request) {
   if (used >= 80) return bad("That's today's limit of food scans. Type the numbers or try tomorrow.", 429);
   await kv!.set(key, used + 1);
 
+  if (mode === "book") {
+    const ask = `What book is this?${words ? ` Hint from me: ${words}` : ""}`;
+    return gemini ? bookWithGemini(gemini, ask, m ? { mime: m[1], data: m[2] } : null) : bookWithClaude(ask, m ? { mime: m[1], data: m[2] } : null);
+  }
   if (mode === "product") {
     const ask = `What product is this?${words ? ` Hint from me: ${words}` : ""}`;
     return gemini ? productWithGemini(gemini, ask, m ? { mime: m[1], data: m[2] } : null) : productWithClaude(ask, m ? { mime: m[1], data: m[2] } : null);
@@ -225,4 +229,70 @@ async function productWithGemini(key: string, ask: string, img: { mime: string; 
     }
   }
   return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the name instead, or try tomorrow." : why || "Couldn't reach the product reader.", why.includes(" 429") ? 429 : 502);
+}
+
+// ---------- Book cover reading (Library) ----------
+const Book = z.object({
+  found: z.boolean().describe("false if no book, manga or textbook can be identified"),
+  title: z.string().describe("The title as a reader would write it; for Japanese books keep the Japanese title and add the English one in brackets if well known"),
+  author: z.string().describe("Author(s) as printed, comma separated; empty if unknown"),
+  pages: z.number().describe("Page count of this edition if printed or well known; 0 if unknown"),
+  kind: z.enum(["book", "manga", "textbook", "comic", "other"]),
+  note: z.string().describe("One short sentence about the book; empty if unknown"),
+});
+const BOOK_SYSTEM = `You identify a book from a photo of its cover (or spine, or back) for a reading tracker used in Japan.
+Read the printed title and author carefully, including Japanese. Textbooks, exam prep books (JLPT, EJU, 赤本) and manga volumes are common; include the volume number in the title (e.g. "ONE PIECE 1").
+Give the page count only if you know it for this edition or it is printed; otherwise 0.`;
+const BOOK_SCHEMA = {
+  type: "OBJECT",
+  properties: { found: { type: "BOOLEAN" }, title: str, author: str, pages: num, kind: { type: "STRING", enum: ["book", "manga", "textbook", "comic", "other"] }, note: str },
+  required: ["found", "title", "author", "pages", "kind", "note"],
+};
+async function bookWithClaude(ask: string, img: { mime: string; data: string } | null) {
+  const content: Anthropic.Beta.BetaContentBlockParam[] = [];
+  if (img) content.push({ type: "image", source: { type: "base64", media_type: img.mime as "image/jpeg", data: img.data } });
+  content.push({ type: "text", text: ask });
+  try {
+    const client = new Anthropic();
+    const msg = await client.beta.messages.parse({
+      model: "claude-opus-5-5", max_tokens: 1000, system: BOOK_SYSTEM,
+      messages: [{ role: "user", content }],
+      output_config: { format: betaZodOutputFormat(Book) },
+      fallbacks: "default", betas: ["server-side-fallback-2026-07-01"],
+    });
+    if (!msg.parsed_output) return bad("Couldn't read that cover. Try a straight, closer photo.", 502);
+    return NextResponse.json(msg.parsed_output);
+  } catch (e) {
+    if (e instanceof Anthropic.RateLimitError) return bad("Busy right now. Try again in a minute.", 429);
+    return bad("Couldn't reach the book reader. Try again.", 502);
+  }
+}
+async function bookWithGemini(key: string, ask: string, img: { mime: string; data: string } | null) {
+  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+  const parts: object[] = [];
+  if (img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
+  parts.push({ text: ask });
+  let why = "";
+  for (const model of models) {
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: BOOK_SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", responseSchema: BOOK_SCHEMA, temperature: 0.1 } }),
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) {
+        why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
+        if (r.status === 404 || r.status === 429) continue;
+        return bad(why, 502);
+      }
+      const text = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
+      const out = Book.safeParse(JSON.parse(text || "null"));
+      if (out.success) return NextResponse.json(out.data);
+      why = "Gemini answer wasn't readable";
+    } catch (e) {
+      why = `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+    }
+  }
+  return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the title instead, or try tomorrow." : why || "Couldn't reach the book reader.", why.includes(" 429") ? 429 : 502);
 }

@@ -3,6 +3,10 @@
 import { LearnToday } from "@/components/Learn";
 import { StudyPlan } from "@/components/StudyPlan";
 import { Library } from "@/components/Library";
+import { Flashcards } from "@/components/Flashcards";
+import { JlptCard } from "@/components/Jlpt";
+import { MistakeNotebook } from "@/components/Mistakes";
+import { PastPapers } from "@/components/PastPaper";
 import { SkillsList } from "@/components/RealMe";
 import Link from "next/link";
 import { XpHeader } from "@/components/XpHeader";
@@ -31,6 +35,10 @@ export default function LearnPage() {
             <SkillsList />
           </section>
         ),
+        cards: <Flashcards />,
+        jlpt: <JlptCard />,
+        mistakes: <MistakeNotebook />,
+        papers: <PastPapers />,
       }} />
     </>
   );

@@ -6,6 +6,7 @@ import { WhenPicker } from "@/components/When";
 import { useEffect, useMemo, useState } from "react";
 import { isNapTime, optionsFor } from "@/lib/slots";
 import { CoachCard } from "@/components/Coach";
+import { ExamTarget, FocusButton } from "@/components/ExamHome";
 import { GapsCard } from "@/components/Gaps";
 import { MealSheet, MealsCard, MEALS } from "@/components/Meals";
 import { GaugesCard } from "@/components/Gauges";
@@ -139,6 +140,8 @@ export default function TodayPage() {
 
       {isToday && <DoingCard />}
       <Blocks page="/" parts={{
+        focus: isToday ? <FocusButton /> : null,
+        exam: isToday ? <ExamTarget /> : null,
         coach: isToday ? <CoachCard /> : null,
         learn: isToday ? <LearnToday compact /> : null,
         gaps: isToday ? <GapsCard /> : null,
