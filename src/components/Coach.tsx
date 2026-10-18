@@ -111,7 +111,7 @@ export function CoachCard() {
   );
 }
 
-type Pop = { kind: "wisdom"; w: Wisdom; top: boolean } | { kind: "task"; t: Task; top: boolean } | { kind: "phase"; n: Now; line: string; top: boolean };
+type Pop = { kind: "wisdom"; w: Wisdom; top: boolean } | { kind: "task"; t: Task; top: boolean; level: number } | { kind: "phase"; n: Now; line: string; top: boolean };
 
 const PHASE_ICON: Record<string, string> = { winddown: "🛏️", morning: "🌅", commute: "🚌", work: "💼", break: "☕", nap: "😴", study: "📖", free: "🌴", sleep: "🌙" };
 const GAP: Record<string, number> = { off: Infinity, low: 2.5, normal: 1, high: 0.5 };
@@ -150,6 +150,18 @@ function CheckGaps() {
   );
 }
 
+// How many times today the Sensei has had to repeat an order. Each repeat
+// comes back sooner and bigger, until you do it.
+const NAG = "lifeos-nag:";
+const nagKey = (id: string) => `${NAG}${new Date().toDateString()}:${id}`;
+export function nagCount(id: string) {
+  try { return Number(localStorage.getItem(nagKey(id)) ?? 0); } catch { return 0; }
+}
+function nagMore(id: string) {
+  try { localStorage.setItem(nagKey(id), String(nagCount(id) + 1)); } catch {}
+}
+const NAG_WORDS = ["", "I'm saying it again.", "Third time, hero. Do it.", "I won't stop asking.", "Enough excuses. NOW."];
+
 // Pops up quotes, advice and Sensei's orders at random moments, and asks
 // why you're not asleep late at night.
 export function Popper() {
@@ -170,12 +182,15 @@ export function Popper() {
   const logsRef = useRef(data.logs);
   useEffect(() => { logsRef.current = data.logs; });
 
-  // Random popups every 3 to 8 minutes while the app is open.
+  // The most important order pops up every few minutes while the app is
+  // open; every time you put it off it comes back sooner and bigger.
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     const schedule = (first = false) => {
       if (scRef.current.popups === "off") { timer = setTimeout(() => schedule(first), 60_000); return; }
-      const wait = (first ? 60 + Math.random() * 60 : 180 + Math.random() * 300) * 1000;
+      const top0 = latest.current[0];
+      const n = top0 ? nagCount(top0.id) : 0;
+      const wait = Math.max(45, (first ? 60 + Math.random() * 60 : 180 + Math.random() * 300) / (1 + n)) * 1000;
       timer = setTimeout(() => {
         const c = scRef.current;
         const ph = phaseNow(c).phase;
@@ -184,7 +199,7 @@ export function Popper() {
         if (!skip && document.visibilityState === "visible" && !document.querySelector("[data-overlay]")) {
           const top = Math.random() < 0.5;
           const ts = latest.current;
-          if (ts.length) setPop((p) => p ?? { kind: "task", t: ts[Math.floor(Math.random() * Math.min(3, ts.length))], top });
+          if (ts.length) setPop((p) => p ?? { kind: "task", t: ts[0], top, level: nagCount(ts[0].id) });
         }
         schedule();
       }, wait * (GAP[scRef.current.popups] ?? 1));
@@ -274,9 +289,13 @@ export function Popper() {
 
   return (
     <>
-      {pop && (
+      {pop?.kind === "task" && pop.level > 0 && (
+        <NagPop t={pop.t} level={pop.level} onDo={() => { run(pop.t.action); setPop(null); }}
+          onLater={() => { nagMore(pop.t.id); snooze(pop.t.id, Math.max(5, 30 - pop.level * 8)); setPop(null); }} />
+      )}
+      {pop && !(pop.kind === "task" && pop.level > 0) && (
         <div className={`fixed left-3 right-3 z-[38] mx-auto max-w-md animate-sheet ${pop.top ? "top-3" : "bottom-24"}`}>
-          <div className="card frame p-4 bg-[#1c1330]/95 backdrop-blur" onClick={() => setPop(null)}>
+          <div className="card frame p-4 bg-[#1c1330]/95 backdrop-blur" onClick={() => { if (pop.kind === "task") nagMore(pop.t.id); setPop(null); }}>
             {pop.kind === "phase" ? (
               <>
                 <div className="text-[10px] font-game tracking-widest text-[var(--accent2)]">
@@ -299,7 +318,7 @@ export function Popper() {
                 <TaskBody t={pop.t} />
                 <div className="mt-3 flex gap-2">
                   <button onClick={(e) => { e.stopPropagation(); run(pop.t.action); setPop(null); }} className="btn-primary flex-1 !py-2">Do it now</button>
-                  <button onClick={(e) => { e.stopPropagation(); snooze(pop.t.id); setPop(null); }} className="btn-ghost !py-2 text-sm">Later</button>
+                  <button onClick={(e) => { e.stopPropagation(); nagMore(pop.t.id); snooze(pop.t.id, 30); setPop(null); }} className="btn-ghost !py-2 text-sm">Later</button>
                 </div>
               </>
             )}
@@ -389,5 +408,25 @@ export function Popper() {
         </div>
       )}
     </>
+  );
+}
+
+// The order, repeated: a centred card, then a big one, then the whole screen.
+function NagPop({ t, level, onDo, onLater }: { t: Task; level: number; onDo: () => void; onLater: () => void }) {
+  const lv = Math.min(level, 4);
+  const full = lv >= 3;
+  return (
+    <div data-overlay className={`fixed inset-0 z-[50] grid place-items-center p-4 animate-fade ${lv === 1 ? "bg-black/60" : lv === 2 ? "bg-black/85" : "bg-[#120018]"}`}>
+      <div className={`w-full text-center animate-sheet ${full ? "max-w-lg" : lv === 2 ? "max-w-md card frame p-6 bg-[#1c1330]" : "max-w-sm card frame p-5 bg-[#1c1330]"}`}>
+        <div className={`font-game tracking-widest text-rose-300 ${full ? "text-sm" : "text-[11px]"}`}>🥷 SENSEI&apos;S ORDER · {level + 1}{["st", "nd", "rd"][level] ?? "th"} TIME TODAY</div>
+        <div className={`mx-auto mt-3 ${full ? "text-8xl animate-float" : lv === 2 ? "text-6xl" : "text-5xl"}`}>{t.icon}</div>
+        <h2 className={`mt-3 font-game font-black leading-tight ${full ? "text-4xl glow-text" : lv === 2 ? "text-2xl" : "text-xl"}`}>{t.title}</h2>
+        {NAG_WORDS[lv] && <p className={`mt-2 font-bold text-amber-300 ${full ? "text-xl" : "text-sm"}`}>{NAG_WORDS[lv]}</p>}
+        <p className={`mt-3 ${full ? "text-base" : "text-sm"}`}><span className="text-[var(--accent2)] font-semibold">Why: </span>{t.why}</p>
+        <p className="mt-1 text-xs text-muted">{t.because}</p>
+        <button onClick={onDo} className={`btn-primary w-full mt-5 ${full ? "!py-5 text-2xl" : lv === 2 ? "!py-4 text-xl" : "!py-3 text-lg"}`}>Do it now</button>
+        <button onClick={onLater} className={`mt-3 text-muted ${full ? "text-[11px]" : "text-xs"}`}>Not yet ({Math.max(5, 30 - level * 8)} min, then I ask again, bigger)</button>
+      </div>
+    </div>
   );
 }

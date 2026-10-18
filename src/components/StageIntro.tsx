@@ -7,6 +7,7 @@ import { today, toDay, useApp } from "@/lib/store";
 
 const STAGES: Record<string, string> = { morning: "Dawn Stage", afternoon: "Noon Stage", evening: "Dusk Stage", night: "Moonlight Stage" };
 const AWAY_MS = 15 * 60 * 1000;
+const ACTIVE = "lifeos-active-at";
 
 function whoosh() {
   try {
@@ -39,20 +40,27 @@ function useTyping(text: string, speed = 22) {
 // The "stage start" screen every time you open the app, and the stage report at night.
 export function StageIntro() {
   const { data, profile } = useApp();
-  const [open, setOpen] = useState(true);
+  // Only after 15 minutes away: a page reload (or a new version of the app
+  // loading mid-use) must not throw you back to the start screen.
+  const [open, setOpen] = useState(() => {
+    try { return Date.now() - Number(localStorage.getItem(ACTIVE) ?? 0) > AWAY_MS; } catch { return true; }
+  });
   const [seed, setSeed] = useState(0);
 
   useEffect(() => {
     let hiddenAt = 0;
+    const mark = () => { try { localStorage.setItem(ACTIVE, String(Date.now())); } catch {} };
     const onVis = () => {
-      if (document.visibilityState === "hidden") hiddenAt = Date.now();
+      if (document.visibilityState === "hidden") { hiddenAt = Date.now(); mark(); }
       else if (hiddenAt && Date.now() - hiddenAt > AWAY_MS) {
         setSeed((s) => s + 1);
         setOpen(true);
       }
     };
+    const t = setInterval(() => document.visibilityState === "visible" && mark(), 30_000);
     document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+    window.addEventListener("pagehide", mark);
+    return () => { clearInterval(t); document.removeEventListener("visibilitychange", onVis); window.removeEventListener("pagehide", mark); };
   }, []);
 
   const day = today();
@@ -81,6 +89,7 @@ export function StageIntro() {
   const close = () => {
     whoosh();
     setOpen(false);
+    try { localStorage.setItem(ACTIVE, String(Date.now())); } catch {}
   };
 
   return (
