@@ -162,9 +162,9 @@ function WholeMeal({ anime, onFoods }: { anime: boolean; onFoods: (ds: Partial<D
     if (r.foods.length || r.unknown?.length) {
       onFoods([...r.foods.map((f, i) => dishFrom(f, i === 0 ? photo?.small : undefined)), ...(r.unknown ?? []).map((u) => ({ name: u }))]);
       const total = r.foods.reduce((n, f) => n + f.kcal * f.qty, 0);
-      setMsg(`${r.ai ? "🤖" : "📖"} ${r.foods.map((f) => f.name).join(" + ")}${total ? ` ≈ ${total} kcal` : ""}. ${r.note}${photo && !r.ai ? " (Photo reading is off, so I used your words.)" : ""} Check the amounts below.`);
+      setMsg(`${r.ai ? "🤖" : "📖"} ${r.foods.map((f) => f.name).join(" + ")}${total ? ` ≈ ${total} kcal` : ""}. ${r.note}${photo && !r.ai ? ` (Photo reading failed: ${r.error || "unknown"}. I used your words.)` : ""} Check the amounts below.`);
       setSay(""); setPic(null);
-    } else if (photo && !r.ai) setMsg("Photo reading isn't on yet. Type what's in it, like \"big bowl rice and instant ramen\", then tap Read.");
+    } else if (photo && !r.ai) setMsg(`Photo reading failed: ${r.error || "unknown"}. Type what's in it, like "big bowl rice and instant ramen", then tap Read.`);
     else setMsg(r.ai ? "I couldn't see food there. Try a closer photo or type it." : "I don't know that one. Add it below with its numbers.");
   };
   return (

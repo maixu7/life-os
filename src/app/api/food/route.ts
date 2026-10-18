@@ -91,24 +91,33 @@ const GEMINI_SCHEMA = {
   required: ["foods", "note"],
 };
 async function readWithGemini(key: string, ask: string, img: { mime: string; data: string } | null) {
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  // Google renames models now and then; try the newest names in turn.
+  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
   const parts: object[] = [];
   if (img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
   parts.push({ text: `${ask}\nGive all numbers for the whole amount eaten: kcal, and grams of protein, fat, carbs, sugar and salt equivalent.` });
-  try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", responseSchema: GEMINI_SCHEMA, temperature: 0.2 } }),
-    });
-    if (r.status === 429) return bad("Free AI limit reached for now. Try again in a minute.", 429);
-    if (r.status === 400 || r.status === 403) return bad("Gemini key isn't working. Check GEMINI_API_KEY in Vercel.", 501);
-    if (!r.ok) return bad("Couldn't reach the food reader. Try again.", 502);
-    const j = await r.json();
-    const text = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
-    const meal = Meal.safeParse(JSON.parse(text || "null"));
-    return meal.success ? NextResponse.json(meal.data) : bad("Couldn't read that one. Try again.", 502);
-  } catch {
-    return bad("Couldn't reach the food reader. Try again.", 502);
+  let why = "";
+  for (const model of models) {
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", responseSchema: GEMINI_SCHEMA, temperature: 0.2 } }),
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) {
+        // Google's own message (never contains the key), so the app can say what went wrong.
+        why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
+        if (r.status === 404) continue;
+        return bad(why, r.status === 429 ? 429 : 502);
+      }
+      const text = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
+      const meal = Meal.safeParse(JSON.parse(text || "null"));
+      if (meal.success) return NextResponse.json(meal.data);
+      why = `Gemini answer wasn't readable (${j?.candidates?.[0]?.finishReason ?? "empty"})`;
+    } catch (e) {
+      why = `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+    }
   }
+  return bad(why || "Couldn't reach the food reader.", 502);
 }

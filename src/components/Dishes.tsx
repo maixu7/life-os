@@ -100,7 +100,7 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
       return;
     }
     if (r.ai) return set({ busy: false, status: "I couldn't see food in that photo. Type what it is." });
-    if (d.name) return set({ busy: false, status: "Photo saved. Numbers come from the name you typed." });
+    if (d.name) return set({ busy: false, status: `Photo saved. Numbers come from the name you typed.${r.error ? ` (Photo reading failed: ${r.error})` : ""}` });
     try {
       const m = await recognise(img);
       const g = m.foods[0];
