@@ -3,6 +3,7 @@
 import { fireAlarm } from "@/lib/alarm";
 
 import { EditLog } from "@/components/EditLog";
+import { WorkoutRunner } from "@/components/WorkoutRunner";
 import { StartButton } from "@/components/Doing";
 import { useEffect, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
@@ -114,6 +115,7 @@ export default function TrainPage() {
   const [newType, setNewType] = useState("reps");
   const [editing, setEditing] = useState(false);
   const [rest, setRest] = useState(0);
+  const [run, setRun] = useState<PlanRow | null>(null);
 
   const [pending, setPending] = useState<string | null>(null);
   const ex = items.find((i) => i.id === sel) ?? (pending ? items.find((i) => i.name === pending) : undefined) ?? items[0];
@@ -135,11 +137,6 @@ export default function TrainPage() {
   };
   // Sets of a move logged today (a log of "3 sets" counts as 3).
   const setsDone = (name: string) => logs.filter((l) => l.kind === "workout" && String(l.data.exercise).toLowerCase() === name.toLowerCase()).reduce((n, l) => n + (Number(l.data.sets) || 1), 0);
-  const finishRow = (r: PlanRow) => {
-    const left = Math.max(1, r.sets - setsDone(r.name));
-    const row = logActivity("workout", { exercise: r.name, sets: left, reps: parseInt(r.reps) || 0, ...(r.reps.endsWith("s") ? { seconds: parseInt(r.reps) || 0 } : {}), weight: r.kg, from_plan: true });
-    celebrate({ title: "✓ DONE!", subtitle: `${r.name} · ${setsText(r.sets, r.reps)}`, xp: row.xp, kind: "small" });
-  };
   const library = MOVES.filter((m) => m.kind === "body" && (!family || m.pattern === family) && (!mine || canDo(m, kit)) && (!q || `${m.name} ${m.muscles?.join(" ")} ${m.pattern}`.toLowerCase().includes(q.toLowerCase())));
 
   // Opened from "What I have" with an exercise to show.
@@ -177,6 +174,7 @@ export default function TrainPage() {
 
   return (
     <>
+      {run && <WorkoutRunner row={run} onClose={() => setRun(null)} />}
       <XpHeader title="Training Grounds" icon="⚔️" subtitle="Every rep is XP for your body" />
 
       <Blocks page="/train" parts={{
@@ -216,7 +214,7 @@ export default function TrainPage() {
       <details className="card p-3 mb-3" open={Object.keys(kit).length > 0 || !items.length}>
         <summary className="text-sm font-semibold cursor-pointer">📅 Today&apos;s full workout (made from what you have)</summary>
         <p className="text-xs text-muted mt-2">{Object.keys(kit).length ? <>You have {kitText(kit)}.</> : <>No equipment yet, so this is bodyweight only. <Link href="/have" className="text-[var(--accent2)] underline">Add your dumbbells, kettlebell or pull-up bar</Link> and it changes.</>} A new plan each day.</p>
-        <p className="text-[11px] text-muted mt-1">How to read it: <b>3 sets of 8–12 reps</b> = do the move 8 to 12 times, rest about 1 minute, and do that 3 times. Tap ✓ when a move is finished.</p>
+        <p className="text-[11px] text-muted mt-1">How to read it: <b>3 sets of 8–12 reps</b> = do the move 8 to 12 times, rest about 1 minute, and do that 3 times. Tap ▶ Start: it times every set and rest for you and ticks the move when it&apos;s done.</p>
         <ul className="mt-2 space-y-1.5">
           {plan.map((r) => {
             const done = setsDone(r.name);
@@ -231,7 +229,7 @@ export default function TrainPage() {
                 </div>
                 {full
                   ? <span aria-label="Done" className="h-8 w-8 shrink-0 rounded-full bg-emerald-500 grid place-items-center text-base">✓</span>
-                  : <button aria-label={`Mark ${r.name} done`} onClick={() => finishRow(r)} className="h-8 w-8 shrink-0 rounded-full border-2 border-white/30 grid place-items-center text-base text-muted active:scale-90">✓</button>}
+                  : <button aria-label={`Start ${r.name}`} onClick={() => setRun(r)} className="shrink-0 rounded-full bg-[var(--accent2)] text-[#0b0420] px-3 h-8 text-xs font-bold active:scale-90">▶ Start</button>}
               </li>
             );
           })}
