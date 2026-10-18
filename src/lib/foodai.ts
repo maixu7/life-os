@@ -1,0 +1,37 @@
+import { readMealText, type MealFood } from "@/lib/foodtext";
+import type { CustomItem } from "@/lib/store";
+import type { Session } from "@/lib/vault";
+
+// A photo sized for the AI reader: long side 1024 px, JPEG.
+export function aiPhoto(img: HTMLImageElement, max = 1024): string {
+  const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement("canvas");
+  c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.82);
+}
+
+export type MealRead = { foods: MealFood[]; note: string; ai: boolean; unknown?: string[]; error?: string };
+
+// What's in this meal and how much. Asks the AI reader (photo and/or words);
+// if that's off or offline, reads the words with the built-in tables.
+export async function readMeal(s: Session, { photo, text = "" }: { photo?: string; text?: string }, items: CustomItem[] = []): Promise<MealRead> {
+  let error = "";
+  try {
+    const r = await fetch("/api/food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: s.user, auth: s.auth, text, image: photo }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && Array.isArray(j.foods)) {
+      const foods: MealFood[] = j.foods.map((f: Record<string, unknown>) => ({
+        name: String(f.name), qty: 1, per: String(f.portion ?? "1 serving"), kcal: Math.round(Number(f.kcal) || 0),
+        protein: Number(f.protein) || 0, fat: Number(f.fat) || 0, carbs: Number(f.carbs) || 0, sugar: Number(f.sugar) || 0, salt: Number(f.salt) || 0, contents: f.contents ? String(f.contents) : undefined,
+      }));
+      return { foods, note: String(j.note ?? ""), ai: true };
+    }
+    error = j.error ?? "";
+  } catch { error = "offline"; }
+  if (text.trim()) {
+    const { foods, unknown } = readMealText(text, items);
+    return { foods, unknown, ai: false, error, note: unknown.length ? `I don't know: ${unknown.join(", ")}. Add their numbers or snap their labels.` : "" };
+  }
+  return { foods: [], note: "", ai: false, error };
+}

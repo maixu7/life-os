@@ -1,10 +1,12 @@
 "use client";
 
 import { StartButton } from "@/components/Doing";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { WhenPicker } from "@/components/When";
-import { DishCard, dishesFrom, dishTotals, FoodNames, newDish, type Dish } from "@/components/Dishes";
+import { DishCard, dishesFrom, dishFrom, dishTotals, FoodNames, newDish, type Dish } from "@/components/Dishes";
+import { aiPhoto, readMeal } from "@/lib/foodai";
+import { animeStyle, loadImage, smallPhoto } from "@/lib/foodphoto";
 import { energy, type Eaten } from "@/lib/body";
 import { haveFoods, recentFoods, takeFromPantry } from "@/lib/have";
 import { toDay, useApp, type Log } from "@/lib/store";
@@ -63,8 +65,9 @@ export function MealSheet({ meal: initial, log, onClose, start }: { meal?: strin
         <span className="text-muted">Each food: 📷 its photo, 🏷️ its packet label (reads the calories).</span>
         <button onClick={() => setAnime(!anime)} className={`chip !py-0.5 text-[11px] shrink-0 ${anime ? "chip-on" : ""}`}>🎨 Anime</button>
       </div>
+      {!log && <WholeMeal anime={anime} onFoods={(ps) => setDishes((ds) => [...ds.filter((x) => x.name.trim() || Number(x.kcal) || x.photo), ...ps.map((p) => ({ ...newDish(), ...p }))])} />}
       <div className="space-y-2">
-        {dishes.map((d) => <DishCard key={d.key} d={d} set={set(d.key)} anime={anime} remove={() => setDishes((ds) => (ds.length > 1 ? ds.filter((x) => x.key !== d.key) : [newDish()]))} />)}
+        {dishes.map((d) => <DishCard key={d.key} d={d} set={set(d.key)} anime={anime} addMore={(ps) => setDishes((ds) => { const i = ds.findIndex((x) => x.key === d.key); return [...ds.slice(0, i + 1), ...ps.map((p) => ({ ...newDish(), ...p })), ...ds.slice(i + 1)]; })} remove={() => setDishes((ds) => (ds.length > 1 ? ds.filter((x) => x.key !== d.key) : [newDish()]))} />)}
       </div>
       <button onClick={() => setDishes([...dishes, newDish()])} className="btn-ghost w-full border border-dashed border-white/25">＋ Add another food</button>
       {quick.length > 0 && (
@@ -140,5 +143,49 @@ export function FoodThumbs({ foods, size = 22 }: { foods?: Eaten[]; size?: numbe
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {pics.slice(0, 5).map((f, i) => <img key={i} src={f.photo} alt={f.name} title={f.name} style={{ width: size, height: size }} className="rounded-md object-cover ring-1 ring-black/40" />)}
     </span>
+  );
+}
+
+// Snap the whole plate or say the whole meal; every food is found with its amount.
+function WholeMeal({ anime, onFoods }: { anime: boolean; onFoods: (ds: Partial<Dish>[]) => void }) {
+  const { data, session } = useApp();
+  const [say, setSay] = useState("");
+  const [pic, setPic] = useState<{ ai: string; small: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const ref = useRef<HTMLInputElement>(null);
+  const read = async (photo = pic) => {
+    if (!photo && !say.trim()) return;
+    setBusy(true); setMsg(photo ? "Looking at every food on the plate and how much…" : "Reading…");
+    const r = await readMeal(session, { photo: photo?.ai, text: say }, data.items);
+    setBusy(false);
+    if (r.foods.length || r.unknown?.length) {
+      onFoods([...r.foods.map((f, i) => dishFrom(f, i === 0 ? photo?.small : undefined)), ...(r.unknown ?? []).map((u) => ({ name: u }))]);
+      const total = r.foods.reduce((n, f) => n + f.kcal * f.qty, 0);
+      setMsg(`${r.ai ? "🤖" : "📖"} ${r.foods.map((f) => f.name).join(" + ")}${total ? ` ≈ ${total} kcal` : ""}. ${r.note}${photo && !r.ai ? " (Photo reading is off, so I used your words.)" : ""} Check the amounts below.`);
+      setSay(""); setPic(null);
+    } else if (photo && !r.ai) setMsg("Photo reading isn't on yet. Type what's in it, like \"big bowl rice and instant ramen\", then tap Read.");
+    else setMsg(r.ai ? "I couldn't see food there. Try a closer photo or type it." : "I don't know that one. Add it below with its numbers.");
+  };
+  return (
+    <div className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 p-2.5 space-y-2">
+      <div className="text-xs font-semibold">🔍 Snap or say the whole meal</div>
+      <div className="flex gap-2">
+        <button onClick={() => ref.current?.click()} className="h-14 w-14 shrink-0 rounded-xl border border-dashed border-white/25 grid place-items-center overflow-hidden text-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {pic ? <img src={pic.small} alt="Meal" className="h-full w-full object-cover" /> : "📷"}
+        </button>
+        <input ref={ref} type="file" accept="image/*" className="hidden" onChange={async (e) => {
+          const f = e.target.files?.[0]; e.target.value = "";
+          if (!f) return;
+          const img = await loadImage(f);
+          const p = { ai: aiPhoto(img), small: anime ? animeStyle(img, 160) : smallPhoto(img, 160) };
+          setPic(p); read(p);
+        }} />
+        <textarea className="input flex-1 min-h-14 text-sm" placeholder="big bowl of rice and instant ramen, 2 eggs…" value={say} onChange={(e) => setSay(e.target.value)} />
+      </div>
+      <button disabled={busy || (!say.trim() && !pic)} onClick={() => read()} className="btn-primary w-full !py-1.5 text-sm disabled:opacity-40">{busy ? "Reading…" : "Read my meal"}</button>
+      {msg && <p className={`text-[11px] ${busy ? "animate-pulse text-[var(--accent2)]" : "text-muted"}`}>{msg}</p>}
+    </div>
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import { useRef } from "react";
-import { allFoods, guessFood, type Eaten } from "@/lib/body";
+import { aiPhoto, readMeal } from "@/lib/foodai";
+import { readFood, readMealText, type MealFood } from "@/lib/foodtext";
+import { allFoods, type Eaten } from "@/lib/body";
 import { emojiFor } from "@/lib/emoji";
 import { lookupBarcode } from "@/lib/foodlookup";
 import { animeStyle, loadImage, recognise, smallPhoto } from "@/lib/foodphoto";
@@ -18,12 +20,22 @@ export type Dish = {
   key: string; name: string; qty: number; per: string; contents?: string;
   kcal: string; protein: string; fat: string; carbs: string; sugar: string; salt: string;
   photo?: string; label?: string; status?: string; busy?: boolean; size?: string;
+  // Numbers were filled in by the app (not typed or read from a label), so
+  // renaming the food fills them again.
+  auto?: boolean;
 };
+
+const blank = { per: "1 serving", kcal: "", protein: "", fat: "", carbs: "", sugar: "", salt: "", contents: undefined, size: undefined };
+// A food the reader found, as an editable dish.
+export function dishFrom(f: MealFood, photo?: string): Partial<Dish> {
+  const s = (v?: number) => (v != null ? String(v) : "");
+  return { name: f.name, qty: f.qty, per: f.per, kcal: String(f.kcal), protein: s(f.protein), fat: s(f.fat), carbs: s(f.carbs), sugar: s(f.sugar), salt: s(f.salt), contents: f.contents, photo, auto: true, size: undefined };
+}
 
 // A vegetable or fruit at one of 10 sizes: grams and nutrition scale with it.
 export function sizeFill(p: Produce, size: string): Partial<Dish> {
   const s = sized(p, size);
-  return { size, per: `${size.toLowerCase()} ${p.name.toLowerCase()} (~${s.g} g)`, kcal: String(s.kcal), protein: String(s.protein), carbs: String(s.carbs), sugar: String(s.sugar), fat: String(s.fat), salt: "" };
+  return { auto: true, size, per: `${size.toLowerCase()} ${p.name.toLowerCase()} (~${s.g} g)`, kcal: String(s.kcal), protein: String(s.protein), carbs: String(s.carbs), sugar: String(s.sugar), fat: String(s.fat), salt: "" };
 }
 
 const n = (s: string) => Number(s) || 0;
@@ -43,32 +55,57 @@ export function dishTotals(d: Dish): Eaten {
   return { name: d.name.trim() || "Food", qty: d.qty, per: d.per, contents: d.contents || undefined, kcal: Math.round(n(d.kcal) * d.qty), protein: t(d.protein) ?? 0, fat: t(d.fat), carbs: t(d.carbs), sugar: t(d.sugar), salt: t(d.salt), photo: d.photo };
 }
 
-export function DishCard({ d, set, remove, anime }: { d: Dish; set: (p: Partial<Dish>) => void; remove: () => void; anime: boolean }) {
-  const { data } = useApp();
+export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p: Partial<Dish>) => void; remove: () => void; anime: boolean; addMore?: (ds: Partial<Dish>[]) => void }) {
+  const { data, session } = useApp();
   const { items, add, update } = useCustomItems("food");
   const pic = useRef<HTMLInputElement>(null), lab = useRef<HTMLInputElement>(null);
   const foods = allFoods(data.items);
 
   // A known food (built-in or saved from a label) fills its numbers in.
-  const fill = (name: string, force = false): Partial<Dish> => {
+  const fill = (name: string, force = d.auto): Partial<Dish> => {
+    if (!force && d.kcal) return {};
     const pr = name.trim().length > 2 ? produceOf(name) : undefined;
-    if (pr && (force || !d.kcal)) return sizeFill(pr, d.size ?? "Medium");
+    if (pr) return sizeFill(pr, d.size ?? "Medium");
+    // Your own saved food (from a label) wins, then the dish tables.
     const mine = items.find((i) => i.name.toLowerCase() === name.trim().toLowerCase());
-    const fd = foods.find((x) => x.name.toLowerCase() === name.trim().toLowerCase()) ?? guessFood(name, data.items);
-    if (!fd || (!force && d.kcal)) return {};
-    const c = mine?.config ?? {};
-    const s = (v: unknown) => (v != null && v !== "" ? String(v) : "");
-    return { per: fd.per, kcal: String(fd.kcal), protein: String(fd.protein), fat: s(c.fat), carbs: s(c.carbs), sugar: s(c.sugar), salt: s(c.salt), contents: d.contents || fd.contents, photo: d.photo || (c.photo ? String(c.photo) : undefined) };
+    const fd = mine && foods.find((x) => x.name.toLowerCase() === mine.name.toLowerCase());
+    if (fd) {
+      const c = mine.config ?? {};
+      const s = (v: unknown) => (v != null && v !== "" ? String(v) : "");
+      return { per: fd.per, kcal: String(fd.kcal), protein: String(fd.protein), fat: s(c.fat), carbs: s(c.carbs), sugar: s(c.sugar), salt: s(c.salt), contents: fd.contents, photo: d.photo || (c.photo ? String(c.photo) : undefined), auto: true, size: undefined };
+    }
+    const f = name.trim() ? readFood(name, data.items) : null;
+    if (f) { const { name: _n, ...rest } = dishFrom(f, d.photo); void _n; return rest; }
+    return force ? { ...blank, auto: false } : {};
+  };
+  // "rice and ramen" typed in one box becomes two foods.
+  const named = (v: string) => {
+    const m = readMealText(v, data.items);
+    if (addMore && m.foods.length + m.unknown.length > 1 && m.foods.length && (d.auto || !d.kcal)) {
+      set({ ...dishFrom(m.foods[0], d.photo), status: `Split into ${m.foods.length + m.unknown.length} foods.` });
+      addMore([...m.foods.slice(1).map((f) => dishFrom(f)), ...m.unknown.map((u) => ({ name: u }))]);
+    } else set(fill(v));
   };
 
   const takePhoto = async (f: File) => {
     const img = await loadImage(f);
-    set({ photo: anime ? animeStyle(img, 160) : smallPhoto(img, 160), busy: true, status: "Looking at it…" });
+    const photo = anime ? animeStyle(img, 160) : smallPhoto(img, 160);
+    set({ photo, busy: true, status: "Looking at what's in it and how much…" });
+    // The AI reader sees every food and its amount; the name you typed helps it.
+    const r = await readMeal(session, { photo: aiPhoto(img), text: d.name }, items);
+    if (r.ai && r.foods.length) {
+      const [first, ...rest] = r.foods;
+      set({ ...dishFrom(first, photo), busy: false, status: `${r.foods.length > 1 ? `Found ${r.foods.length} foods. ` : ""}${r.note}` });
+      if (rest.length) addMore?.(rest.map((f) => dishFrom(f)));
+      return;
+    }
+    if (r.ai) return set({ busy: false, status: "I couldn't see food in that photo. Type what it is." });
+    if (d.name) return set({ busy: false, status: "Photo saved. Numbers come from the name you typed." });
     try {
-      const r = await recognise(img);
-      const g = r.foods[0];
-      if (g && !d.name) set({ name: g, ...fill(g), busy: false, status: `Looks like ${g}. Snap the label for exact calories.` });
-      else set({ busy: false, status: `I see ${r.seen.slice(0, 2).join(" or ")}. Type the name or snap the label.` });
+      const m = await recognise(img);
+      const g = m.foods[0];
+      if (g) set({ name: g, ...fill(g, true), busy: false, status: `Rough guess: ${g}. If that's wrong, type the real name and the numbers change.` });
+      else set({ busy: false, status: `I see ${m.seen.slice(0, 2).join(" or ")}. Type the name or snap the label.` });
     } catch { set({ busy: false, status: "Type the name, or snap the label for the calories." }); }
   };
 
@@ -93,7 +130,7 @@ export function DishCard({ d, set, remove, anime }: { d: Dish; set: (p: Partial<
       return set({ busy: false, label, status: "Couldn't load the label reader (needs internet the first time). Type the numbers." });
     }
     const name = d.name || names[0] || "";
-    const next = { ...got, name, label, busy: false, status: got.kcal ? `Read ${got.kcal} kcal per ${got.per ?? "serving"}. Saved to My foods for next time.` : "I couldn't find the calories. Take a straight, close photo of the nutrition table (栄養成分表示)." };
+    const next = { ...got, name, label, busy: false, auto: !got.kcal && d.auto, status: got.kcal ? `Read ${got.kcal} kcal per ${got.per ?? "serving"}. Saved to My foods for next time.` : "I couldn't find the calories. Take a straight, close photo of the nutrition table (栄養成分表示)." };
     set(next);
     // Remember it, so next time typing the name fills everything.
     if (got.kcal && name) {
@@ -110,7 +147,7 @@ export function DishCard({ d, set, remove, anime }: { d: Dish; set: (p: Partial<
     </button>
   );
   const num = (k: "kcal" | "protein" | "fat" | "carbs" | "sugar" | "salt", l: string) => (
-    <label className="text-[10px] text-muted">{l}<input className="input mt-0.5 !px-1.5 !py-1 text-xs" inputMode="decimal" value={d[k]} onChange={(e) => set({ [k]: e.target.value })} /></label>
+    <label className="text-[10px] text-muted">{l}<input className="input mt-0.5 !px-1.5 !py-1 text-xs" inputMode="decimal" value={d[k]} onChange={(e) => set({ [k]: e.target.value, auto: false })} /></label>
   );
 
   const pr = d.name.trim().length > 2 ? produceOf(d.name) : undefined;
@@ -124,7 +161,7 @@ export function DishCard({ d, set, remove, anime }: { d: Dish; set: (p: Partial<
         <div className="flex-1 min-w-0 space-y-1.5">
           <div className="flex gap-1">
             <input className="input !py-1.5 text-sm" list="all-foods" placeholder="What is it?" value={d.name}
-              onChange={(e) => set({ name: e.target.value })} onBlur={(e) => set(fill(e.target.value))} />
+              onChange={(e) => set({ name: e.target.value })} onBlur={(e) => named(e.target.value)} />
             <button aria-label={`Remove ${d.name || "food"}`} onClick={remove} className="text-muted px-1">✕</button>
           </div>
           <div className="flex items-center gap-1.5 text-xs">
