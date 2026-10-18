@@ -33,6 +33,7 @@ export type Profile = {
   display_name: string; xp: number; settings: Settings; updated_at: string;
   avatar: Avatar; title: string; height_cm: number | null; birth_year: number | null;
   achievements: Record<string, string>; // id -> unlocked at
+  achievements_off?: Record<string, string>; // id -> taken back at (a record was fixed or deleted)
   about?: string; // "About me", written by the hero; shapes habit quests
 };
 export const DEFAULT_AVATAR: Avatar = {
@@ -57,6 +58,21 @@ export const UNITS = ["pcs", "kg", "g", "L", "ml", "bottle", "pack", "dozen", "b
 
 // Combines two copies of the data (e.g. phone and PC). Records are unioned by id,
 // deletions win, the newer profile wins, and XP is recomputed from the logs.
+// The latest unlock or take-back of each achievement wins on every device.
+function mergeAchievements(a: Profile, b: Profile) {
+  const latest = (x: Record<string, string> = {}, y: Record<string, string> = {}) => {
+    const out = { ...x };
+    for (const [k, v] of Object.entries(y)) if (!out[k] || v > out[k]) out[k] = v;
+    return out;
+  };
+  const on = latest(a.achievements, b.achievements), off = latest(a.achievements_off, b.achievements_off);
+  return { achievements: Object.fromEntries(Object.entries(on).filter(([k, v]) => !off[k] || v > off[k])), achievements_off: off };
+}
+
+// Settles rewards after a record is fixed or deleted (registered by the game layer).
+let settleFn: ((before: Data, after: Data, days: string[]) => Data) | null = null;
+export const registerSettle = (f: typeof settleFn) => { settleFn = f; };
+
 export function mergeData(server: Data, local: Data): Data {
   const deleted = [...new Set([...(server.deleted ?? []), ...(local.deleted ?? [])])];
   const gone = new Set(deleted);
@@ -71,7 +87,7 @@ export function mergeData(server: Data, local: Data): Data {
     profile: {
       ...profile,
       xp: logs.reduce((s, l) => s + l.xp, 0),
-      achievements: { ...(server.profile.achievements ?? {}), ...(local.profile.achievements ?? {}) },
+      ...mergeAchievements(server.profile, local.profile),
     },
     logs,
     items: union(server.items, local.items),
@@ -321,22 +337,27 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
     doing,
     completeDoing,
     cancelDoing,
-    updateLog: (logId, { data: patch, at }) => update((d) => ({
-      ...d,
-      logs: d.logs.map((l) => l.id !== logId ? l : {
-        ...l,
-        data: patch ? { ...l.data, ...patch } : l.data,
-        ...(at ? { day: toDay(at), created_at: at.toISOString() } : {}),
-      }),
-    })),
+    updateLog: (logId, { data: patch, at }) => update((d) => {
+      const old = d.logs.find((l) => l.id === logId);
+      const next = {
+        ...d,
+        logs: d.logs.map((l) => l.id !== logId ? l : {
+          ...l,
+          data: patch ? { ...l.data, ...patch } : l.data,
+          ...(at ? { day: toDay(at), created_at: at.toISOString() } : {}),
+        }),
+      };
+      return settleFn && old ? settleFn(d, next, [old.day, ...(at ? [toDay(at)] : [])]) : next;
+    }),
     deleteLog: (logId) => update((d) => {
       const l = d.logs.find((x) => x.id === logId);
-      return {
+      const next = {
         ...d,
         logs: d.logs.filter((x) => x.id !== logId),
         deleted: [...d.deleted, logId],
         profile: { ...d.profile, xp: Math.max(0, d.profile.xp - (l?.xp ?? 0)) },
       };
+      return settleFn && l ? settleFn(d, next, [l.day]) : next;
     }),
     lock: onLock,
     signOut: onSignOut,

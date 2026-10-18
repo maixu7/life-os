@@ -5,7 +5,10 @@ import { checkAchievements } from "@/lib/achievements";
 import { judged, suggestHabits, tplOf } from "@/lib/habits";
 import { line } from "@/lib/lore";
 import { dailyMissions } from "@/lib/missions";
-import { toDay, today, useApp } from "@/lib/store";
+import { registerSettle, toDay, today, useApp } from "@/lib/store";
+import { settle } from "@/lib/settle";
+
+registerSettle(settle);
 
 // Watches your records and fires the big moments: mission rewards and achievements.
 export function GameWatcher() {

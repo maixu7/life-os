@@ -1,5 +1,6 @@
 "use client";
 
+import { EditLog } from "@/components/EditLog";
 import { StartButton } from "@/components/Doing";
 import { useEffect, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
@@ -11,7 +12,7 @@ import { canDo, dayPlan, kitOf, kitText } from "@/lib/have";
 import Link from "next/link";
 import { type Pattern } from "@/lib/exercises";
 import { moveOf, MOVES, myMove, variantOf } from "@/lib/moves";
-import type { CustomItem } from "@/lib/store";
+import type { CustomItem, Log } from "@/lib/store";
 import { today, useApp, useCustomItems, useLogs } from "@/lib/store";
 
 const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
@@ -172,6 +173,7 @@ export default function TrainPage() {
     celebrate({ title: r > prev && prev > 0 ? "🔥 NEW PERSONAL BEST!" : "POWER UP!", subtitle: r > prev && prev > 0 ? `${ex.name}: ${r} reps (was ${prev}). Real strength gained.` : ex.name, xp: row.xp });
   };
 
+  const [fixing, setFixing] = useState<Log | null>(null);
   const todays = logs.filter((l) => l.kind === "workout");
   const volume = todays.reduce((s, l) => s + Number(l.data.sets ?? 1) * Number(l.data.reps ?? 0) * Number(l.data.weight ?? 0), 0);
   const plates = type === "barbell" && weight ? platesPerSide(Number(weight), bar) : null;
@@ -307,11 +309,15 @@ export default function TrainPage() {
         {todays.length === 0 && <p className="text-sm text-muted">No sets yet. You&apos;ve got this!</p>}
         <ul className="space-y-1 text-sm">
           {todays.map((l) => (
-            <li key={l.id} className="card px-3 py-2">
-              {String(l.data.exercise)}: {String(l.data.sets ?? 1)}×{String(l.data.reps)}{l.data.weight ? ` @ ${l.data.weight} kg` : ""}
+            <li key={l.id}>
+              <button onClick={() => setFixing(l)} className="card px-3 py-2 w-full flex justify-between text-left">
+                <span>{String(l.data.exercise)}: {String(l.data.sets ?? 1)}×{String(l.data.reps)}{l.data.weight ? ` @ ${l.data.weight} kg` : ""}</span>
+                <span className="text-muted">✏️ fix</span>
+              </button>
             </li>
           ))}
         </ul>
+        {fixing && <EditLog log={fixing} onClose={() => setFixing(null)} />}
       </section>
     </>
   );

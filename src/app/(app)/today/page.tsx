@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { TaskLog } from "@/components/TaskLog";
+import { EditLog } from "@/components/EditLog";
 import { FixCard } from "@/components/FixCard";
 import { foodGoodness, scoreColor } from "@/lib/goodness";
 import { useTasks } from "@/components/Coach";
@@ -26,6 +27,7 @@ type Row = { icon: string; name: string; did: React.ReactNode; goal: string; don
 // everything the hero actually did, with how much.
 export default function TodayPage() {
   const { data, profile, saveSettings, deleteLog } = useApp();
+  const [editing, setEditing] = useState<Log | null>(null);
   const [day, setDay] = useState(toDay(new Date()));
   const isToday = day === toDay(new Date());
   const goals = useGoals(day);
@@ -129,7 +131,8 @@ export default function TodayPage() {
                         </div>
                       )}</td>
                     <td className="py-1.5 pl-1 text-right whitespace-nowrap">{l.xp ? <span className="text-[var(--gold)]">+{l.xp}</span> : null}
-                      <button aria-label={`Delete ${d.title}`} onClick={() => confirm(`Delete "${d.title}"?`) && deleteLog(l.id)} className="ml-2 text-muted">✕</button></td>
+                      <button aria-label={`Fix ${d.title}`} onClick={() => setEditing(l)} className="ml-2 text-muted">✏️</button>
+                      <button aria-label={`Delete ${d.title}`} onClick={() => confirm(`Delete "${d.title}"? Its XP and any reward or achievement it earned are taken back.`) && deleteLog(l.id)} className="ml-1 text-muted">✕</button></td>
                   </tr>
                 );
               })}
@@ -137,6 +140,7 @@ export default function TodayPage() {
           </table>
         )}
         <button onClick={() => setLogOpen(true)} className="block w-full text-center text-xs text-[var(--accent2)] mt-3">📝 Log anything you did</button>
+        {editing && <EditLog log={editing} onClose={() => setEditing(null)} />}
         {logOpen && <TaskLog at={isToday ? undefined : new Date(`${day}T12:00:00`)} onClose={() => setLogOpen(false)} />}
       </section>
     </>

@@ -32,6 +32,12 @@ export const ACHIEVEMENTS: A[] = [
 ];
 
 export function checkAchievements(d: Data): A[] {
+  const ok = passing(d);
+  return ACHIEVEMENTS.filter((a) => !d.profile.achievements[a.id] && ok.has(a.id));
+}
+
+// Ids of achievements whose test passes on this data.
+export function passing(d: Data): Set<string> {
   const counts: Record<string, number> = {};
   for (const l of d.logs) {
     const n = l.kind === "workout" ? Number(l.data.sets ?? 1) : 1;
@@ -46,5 +52,5 @@ export function checkAchievements(d: Data): A[] {
     spent: d.shopping.filter((s) => s.purchased_at?.startsWith(month)).reduce((s, i) => s + Number(i.price ?? 0), 0),
     level: Math.floor(d.profile.xp / 100) + 1,
   };
-  return ACHIEVEMENTS.filter((a) => !d.profile.achievements[a.id] && a.test(d, x));
+  return new Set(ACHIEVEMENTS.filter((a) => a.test(d, x)).map((a) => a.id));
 }
