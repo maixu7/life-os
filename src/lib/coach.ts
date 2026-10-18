@@ -1,4 +1,4 @@
-import { gaps } from "@/lib/gaps";
+import { gaps, handledToday } from "@/lib/gaps";
 import { habitStats, judged, tplOf } from "@/lib/habits";
 import { sumMl } from "@/lib/goals";
 import { logKarma } from "@/lib/karma";
@@ -125,7 +125,7 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
     }
   }
 
-  if (h >= 9 && h < 20 && !busy && !logs.some((l) => l.kind === "focus")) {
+  if (h >= 9 && h < 20 && !busy && !logs.some((l) => l.kind === "focus" || l.kind === "coding")) {
     add({ id: "focus", icon: "🎯", title: "Do one 25-min focus session", priority: 45, action: { type: "href", href: "/focus" },
       because: "No focus session yet today.", why: "One deep session moves your goals more than hours of distracted work." });
   }
@@ -145,6 +145,7 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
     for (const g of gaps(d, p, now).gaps) if ((best.get(g.id)?.g.severity ?? -1) < g.severity) best.set(g.id, { g, when });
   }
   for (const { g, when } of best.values()) {
+    if (handledToday(d, g.id, now)) continue;
     const hh = h < 4 ? h + 24 : h;
     if (hh < g.task.from || hh >= g.task.to) continue;
     if (busy && g.id !== "water") continue;

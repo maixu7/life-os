@@ -38,6 +38,28 @@ function statsFor(d: Data, day: string, logs: Log[]): DayStats {
   };
 }
 
+// True when today's own records already answer a gap, so a "lately" task
+// doesn't come back right after the hero did it (e.g. just drank water).
+export function handledToday(d: Data, id: string, now = new Date()): boolean {
+  const day = toDay(now), h = now.getHours();
+  const logs = d.logs.filter((l) => l.day === day);
+  const t = statsFor(d, day, logs);
+  const since = (re: (l: Log) => boolean, min: number) => logs.some((l) => re(l) && now.getTime() - new Date(l.created_at).getTime() < min * 60_000);
+  const meal = (l: Log) => (l.kind === "activity" || l.kind === "meal") && /breakfast|lunch|dinner|snack|meal/i.test(String(l.data.name));
+  const goal = d.profile.settings.water_goal_ml;
+  switch (id) {
+    case "water": return t.water >= goal * Math.min(1, Math.max(0.1, (h - 7) / 14)) * 0.8 || since((l) => l.kind === "water", 45);
+    case "breakfast": return t.breakfast || h >= 11;
+    case "meals": return since(meal, 180) || t.meals >= Math.min(3, Math.floor((h - 6) / 5));
+    case "protein": return since(meal, 180);
+    case "study": return t.study >= 25;
+    case "read": return t.read >= 10;
+    case "move": return t.move >= 15;
+    case "sleep": return h < 18;
+    default: return false;
+  }
+}
+
 export function gaps(d: Data, period: Period, now = new Date()): { gaps: Gap[]; days: number } {
   const span = PERIODS.find((p) => p.id === period)!.days;
   const byDay = new Map<string, Log[]>();

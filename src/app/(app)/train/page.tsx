@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { ImpactCard, LiftCard } from "@/components/RealMe";
 import { Sheet } from "@/components/Sheet";
-import { PoseDemo } from "@/components/PoseDemo";
+import { PoseDemo, type Prop } from "@/components/PoseDemo";
+import { howTo, variantFromName } from "@/lib/howto";
 import { type Pattern } from "@/lib/exercises";
 import { moveOf, MOVES, myMove, variantOf } from "@/lib/moves";
 import type { CustomItem } from "@/lib/store";
@@ -50,11 +51,14 @@ function ExerciseEditor({ item, onClose }: { item: CustomItem; onClose: () => vo
   const [muscles, setMuscles] = useState(String(c.muscles ?? ""));
   const [steps, setSteps] = useState(String(c.steps ?? ""));
   const [pattern, setPattern] = useState<Pattern | "">((c.pattern as Pattern) ?? "");
+  const [prop, setProp] = useState<Prop | "">((c.prop as Prop) ?? "");
+  const builtIn = !!base;
+  const how = howTo(myMove(name, { ...c, pattern, prop }), undefined, name);
   const [mine, setMine] = useState<string[]>(Array.isArray(c.variants) ? (c.variants as string[]) : []);
   const [hidden, setHidden] = useState<string[]>(Array.isArray(c.hideVariants) ? (c.hideVariants as string[]) : []);
   const [nv, setNv] = useState("");
   const save = () => {
-    update(item.id, { name: name.trim() || item.name, config: { ...c, type, about, muscles, steps, pattern, variants: mine, hideVariants: hidden } });
+    update(item.id, { name: name.trim() || item.name, config: { ...c, type, about, muscles, steps, pattern, prop, variants: mine, hideVariants: hidden } });
     onClose();
   };
   return (
@@ -82,15 +86,23 @@ function ExerciseEditor({ item, onClose }: { item: CustomItem; onClose: () => vo
       <div>
         <div className="text-xs text-muted mb-1">Moving guide</div>
         <div className="flex gap-3 items-center">
-          <PoseDemo pattern={(pattern || base?.pattern) as Pattern} className="!w-24 shrink-0" />
+          {how.pose && <PoseDemo key={`${how.pose}${how.prop}`} pose={how.pose} prop={how.prop} scene={how.scene} className="!w-24 shrink-0" />}
           <div className="flex flex-wrap gap-1">
-            {PATTERNS.map(([v, l]) => <button key={v} onClick={() => setPattern(v)} className={`chip !px-2 !py-0.5 text-[11px] ${(pattern || base?.pattern) === v ? "chip-on" : ""}`}>{l}</button>)}
+            {PATTERNS.map(([v, l]) => <button key={v} onClick={() => setPattern(pattern === v ? "" : v)} className={`chip !px-2 !py-0.5 text-[11px] ${(pattern || base?.pattern) === v ? "chip-on" : ""}`}>{l}</button>)}
           </div>
+        </div>
+        <div className="text-xs text-muted mt-2 mb-1">Holding</div>
+        <div className="flex flex-wrap gap-1">
+          {([["", "Auto"], ["none", "Nothing"], ["dumbbell", "Dumbbell"], ["barbell", "Barbell"], ["kettlebell", "Kettlebell"]] as [Prop | "", string][]).map(([v, l]) => (
+            <button key={l} onClick={() => setProp(v)} className={`chip !px-2 !py-0.5 text-[11px] ${prop === v ? "chip-on" : ""}`}>{l}</button>
+          ))}
         </div>
       </div>
       <label className="text-xs text-muted block">How to do it (one step per line)<textarea className="input mt-1 min-h-20" placeholder={base?.steps?.join("\n") || "Step 1\nStep 2\nStep 3"} value={steps} onChange={(e) => setSteps(e.target.value)} /></label>
       <button onClick={save} className="btn-primary w-full">Save</button>
-      <button onClick={() => { if (confirm(`Delete ${item.name}? Your logged sets stay.`)) { remove(item.id); onClose(); } }} className="btn-ghost w-full text-rose-300">Delete exercise</button>
+      {builtIn
+        ? <button onClick={() => { remove(item.id); onClose(); }} className="btn-ghost w-full text-muted">Take off my list (it stays in the library)</button>
+        : <button onClick={() => { if (confirm(`Delete ${item.name}? Your logged sets stay.`)) { remove(item.id); onClose(); } }} className="btn-ghost w-full text-rose-300">Delete exercise</button>}
     </Sheet>
   );
 }
@@ -109,13 +121,21 @@ export default function TrainPage() {
   const [editing, setEditing] = useState(false);
   const [rest, setRest] = useState(0);
 
-  const ex = items.find((i) => i.id === sel) ?? items[0];
+  const [pending, setPending] = useState<string | null>(null);
+  const ex = items.find((i) => i.id === sel) ?? (pending ? items.find((i) => i.name === pending) : undefined) ?? items[0];
   const type = (ex?.config.type as string) ?? "reps";
   const move = ex ? myMove(ex.name, ex.config) : undefined;
   const [editEx, setEditEx] = useState<CustomItem | null>(null);
   const [q, setQ] = useState("");
-  const [variant, setVariant] = useState<string>("Standard");
-  const vr = variantOf(move, variant);
+  const [variant, setVariant] = useState<string | null>(null);
+  const [family, setFamily] = useState<string>("");
+  const vr = variantOf(move, variant ?? (ex ? variantFromName(move, ex.name) : undefined));
+  const pick = (name: string, t?: string) => {
+    const have = items.find((i) => i.name === name);
+    if (have) setSel(have.id); else { add(name, { type: t ?? "reps" }); setSel(null); setPending(name); }
+    setVariant(null);
+  };
+  const library = MOVES.filter((m) => m.kind === "body" && (!family || m.pattern === family) && (!q || `${m.name} ${m.muscles?.join(" ")} ${m.pattern}`.toLowerCase().includes(q.toLowerCase())));
 
   useEffect(() => {
     if (rest <= 0) return;
@@ -155,25 +175,31 @@ export default function TrainPage() {
       <div className="flex flex-wrap gap-2 mb-4">
         {items.map((i) => (
           <span key={i.id} className="relative">
-            <button onClick={() => { setSel(i.id); setVariant(myMove(i.name, i.config)?.variants?.find((x) => x.factor === 1)?.name ?? "Standard"); }} className={`chip ${ex?.id === i.id ? "chip-on" : ""}`}>{i.name}</button>
-            {editing && (
+            <button onClick={() => { setSel(i.id); setVariant(null); }} className={`chip ${ex?.id === i.id ? "chip-on" : ""}`}>{i.name}</button>
+            {editing && !moveOf(i.name) && (
               <button aria-label={`Remove ${i.name}`} onClick={() => remove(i.id)}
                 className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-rose-500 text-xs">✕</button>
             )}
           </span>
         ))}
       </div>
-      {editing && (
-        <div className="card p-3 mb-3 space-y-2">
-          <div className="text-xs text-muted">Exercise library: {MOVES.filter((m) => m.kind === "body").length} exercises. Tap to add.</div>
-          <input className="input" placeholder="Search (kettlebell, abs, back, stretch…)" value={q} onChange={(e) => setQ(e.target.value)} />
-          <div className="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto">
-            {MOVES.filter((m) => m.kind === "body" && !items.some((i) => moveOf(i.name) === m) && (!q || `${m.name} ${m.muscles?.join(" ")} ${m.pattern}`.toLowerCase().includes(q.toLowerCase()))).map((m) => (
-              <button key={m.name} onClick={() => add(m.name, { type: m.type ?? "reps" })} className="chip !py-1 text-xs">+ {m.name}</button>
-            ))}
+      <details className="card p-3 mb-3">
+        <summary className="text-sm font-semibold cursor-pointer">📚 All exercises ({MOVES.filter((m) => m.kind === "body").length}) · tap one to train it</summary>
+        <div className="space-y-2 mt-2">
+          <input className="input" placeholder="Search (kettlebell, abs, back, dumbbell…)" value={q} onChange={(e) => setQ(e.target.value)} />
+          <div className="flex flex-wrap gap-1">
+            <button onClick={() => setFamily("")} className={`chip !px-2 !py-0.5 text-[11px] ${!family ? "chip-on" : ""}`}>All</button>
+            {PATTERNS.map(([v, l]) => <button key={v} onClick={() => setFamily(family === v ? "" : v)} className={`chip !px-2 !py-0.5 text-[11px] ${family === v ? "chip-on" : ""}`}>{l}</button>)}
+          </div>
+          <div className="flex flex-wrap gap-1.5 max-h-64 overflow-y-auto">
+            {library.map((m) => {
+              const mine = items.some((i) => moveOf(i.name) === m);
+              return <button key={m.name} onClick={() => pick(m.name, m.type)} className={`chip !py-1 text-xs ${mine ? "chip-on" : ""}`}>{mine ? "✓ " : "+ "}{m.name}</button>;
+            })}
+            {!library.length && <div className="text-xs text-muted">Nothing found. Add it as your own below (tap Edit).</div>}
           </div>
         </div>
-      )}
+      </details>
       {editing && (
         <div className="card p-3 mb-4 flex gap-2">
           <input className="input" placeholder="New exercise" value={newEx} onChange={(e) => setNewEx(e.target.value)} />
@@ -197,7 +223,7 @@ export default function TrainPage() {
             <div>
               <div className="text-xs text-muted mb-1">Type</div>
               <div className="flex flex-wrap gap-1.5">
-                {move.variants.map((x) => <button key={x.name} onClick={() => setVariant(x.name)} className={`chip !py-1 text-xs ${(vr?.name ?? "Standard") === x.name ? "chip-on" : ""}`}>{x.name}</button>)}
+                {move.variants.map((x) => <button key={x.name} onClick={() => setVariant(x.name)} className={`chip !py-1 text-xs ${vr?.name === x.name ? "chip-on" : ""}`}>{x.name}</button>)}
               </div>
             </div>
           )}

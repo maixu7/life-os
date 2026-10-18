@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { battleFor, bodyOf, health, skills, strength, weightForecast, type Battle, type Lift } from "@/lib/body";
+import { howTo } from "@/lib/howto";
 import { PoseDemo, tutorialUrl } from "@/components/PoseDemo";
 import { moveOf, variantOf, type Move } from "@/lib/moves";
 import { toDay, useApp } from "@/lib/store";
@@ -212,6 +213,7 @@ export function ImpactCard({ name, variant, move }: { name: string; variant?: st
   const m = move ?? moveOf(name);
   if (!m) return null;
   const vr = variantOf(m, variant);
+  const how = howTo(m, vr?.name, name);
   return (
     <div className="rounded-xl bg-white/5 p-3 text-xs space-y-1">
       <div className="font-semibold text-sm">{m.kind === "body" ? "💪" : "🧠"} What {m.name.toLowerCase()} does for you</div>
@@ -220,10 +222,13 @@ export function ImpactCard({ name, variant, move }: { name: string; variant?: st
       {m.mind.length > 0 && <div><span className="text-muted">Mind: </span>{m.mind.join(", ")}</div>}
       {vr && <div><span className="text-muted">{vr.name}: </span>{vr.note}{vr.factor !== 1 ? ` (${vr.factor > 1 ? `${vr.factor}× harder` : `${Math.round(vr.factor * 100)}% of the effort`} than standard)` : ""}</div>}
       {m.science && <div className="text-muted">🔬 {m.science}</div>}
-      {m.kind === "body" && (m.pattern || m.steps?.length) ? (
+      {m.kind === "body" && (how.pose || how.steps?.length) ? (
         <div className="flex gap-3 items-center pt-2">
-          {m.pattern && <PoseDemo pattern={m.pattern} speed={vr && vr.factor > 1.3 ? 0.8 : 1} className="!w-28 shrink-0" />}
-          <ol className="list-decimal pl-4 space-y-0.5 flex-1 min-w-0">{(m.steps ?? []).map((s) => <li key={s}>{s}</li>)}</ol>
+          {how.pose && <PoseDemo key={`${how.pose}${how.prop}`} pose={how.pose} prop={how.prop} scene={how.scene} speed={vr && vr.factor > 1.3 ? 0.8 : 1} className="!w-32 shrink-0" />}
+          <div className="flex-1 min-w-0">
+            {vr && vr.name !== "Standard" && <div className="font-semibold mb-0.5">How to do {vr.name.toLowerCase()}{how.prop && how.prop !== "none" && !vr.name.toLowerCase().includes(how.prop) ? ` (with a ${how.prop})` : ""}</div>}
+            <ol className="list-decimal pl-4 space-y-0.5">{(how.steps ?? []).map((s) => <li key={s}>{s}</li>)}</ol>
+          </div>
         </div>
       ) : null}
       {m.kind === "body" && <a href={tutorialUrl(m.name, vr?.name)} target="_blank" rel="noreferrer" className="inline-block text-[var(--accent2)] underline">▶ Watch a video of {vr ? `${vr.name.toLowerCase()} ` : ""}{m.name.toLowerCase()}</a>}

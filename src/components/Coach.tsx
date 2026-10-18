@@ -6,7 +6,7 @@ import { nextTasks, snooze, type Action, type Task } from "@/lib/coach";
 import { isNapTime } from "@/lib/slots";
 import { useApp, useCustomItems } from "@/lib/store";
 import { ScheduleSheet } from "@/components/ScheduleSheet";
-import { gaps } from "@/lib/gaps";
+import { gaps, handledToday } from "@/lib/gaps";
 import { wokeRecently } from "@/lib/schedule";
 import { DAY_LABEL, fmt12, isQuiet, PHASE_LINES, phaseNow, sched, sleepTimes, type Now } from "@/lib/schedule";
 import { pick, SLEEP_WHY, WISDOM, type Wisdom } from "@/lib/wisdom";
@@ -134,7 +134,7 @@ function CheckGaps() {
   const { data } = useApp();
   const list = useMemo(() => {
     const seen = new Set<string>();
-    return [...gaps(data, "day").gaps, ...gaps(data, "week").gaps].filter((g) => !seen.has(g.id) && !!seen.add(g.id)).slice(0, 5);
+    return [...gaps(data, "day").gaps, ...gaps(data, "week").gaps].filter((g) => !handledToday(data, g.id) && !seen.has(g.id) && !!seen.add(g.id)).slice(0, 5);
   }, [data]);
   if (!list.length) return <p className="mt-3 text-sm text-center">✨ Nothing is lacking right now. Keep going!</p>;
   return (
@@ -194,7 +194,7 @@ export function Popper() {
   }, []);
 
   useEffect(() => {
-    if (!pop) return;
+    if (!pop || pop.kind === "wisdom") return; // quotes stay until tapped
     const t = setTimeout(() => setPop(null), 12_000);
     return () => clearTimeout(t);
   }, [pop]);
@@ -217,11 +217,7 @@ export function Popper() {
     next();
     return () => clearTimeout(timer);
   }, [sc.popups]);
-  useEffect(() => {
-    if (!quote) return;
-    const t = setTimeout(() => setQuote(null), 9000);
-    return () => clearTimeout(t);
-  }, [quote]);
+  // Quotes stay until the hero taps them.
 
   // Check-ins at 9 AM, 12 PM, 5 PM and 8 PM: what's lacking and what to do now.
   const [cp, setCp] = useState<{ hour: number; tasks: Task[] } | null>(null);
@@ -323,7 +319,7 @@ export function Popper() {
             </div>
             <p className="mt-4 font-game text-2xl font-black leading-snug">{quote.kind === "quote" ? `“${quote.text}”` : quote.text}</p>
             {quote.by && <p className="mt-3 text-sm text-muted">— {quote.by}</p>}
-            <p className="mt-8 text-[11px] text-muted">Tap anywhere to continue</p>
+            <p className="mt-8 text-[11px] text-muted">Tap to close</p>
           </div>
         </div>
       )}

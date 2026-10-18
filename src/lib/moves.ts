@@ -6,9 +6,11 @@ export type Move = {
   name: string; re: RegExp; kind: "body" | "mind"; type?: "reps" | "time" | "weight";
   variants?: Variant[]; muscles?: string[]; body: string[]; mind: string[]; science: string;
   pattern?: Pattern; steps?: string[];
+  pose?: PoseKey; prop?: Prop; scene?: Scene; ownSteps?: boolean; ownPose?: boolean; ownProp?: boolean;
 };
 
 import { EXTRA_MOVES, type Pattern } from "@/lib/exercises";
+import type { PoseKey, Prop, Scene } from "@/components/PoseDemo";
 
 const v = (name: string, factor: number, note: string): Variant => ({ name, factor, note });
 const MOOD = ["Mood up (endorphins)", "Stress down"];
@@ -114,7 +116,8 @@ export function myMove(name: string, config: Record<string, unknown>): Move | un
   const muscles = typeof config.muscles === "string" && config.muscles.trim() ? config.muscles.split(",").map((x) => x.trim()).filter(Boolean) : undefined;
   const steps = typeof config.steps === "string" && config.steps.trim() ? config.steps.split("\n").map((x) => x.trim()).filter(Boolean) : undefined;
   const about = typeof config.about === "string" ? config.about.trim() : "";
-  if (!base && !extra.length && !muscles && !steps && !about && !config.pattern) return undefined;
+  const prop = typeof config.prop === "string" && config.prop ? (config.prop as Prop) : undefined;
+  if (!base && !extra.length && !muscles && !steps && !about && !config.pattern && !prop) return undefined;
   const variants = [...(base?.variants ?? []).filter((v) => !hidden.includes(v.name)), ...extra];
   return {
     ...(base ?? { name, re: /$^/, kind: "body", body: ["Strength", "Fitness"], mind: ["Mood up (endorphins)", "Stress down"], science: "" }),
@@ -123,6 +126,9 @@ export function myMove(name: string, config: Record<string, unknown>): Move | un
     muscles: muscles ?? base?.muscles,
     steps: steps ?? base?.steps,
     pattern: (config.pattern as Pattern) || base?.pattern,
+    ...(config.pattern ? { pose: config.pattern as Pattern, ownPose: true } : {}),
+    ...(prop ? { prop, ownProp: true } : {}),
+    ownSteps: !!steps,
     science: about || base?.science || "",
   };
 }

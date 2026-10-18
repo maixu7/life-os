@@ -129,6 +129,7 @@ export default function TodayPage() {
         </label>
         <button aria-label="Next day" onClick={() => setDay(shiftDay(day, 1))} className="btn-ghost h-10 w-10 !p-0">›</button>
         {!isToday && <button onClick={() => setDay(today())} className="chip chip-on">Today</button>}
+        <Link href="/today" aria-label="Today's table" title="Today's table" className="btn-ghost h-10 w-10 !p-0 grid place-items-center text-lg">📋</Link>
       </div>
 
       {isToday && show("coach") && <CoachCard />}

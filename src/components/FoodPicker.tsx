@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Sheet } from "@/components/Sheet";
+import { LabelScan } from "@/components/LabelScan";
 import { allFoods, guessFood, type Eaten } from "@/lib/body";
 import { emojiFor } from "@/lib/emoji";
 import { lookupFood } from "@/lib/foodlookup";
@@ -111,28 +112,49 @@ export function FoodPicker({ value, onChange }: { value: Record<string, number>;
   );
 }
 
+// Your own foods with their real numbers; tap one to edit it.
+export function MyFoodsList() {
+  const { items, remove, update } = useCustomItems("food");
+  const [edit, setEdit] = useState<string | null>(null);
+  const [v, setV] = useState({ name: "", per: "", kcal: "", protein: "", contents: "" });
+  if (!items.length) return <p className="text-sm text-muted text-center py-2">No foods of your own yet.</p>;
+  return (
+    <ul className="divide-y divide-white/5">
+      {items.map((i) => (
+        <li key={i.id} className="py-2 text-sm">
+          <div className="flex items-start gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {typeof i.config.photo === "string" ? <img src={i.config.photo} alt="" className="h-9 w-9 rounded-lg object-cover" /> : <span className="text-xl">{String(i.config.emoji ?? "🍽️")}</span>}
+            <button className="flex-1 text-left" onClick={() => { setEdit(edit === i.id ? null : i.id); setV({ name: i.name, per: String(i.config.per ?? ""), kcal: String(i.config.kcal ?? ""), protein: String(i.config.protein ?? ""), contents: String(i.config.contents ?? "") }); }}>
+              <div className="font-semibold">{i.name}</div>
+              <div className="text-xs text-muted">{String(i.config.per)} · {String(i.config.kcal)} kcal · {String(i.config.protein ?? 0)} g protein{i.config.fat ? ` · fat ${i.config.fat} g` : ""}{i.config.carbs ? ` · carbs ${i.config.carbs} g` : ""}</div>
+            </button>
+            <button onClick={() => confirm(`Delete ${i.name}?`) && remove(i.id)} className="text-xs text-muted">✕</button>
+          </div>
+          {edit === i.id && (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <input className="input col-span-2" value={v.name} onChange={(e) => setV({ ...v, name: e.target.value })} />
+              <input className="input" placeholder="Per" value={v.per} onChange={(e) => setV({ ...v, per: e.target.value })} />
+              <input className="input" placeholder="kcal" inputMode="decimal" value={v.kcal} onChange={(e) => setV({ ...v, kcal: e.target.value })} />
+              <input className="input" placeholder="Protein g" inputMode="decimal" value={v.protein} onChange={(e) => setV({ ...v, protein: e.target.value })} />
+              <input className="input" placeholder="Contents" value={v.contents} onChange={(e) => setV({ ...v, contents: e.target.value })} />
+              <button className="btn-primary col-span-2 !py-2 text-sm" onClick={() => { update(i.id, { name: v.name.trim() || i.name, config: { ...i.config, per: v.per, kcal: Number(v.kcal) || 0, protein: Number(v.protein) || 0, contents: v.contents } }); setEdit(null); }}>Save</button>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 // Tools: list and add your own foods.
 export function MyFoodsSheet({ onClose }: { onClose: () => void }) {
-  const { items, remove } = useCustomItems("food");
   return (
     <Sheet title="🍽️ My foods" onClose={onClose}>
-      <p className="text-xs text-muted">Foods you add here show up in every meal with their real calories and protein. Bought something new? Add it with the numbers from the packet, or tap Auto-fill.</p>
+      <p className="text-xs text-muted">Foods you add here show up in every meal with their real calories and protein. Bought something new? Snap the label, add it with the numbers from the packet, or tap Auto-fill.</p>
+      <LabelScan />
       <MyFoodForm />
-      {items.length === 0 ? <p className="text-sm text-muted text-center py-2">No foods of your own yet.</p> : (
-        <ul className="divide-y divide-white/5">
-          {items.map((i) => (
-            <li key={i.id} className="py-2 flex items-start gap-2 text-sm">
-              <span className="text-xl">{String(i.config.emoji ?? "🍽️")}</span>
-              <div className="flex-1">
-                <div className="font-semibold">{i.name}</div>
-                <div className="text-xs text-muted">{String(i.config.per)} · {String(i.config.kcal)} kcal · {String(i.config.protein ?? 0)} g protein</div>
-                {typeof i.config.contents === "string" && i.config.contents && <div className="text-[11px] text-muted">{i.config.contents}</div>}
-              </div>
-              <button onClick={() => remove(i.id)} className="text-xs text-muted">✕</button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <MyFoodsList />
     </Sheet>
   );
 }

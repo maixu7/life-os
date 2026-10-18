@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { WhenPicker } from "@/components/When";
 import { FoodPicker, useEaten } from "@/components/FoodPicker";
+import { LabelScan } from "@/components/LabelScan";
 import { energy } from "@/lib/body";
 import { animeStyle, loadImage, recognise, smallPhoto } from "@/lib/foodphoto";
 import { toDay, useApp, type Log } from "@/lib/store";
@@ -38,8 +39,10 @@ export function MealSheet({ meal: initial, log, onClose }: { meal?: string; log?
   const kcal = list.reduce((n, x) => n + x.kcal, 0);
   const protein = Math.round(list.reduce((n, x) => n + x.protein, 0));
 
+  const [labelFiles, setLabelFiles] = useState<File[]>([]);
   const pick = async (f: File) => {
     setMsg(""); setGuesses([]);
+    setLabelFiles([f]); // also try to read a packet label in the photo
     const img = await loadImage(f);
     const art = animeStyle(img), plain = smallPhoto(img);
     setReal(plain); setArt(art); setPhoto(anime ? art : plain);
@@ -56,7 +59,7 @@ export function MealSheet({ meal: initial, log, onClose }: { meal?: string; log?
       if (r.foods.length) {
         setFoods((prev) => (Object.keys(prev).length ? prev : { [r.foods[0]]: 1 }));
         setMsg(`Looks like ${r.seen.slice(0, 2).join(" or ")}. Added ${r.foods[0]}; fix it below if that's wrong.`);
-      } else setMsg(`I see ${r.seen.slice(0, 2).join(" or ")}, but it isn't a food I know. Pick it from the list below.`);
+      } else setMsg(`I see ${r.seen.slice(0, 2).join(" or ")}, . If it's a packet, I'm reading its label below; otherwise pick the food from the list.`);
     } catch {
       setMsg("Couldn't recognise it (the food detector needs internet the first time). Pick the food below.");
     }
@@ -98,6 +101,7 @@ export function MealSheet({ meal: initial, log, onClose }: { meal?: string; log?
         </div>
       </div>
       <WhenPicker label="When did you eat" value={when} onChange={setWhen} />
+      <LabelScan files={labelFiles} compact onSaved={(n) => setFoods((p) => ({ ...p, [n]: (p[n] ?? 0) + 1 }))} />
       <FoodPicker value={foods} onChange={setFoods} />
       <textarea className="input min-h-14 text-sm" placeholder="What was in it? (ingredients, home made, how much oil…)" value={contents} onChange={(e) => setContents(e.target.value)} />
       <div className="rounded-xl bg-white/5 p-3 text-sm flex justify-between"><span>Total</span><b>{kcal} kcal · {protein} g protein</b></div>

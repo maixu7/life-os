@@ -1,4 +1,5 @@
 import type { Move, Variant } from "@/lib/moves";
+import type { PoseKey, Prop } from "@/components/PoseDemo";
 
 // 100+ more exercises, each with the muscles it works, what it does for you,
 // a how-to in three steps, and the movement pattern used for the moving guide.
@@ -190,11 +191,92 @@ const SIMPLE: [string, RegExp, Pattern, string[]][] = [
   ["Hula hoop", /hula/i, "twist", ["Core"]], ["Trampoline", /trampoline/i, "jump", ["Legs", "Heart"]],
 ];
 
+
+// 60 more exercises, each drawn the real-world way: the right moving
+// picture and the weight held in the hands.
+type More = [name: string, re: RegExp, pose: PoseKey, prop: Prop, type: "reps" | "time" | "weight", muscles: string[], steps: string[]];
+const DB = "dumbbell", BB = "barbell", KB = "kettlebell", NO = "none";
+const MORE: More[] = [
+  ["Dumbbell bench press", /dumbbell (bench|chest) press/i, "benchpress", DB, "weight", ["Chest", "Triceps", "Shoulders"], ["Lie on a bench, dumbbells at chest level.", "Press up until they nearly touch.", "Lower slowly until your elbows are just below the bench."]],
+  ["Incline barbell press", /incline (barbell|bench) press/i, "benchpress", BB, "weight", ["Upper chest", "Shoulders"], ["Set the bench to 30 to 45°.", "Lower the bar to your upper chest.", "Press up over your shoulders."]],
+  ["Floor press", /floor press/i, "benchpress", DB, "weight", ["Chest", "Triceps"], ["Lie on the floor with dumbbells above your chest.", "Lower until your upper arms touch the floor.", "Pause, then press up."]],
+  ["Dumbbell pullover", /pullover/i, "benchpress", DB, "weight", ["Lats", "Chest"], ["Lie across a bench holding one dumbbell above your chest with both hands.", "Lower it back behind your head with slightly bent arms.", "Pull it back over your chest."]],
+  ["Dumbbell shoulder press", /dumbbell (shoulder|overhead) press/i, "ohpress", DB, "weight", ["Shoulders", "Triceps"], ["Dumbbells at shoulder height, palms forward.", "Press straight up until your arms lock.", "Lower to your shoulders slowly."]],
+  ["Push press", /push press/i, "ohpress", BB, "weight", ["Shoulders", "Legs", "Triceps"], ["Bar on the front of your shoulders.", "Dip your knees a little, then drive up with your legs.", "Use that push to press the bar overhead."]],
+  ["Kettlebell clean and press", /kettlebell clean (and|&) press/i, "clean", KB, "weight", ["Shoulders", "Hips", "Back"], ["Swing the bell back between your legs.", "Snap your hips to clean it to your shoulder.", "Press it overhead, lower to the rack, repeat."]],
+  ["Barbell clean and press", /(barbell )?clean (and|&) (press|jerk)/i, "clean", BB, "weight", ["Whole body"], ["Bar on the floor, grip just outside your knees.", "Pull fast, then drop under it to catch it on your shoulders.", "Press or jerk it overhead."]],
+  ["Power clean", /power clean|hang clean/i, "clean", BB, "weight", ["Legs", "Back", "Traps"], ["Start like a deadlift.", "Jump with the bar, shrugging hard as it passes your hips.", "Whip your elbows forward to catch it on your shoulders."]],
+  ["Thruster", /thruster/i, "frontsquat", BB, "weight", ["Legs", "Shoulders"], ["Front squat with the bar on your shoulders.", "Drive up out of the squat.", "Use that speed to press the bar overhead in one move."]],
+  ["Power snatch", /power snatch|barbell snatch/i, "snatch", BB, "weight", ["Whole body"], ["Wide grip, bar over your feet.", "Pull fast and jump, keeping the bar close.", "Punch it overhead and catch it with locked arms."]],
+  ["Dumbbell snatch", /dumbbell snatch/i, "snatch", DB, "weight", ["Hips", "Shoulders", "Back"], ["Dumbbell between your feet, hinge and grab it.", "Snap your hips and pull it up close to your body.", "Punch it overhead, then lower to repeat."]],
+  ["Dumbbell deadlift", /dumbbell deadlift/i, "deadlift", DB, "weight", ["Hamstrings", "Glutes", "Back"], ["Dumbbells in front of your shins, back flat.", "Stand up, pushing the floor away.", "Hinge to lower them along your legs."]],
+  ["Kettlebell deadlift", /kettlebell deadlift/i, "deadlift", KB, "weight", ["Hamstrings", "Glutes", "Back"], ["Bell between your feet.", "Hinge down, grab the handle, flat back.", "Stand up tall, squeezing your glutes."]],
+  ["Dumbbell lunge", /dumbbell lunge|weighted lunge/i, "lunge", DB, "weight", ["Quads", "Glutes"], ["Hold dumbbells at your sides.", "Step forward and lower your back knee.", "Push back up and switch legs."]],
+  ["Bulgarian split squat", /bulgarian|split squat/i, "lunge", DB, "weight", ["Quads", "Glutes"], ["Back foot on a bench, dumbbells at your sides.", "Lower your back knee towards the floor.", "Push up through your front heel."]],
+  ["Barbell back squat", /back squat|barbell squat/i, "squat", BB, "weight", ["Quads", "Glutes", "Back"], ["Bar on your upper back, hands just outside your shoulders.", "Sit down until your thighs are level.", "Drive up, chest leading."]],
+  ["Overhead squat", /overhead squat/i, "squat", BB, "weight", ["Legs", "Shoulders", "Core"], ["Hold the bar overhead with a wide grip.", "Squat down keeping the bar over your feet.", "Stand up with arms locked."]],
+  ["Dumbbell squat", /dumbbell squat/i, "squat", DB, "weight", ["Quads", "Glutes"], ["Dumbbells at your sides.", "Squat down, chest up.", "Stand up through your heels."]],
+  ["Smith machine squat", /smith/i, "squat", BB, "weight", ["Quads", "Glutes"], ["Bar on your upper back, feet slightly forward.", "Squat down along the rails.", "Press up."]],
+  ["Shrimp squat", /shrimp/i, "pistol", NO, "reps", ["Quads", "Balance"], ["Stand on one leg, hold the other foot behind you.", "Lower until your back knee touches the floor.", "Stand up on the one leg."]],
+  ["Deep squat hold", /deep squat|squat hold|malasana/i, "squat", NO, "time", ["Hips", "Ankles"], ["Feet shoulder-width, sit all the way down.", "Elbows push your knees out, chest up.", "Hold and breathe."]],
+  ["Jump lunges", /jump lunge|split jump/i, "jumpsquat", NO, "reps", ["Legs", "Heart"], ["Start in a lunge.", "Jump and switch legs in the air.", "Land softly in a lunge."]],
+  ["Depth jump", /depth jump|drop jump/i, "boxjump", NO, "reps", ["Legs"], ["Stand on a low box.", "Step off and land on both feet.", "Jump up the moment you land."]],
+  ["Lateral hops", /lateral hop|line hop/i, "jump", NO, "time", ["Calves", "Ankles"], ["Stand beside a line.", "Hop side to side over it quickly.", "Stay light on your toes."]],
+  ["Agility ladder", /ladder/i, "highknee", NO, "time", ["Legs", "Coordination"], ["Lay a ladder (or tape) on the floor.", "Step quickly into each box, two feet per box.", "Speed up as you learn the pattern."]],
+  ["Sprints", /sprint/i, "highknee", NO, "time", ["Legs", "Heart"], ["Warm up first.", "Run all out for 10 to 30 seconds.", "Walk back to recover, repeat."]],
+  ["Shuttle run", /shuttle/i, "run", NO, "time", ["Legs", "Heart"], ["Two lines 10 m apart.", "Sprint, touch the line, turn and sprint back.", "Repeat for time."]],
+  ["Wall push-up", /wall push/i, "inclinepush", NO, "reps", ["Chest", "Arms"], ["Hands on a wall at shoulder height.", "Lean in until your nose nearly touches.", "Push back. The easiest push-up."]],
+  ["Hindu push-up", /hindu push|dive.?bomb/i, "pikepush", NO, "reps", ["Shoulders", "Chest", "Back"], ["Start in downward dog, hips high.", "Swoop your chest down and forward close to the floor.", "Push up into cobra, then back to the start."]],
+  ["Spiderman push-up", /spider.?man/i, "push", NO, "reps", ["Chest", "Obliques"], ["Normal push-up position.", "As you lower, bring one knee to your elbow.", "Push up and switch sides."]],
+  ["Typewriter push-up", /typewriter/i, "push", NO, "reps", ["Chest", "Triceps"], ["Hands very wide.", "Lower, then shift side to side at the bottom.", "Push up."]],
+  ["Pseudo planche push-up", /pseudo planche|planche push/i, "push", NO, "reps", ["Shoulders", "Chest"], ["Hands by your waist, fingers turned out.", "Lean forward over your hands.", "Do push-ups keeping that lean."]],
+  ["Dead hang", /dead hang|bar hang/i, "pull", NO, "time", ["Grip", "Shoulders"], ["Grab a bar shoulder-width.", "Hang with relaxed legs.", "Hold as long as you can."]],
+  ["Scapular pull-up", /scap/i, "pull", NO, "reps", ["Lower traps", "Lats"], ["Hang from a bar, arms straight.", "Pull your shoulders down without bending your arms.", "Relax back up."]],
+  ["Front lever", /front lever/i, "pull", NO, "time", ["Lats", "Core"], ["Hang from a bar.", "Lean back and lift your body flat (tuck your knees to start).", "Hold."]],
+  ["Skin the cat", /skin the cat/i, "pull", NO, "reps", ["Shoulders", "Core"], ["Hang from a bar or rings.", "Tuck your knees and rotate backwards through your arms.", "Come back the same way."]],
+  ["Spider curl", /spider curl/i, "seatcurl", DB, "weight", ["Biceps"], ["Lie chest-down on an incline bench, arms hanging.", "Curl the dumbbells up.", "Lower slowly."]],
+  ["Cable curl", /cable curl/i, "curl", NO, "weight", ["Biceps"], ["Face a low cable, hold the bar.", "Curl up, elbows still.", "Lower slowly."]],
+  ["EZ-bar curl", /ez.?bar curl/i, "curl", BB, "weight", ["Biceps", "Forearms"], ["Hold the EZ bar on the angled grips.", "Curl to your chest.", "Lower slowly."]],
+  ["Renegade row", /renegade/i, "row", DB, "weight", ["Back", "Core"], ["Plank on two dumbbells.", "Row one to your hip without twisting.", "Lower and switch."]],
+  ["Seal row", /seal row|chest.?supported row/i, "row", DB, "weight", ["Upper back"], ["Lie chest-down on a high bench.", "Row the dumbbells up to your ribs.", "Lower slowly."]],
+  ["Gorilla row", /gorilla row/i, "row", KB, "weight", ["Back", "Core"], ["Two kettlebells between your feet, hinge down.", "Row one up while pushing the other down.", "Alternate sides."]],
+  ["Meadows row", /meadows/i, "row", BB, "weight", ["Lats", "Upper back"], ["Stand side-on to a landmine bar.", "Grab the end and row it up.", "Lower slowly."]],
+  ["Y-T-W raise", /y.?t.?w|ytw/i, "armraise", DB, "weight", ["Rear shoulders", "Upper back"], ["Lie chest-down or hinge forward with light weights.", "Raise your arms in a Y, then T, then W shape.", "Lower slowly each time."]],
+  ["Cuban press", /cuban/i, "ohpress", DB, "weight", ["Rotator cuff", "Shoulders"], ["Light dumbbells, upright row to elbow height.", "Rotate the weights up so forearms point up.", "Press overhead, then reverse."]],
+  ["Devil press", /devil press/i, "burpee", DB, "weight", ["Whole body"], ["Hands on two dumbbells, do a burpee.", "Jump your feet in and swing the dumbbells up.", "Finish with them overhead."]],
+  ["Man maker", /man.?maker/i, "burpee", DB, "weight", ["Whole body"], ["Push-up on dumbbells, row each side.", "Jump in and clean them to your shoulders.", "Squat and press overhead (a thruster)."]],
+  ["Wall ball", /wall ball/i, "frontsquat", NO, "reps", ["Legs", "Shoulders"], ["Hold a medicine ball at your chest facing a wall.", "Squat, then throw the ball high up the wall.", "Catch it and drop into the next squat."]],
+  ["Medicine ball slam", /ball slam|slam ball/i, "ohpress", NO, "reps", ["Core", "Shoulders"], ["Lift the ball overhead on your toes.", "Slam it hard to the floor.", "Pick it up and repeat."]],
+  ["Sledgehammer", /sledge/i, "ohpress", NO, "reps", ["Core", "Shoulders", "Grip"], ["Stand in front of a tyre.", "Swing the hammer up and over.", "Strike, then switch hands."]],
+  ["Tyre flip", /tire flip|tyre flip|tyre/i, "deadlift", NO, "reps", ["Whole body"], ["Squat down, fingers under the tyre.", "Drive it up with your legs and hips.", "Push it over."]],
+  ["Suitcase carry", /suitcase/i, "run", KB, "time", ["Obliques", "Grip"], ["Hold one heavy weight in one hand.", "Walk tall without leaning.", "Switch hands."]],
+  ["Overhead carry", /overhead carry|waiter/i, "run", DB, "time", ["Shoulders", "Core"], ["Press a weight overhead.", "Walk with the arm locked.", "Switch hands."]],
+  ["Glute ham raise", /glute.?ham|\bghr\b/i, "hinge", NO, "reps", ["Hamstrings", "Glutes"], ["Lock your feet in the machine.", "Lower your body forward.", "Curl back up with your hamstrings."]],
+  ["Hip abduction", /abduct|clamshell|clam shell/i, "bridge", NO, "reps", ["Outer glutes"], ["Lie on your side, knees bent.", "Open your top knee like a clamshell.", "Lower slowly."]],
+  ["Hip adduction", /adduct/i, "bridge", NO, "reps", ["Inner thighs"], ["Sit at the machine or lie on your side.", "Squeeze your legs together.", "Release slowly."]],
+  ["Glute kickback", /glute kickback|cable kickback/i, "bridge", NO, "reps", ["Glutes"], ["On hands and knees (or at a cable).", "Kick one leg straight back and up.", "Lower and switch."]],
+  ["Jackknife", /jack.?knife/i, "situp", NO, "reps", ["Abs"], ["Lie flat, arms overhead.", "Fold up so hands meet feet.", "Lower slowly."]],
+  ["Plank up-downs", /up.?down|plank to push/i, "plank", NO, "reps", ["Core", "Triceps"], ["Forearm plank.", "Push up onto one hand, then the other.", "Lower back down one arm at a time."]],
+  ["Human flag", /human flag/i, "plank", NO, "time", ["Obliques", "Shoulders"], ["Grip a vertical pole, hands wide.", "Push with the bottom arm, pull with the top.", "Lift your body sideways and hold."]],
+  ["Planche lean", /planche lean/i, "plank", NO, "time", ["Shoulders", "Wrists"], ["Push-up position, fingers turned out.", "Lean your shoulders forward past your hands.", "Hold."]],
+  ["Wall angels", /wall angel/i, "armraise", NO, "reps", ["Upper back", "Shoulders"], ["Stand with your back on a wall, arms in a W.", "Slide your arms up the wall.", "Slide them back down."]],
+  ["World's greatest stretch", /greatest stretch/i, "lunge", NO, "reps", ["Hips", "Spine"], ["Step into a deep lunge.", "Drop the inside elbow to the floor.", "Rotate and reach the arm to the sky."]],
+  ["Pigeon pose", /pigeon/i, "stretch", NO, "time", ["Glutes", "Hips"], ["Front shin across in front of you, back leg long.", "Lower your hips.", "Fold forward and hold."]],
+  ["Butterfly stretch", /butterfly/i, "stretch", NO, "time", ["Inner thighs"], ["Sit with soles of your feet together.", "Let your knees drop.", "Lean forward gently."]],
+  ["Quad stretch", /quad stretch/i, "stretch", NO, "time", ["Quads"], ["Stand on one leg.", "Pull your other heel to your bottom.", "Hold 30 seconds each side."]],
+  ["Calf stretch", /calf stretch/i, "stretch", NO, "time", ["Calves"], ["Hands on a wall, one leg back.", "Press the back heel down.", "Hold each side."]],
+  ["Chest stretch", /doorway|chest stretch/i, "stretch", NO, "time", ["Chest", "Shoulders"], ["Forearm on a door frame.", "Step through gently.", "Hold 30 seconds each side."]],
+  ["Thoracic rotation", /thoracic|t.?spine|open book/i, "twist", NO, "reps", ["Upper back"], ["Lie on your side, knees bent.", "Open your top arm like a book.", "Return slowly."]],
+];
+// Which pattern family each picture belongs to (for search and the editor).
+const FAMILY: Partial<Record<PoseKey, Pattern>> = { benchpress: "push", ohpress: "press", clean: "hinge", frontsquat: "squat", snatch: "hinge", deadlift: "hinge", pistol: "squat", jumpsquat: "jump", boxjump: "jump", highknee: "run", inclinepush: "push", pikepush: "press", seatcurl: "curl", burpee: "jump", situp: "crunch", armraise: "raise" };
+
 const toMove = ([name, re, pattern, type, muscles, body, steps, variants, mind]: Row): Move & { pattern: Pattern; steps: string[] } => ({
   name, re, kind: "body", type, muscles, body, mind: mind ?? MOOD, science: "", variants, pattern, steps,
 });
 
 export const EXTRA_MOVES: (Move & { pattern: Pattern; steps: string[] })[] = [
   ...ROWS.map(toMove),
+  ...MORE.map(([name, re, pose, prop, type, muscles, steps]) => ({ name, re, kind: "body" as const, type, muscles, body: ["Strength", "Fitness"], mind: MOOD, science: "", pattern: FAMILY[pose] ?? (pose as Pattern), pose, prop, steps })),
   ...SIMPLE.map(([name, re, pattern, muscles]) => ({ name, re, kind: "body" as const, type: "reps" as const, muscles, body: ["Strength", "Muscle tone"], mind: MOOD, science: "", pattern, steps: [] })),
 ];

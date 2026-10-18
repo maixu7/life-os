@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRunAction } from "@/components/Coach";
-import { gaps, PERIODS, type Period } from "@/lib/gaps";
+import { gaps, handledToday, PERIODS, type Period } from "@/lib/gaps";
 import { useApp } from "@/lib/store";
 
 // What's lacking in the hero's real life, by day, week, month or year.
@@ -28,7 +28,7 @@ export function GapsCard() {
                   <div className="text-sm font-semibold">{g.label}</div>
                   <div className="text-xs text-muted">Now: <span className="text-rose-300">{g.have}</span> · Need: {g.need}</div>
                 </div>
-                <button onClick={() => run(g.task.action)} className="btn-primary !px-3 !py-1.5 text-xs">Fix</button>
+                {handledToday(data, g.id) ? <span className="chip !py-1 text-xs text-emerald-300">✓ Done today</span> : <button onClick={() => run(g.task.action)} className="btn-primary !px-3 !py-1.5 text-xs">Fix</button>}
               </div>
               <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-rose-400" style={{ width: `${Math.max(8, g.severity * 100)}%` }} /></div>
               <div className="mt-1 text-[11px] text-muted">➡️ {g.task.title}. {g.task.why}</div>
