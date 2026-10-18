@@ -6,6 +6,8 @@ import { Popper } from "@/components/Coach";
 import { BattleWatcher } from "@/components/RealMe";
 import { ReminderWatcher } from "@/components/tools/Insights";
 import { PushSync } from "@/components/Push";
+import { BottleWatcher } from "@/components/FoodPlus";
+import { PaydayWatcher } from "@/components/Money";
 import { GameWatcher } from "@/components/GameWatcher";
 import { Gate } from "@/components/Gate";
 import { Nav } from "@/components/Nav";
@@ -26,6 +28,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <BattleWatcher />
       <ReminderWatcher />
       <PushSync />
+      <BottleWatcher />
+      <PaydayWatcher />
       <DoingTray />
       <CelebrationLayer />
       <AlarmLayer />

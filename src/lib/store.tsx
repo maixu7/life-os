@@ -22,7 +22,15 @@ export type Settings = {
   ui?: Ui; // bottom menu tabs and hidden Base Camp sections
   study_plan?: StudyItem[]; // what to study each day and how much
   study_lock?: boolean; // fun (anime, manga, games…) waits until today's study is done
+  // Food and money extras (lib/money.ts, components/FoodPlus.tsx, components/Money.tsx)
+  protein_goal_g?: number; // daily protein target; unset = 0.8 g per kg
+  bottle_ml?: number; bottle_remind?: boolean; // the water bottle you refill, and refill nudges
+  caffeine_cutoff?: number; // hour after which caffeine gets a sleep warning (15 = 3 PM)
+  cat_budgets?: Record<string, number>; // monthly budget per spending category
+  payday?: Payday; // allowance day and "pay yourself first"
+  grocery_skip?: string[]; // names the auto grocery list should stop suggesting
 };
+export type Payday = { day: number; pct: number; amount?: number; jar?: string; auto: boolean };
 export type StudyItem = { id: string; subject: string; what: string; mins: number; pages?: number };
 export type Avatar = {
   skin: string; hair: string; hairStyle: number; eyes: string; outfit: string; accessory: number; heroClass: string;

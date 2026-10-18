@@ -7,6 +7,7 @@ import { DRINK_CATS, DRINKS, type Drink, type DrinkCat } from "@/lib/drinks";
 import { useApp } from "@/lib/store";
 import { drinkGoodness, scoreColor } from "@/lib/goodness";
 import { GoodBadge } from "@/components/GoodBadge";
+import { CaffeineWarning } from "@/components/FoodPlus";
 
 // Any drink: pick it, pick how much, and the app logs calories, sugar and
 // caffeine. Water and milk count toward their goals.
@@ -66,6 +67,7 @@ export function DrinkSheet({ onClose, at, start, slot }: { onClose: () => void; 
           </div>
           <GoodBadge g={drinkGoodness(pick, ml)} />
           {pick.sugar100 * k > 25 && <p className="text-[11px] text-rose-300">That&apos;s more sugar than the WHO&apos;s ideal for a whole day (25 g).</p>}
+          <CaffeineWarning mg={Math.round((pick.caffeine100 ?? 0) * k)} />
           {pick.alcohol ? <p className="text-[11px] text-amber-300">Alcohol {pick.alcohol}%. Drink water too, and not before training.</p> : null}
           <button onClick={save} className="btn-primary w-full">Log it (drank)</button>
           <StartButton onClick={save} label="▶ Start drinking, tick Complete after" />

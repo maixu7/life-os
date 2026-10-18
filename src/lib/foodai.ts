@@ -49,3 +49,15 @@ export async function readProduct(s: Session, photo: string, hint = ""): Promise
     return { error: j.error ?? "Couldn't read it" };
   } catch { return { error: "offline" }; }
 }
+
+// Receipt scanner: every line of a shop receipt, with category and price.
+export type ReceiptLine = { name: string; name_ja: string; qty: number; unit: string; price: number; category: string; kind: string; emoji: string };
+export type ReceiptRead = { found: boolean; store: string; date: string; items: ReceiptLine[]; total: number; note: string };
+export async function readReceipt(s: Session, photo: string): Promise<{ receipt?: ReceiptRead; error?: string }> {
+  try {
+    const r = await fetch("/api/food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: s.user, auth: s.auth, image: photo, mode: "receipt" }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && Array.isArray(j.items)) return { receipt: j as ReceiptRead };
+    return { error: j.error ?? "Couldn't read it" };
+  } catch { return { error: "offline" }; }
+}

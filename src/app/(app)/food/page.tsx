@@ -13,6 +13,7 @@ import { haveFoods, whenToEat } from "@/lib/have";
 import type { Eaten } from "@/lib/body";
 import { LabelScan } from "@/components/LabelScan";
 import { MyFoodForm, MyFoodsList } from "@/components/FoodPicker";
+import { BottleCard, CaffeineCard, FoodCostCard, FoodIdeas, ProteinCard, UsualMeals } from "@/components/FoodPlus";
 import { energy } from "@/lib/body";
 import { toDay, useApp } from "@/lib/store";
 
@@ -29,6 +30,7 @@ export default function FoodPage() {
       <XpHeader title="Food" icon="🍱" subtitle="What you eat, with real calories" />
       <Blocks page="/food" parts={{
         quick: <QuickBar />,
+        usual: <UsualMeals />, protein: <ProteinCard />, coffee: <CaffeineCard />, bottle: <BottleCard />, ideas: <FoodIdeas />, cost: <FoodCostCard />,
         meals: (
         <>
       <MealsCard />
