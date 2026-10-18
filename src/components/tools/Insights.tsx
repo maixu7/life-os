@@ -1,5 +1,6 @@
 "use client";
 
+import { PushCard } from "@/components/Push";
 import { AlarmSettings } from "@/components/AlarmSettings";
 import { alarmPrefs, fireAlarm } from "@/lib/alarm";
 
@@ -263,13 +264,10 @@ export function RemindersSheet({ onClose }: { onClose: () => void }) {
   const { items, add, remove } = useCustomItems("reminder");
   const [time, setTime] = useState("21:30");
   const [text, setText] = useState("");
-  const [perm, setPerm] = useState(typeof Notification !== "undefined" ? Notification.permission : "denied");
   return (
     <Sheet title="⏰ Reminders" onClose={onClose}>
-      <p className="text-sm text-muted">Daily reminders. They pop up in the app, and as notifications when you allow them. Phones may hold notifications back while the app is fully closed.</p>
-      {perm !== "granted" && typeof Notification !== "undefined" && (
-        <button className="btn-ghost w-full" onClick={async () => setPerm(await Notification.requestPermission())}>Allow notifications</button>
-      )}
+      <p className="text-sm text-muted">Daily reminders. They pop up in the app, and as phone notifications when you turn them on below.</p>
+      <PushCard />
       <div className="flex gap-2">
         <input type="time" className="input !w-32" value={time} onChange={(e) => setTime(e.target.value)} />
         <input className="input" placeholder="Brush teeth and sleep" value={text} onChange={(e) => setText(e.target.value)} />

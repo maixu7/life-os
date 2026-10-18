@@ -5,6 +5,7 @@ import { DoingTray } from "@/components/Doing";
 import { Popper } from "@/components/Coach";
 import { BattleWatcher } from "@/components/RealMe";
 import { ReminderWatcher } from "@/components/tools/Insights";
+import { PushSync } from "@/components/Push";
 import { GameWatcher } from "@/components/GameWatcher";
 import { Gate } from "@/components/Gate";
 import { Nav } from "@/components/Nav";
@@ -24,6 +25,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Popper />
       <BattleWatcher />
       <ReminderWatcher />
+      <PushSync />
       <DoingTray />
       <CelebrationLayer />
       <AlarmLayer />

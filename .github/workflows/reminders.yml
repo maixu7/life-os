@@ -1,0 +1,12 @@
+# Rings the reminder bell so phone notifications arrive while the app is closed.
+name: reminders
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: curl -fsS --max-time 60 https://life-os-three-olive-57.vercel.app/api/push/tick || true
