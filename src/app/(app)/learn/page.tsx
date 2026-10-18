@@ -1,6 +1,7 @@
 "use client";
 
 import { LearnToday } from "@/components/Learn";
+import { StudyPlan } from "@/components/StudyPlan";
 import { Library } from "@/components/Library";
 import { SkillsList } from "@/components/RealMe";
 import Link from "next/link";
@@ -14,6 +15,7 @@ export default function LearnPage() {
   return (
     <>
       <XpHeader title="Learning Path" icon="📖" subtitle="Knowledge is the main quest. Every day, Day 1 smarter." />
+      <StudyPlan />
       <LearnToday />
       <Link href="/have" className="card p-3 mb-4 block text-xs">
         📚 {books.length ? <>Books you have: <b>{books.map((b) => b.name).join(", ")}</b>. Read one today and log the pages below.</> : <>Add the books you own in What I have, and they show up here to read.</>}

@@ -22,7 +22,7 @@ const G: [Group, RegExp][] = [
   ["nuts", /nut|almond|cashew|peanut|walnut|seed|ナッツ/i],
   ["sweets", /chocolate|choco|cake|biscuit|cookie|candy|ice ?cream|donut|doughnut|sweet|mithai|jamun|laddu|halwa|pastry|wafer|dessert|pudding|チョコ|ケーキ|菓子|クッキー|ビスケット|アイス/i],
   ["fried", /chips|crisps|fries|fried|karaage|tempura|burger|pizza|maggi|instant noodle|cup noodle|ramen|samosa|pakora|kurkure|puri|nugget|揚げ|ポテト|カップ麺/i],
-  ["sugary", /cola|coke|pepsi|soda|fanta|sprite|energy drink|red bull|monster|juice|frappuccino|sweet tea|ジュース|コーラ/i],
+  ["sugary", /\bcola\b|coca.?cola|coke|pepsi|soda|fanta|sprite|energy drink|red bull|monster|juice|frappuccino|sweet tea|ジュース|コーラ/i],
 ];
 export const groupsOf = (f: Pick<Eaten, "name" | "contents">) => {
   const out = G.filter(([, re]) => re.test(`${f.name} ${f.contents ?? ""}`)).map(([g]) => g);

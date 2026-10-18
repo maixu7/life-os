@@ -20,7 +20,10 @@ export type Settings = {
   allowances: Record<string, number>; // "2026-10" -> allowance for that month
   schedule?: Partial<Schedule>; // wake/sleep, work hours, breaks, holidays
   ui?: Ui; // bottom menu tabs and hidden Base Camp sections
+  study_plan?: StudyItem[]; // what to study each day and how much
+  study_lock?: boolean; // fun (anime, manga, games…) waits until today's study is done
 };
+export type StudyItem = { id: string; subject: string; what: string; mins: number; pages?: number };
 export type Avatar = {
   skin: string; hair: string; hairStyle: number; eyes: string; outfit: string; accessory: number; heroClass: string;
   pants?: string; shoes?: string; expression?: number; gender?: "boy" | "girl";

@@ -22,7 +22,7 @@ export const DEFAULT_TABS = ["/learn", "/food", "/doctor", "/train", "/today", "
 export const MAX_TABS = 9;
 
 export const SECTIONS: [string, string][] = [
-  ["coach", "🥷 Sensei's next tasks"], ["learn", "📖 Learning today"], ["gaps", "🔍 What you're lacking"], ["care", "🩺 Take care of me"], ["sleep", "😴 Sleep and wake"],
+  ["coach", "🥷 Sensei's next tasks"], ["learn", "📖 Learning today"], ["gaps", "🔍 What you're lacking"], ["fix", "🚨 Fix my worst habits"], ["care", "🩺 Take care of me"], ["sleep", "😴 Sleep and wake"],
   ["meals", "🍱 Food today"], ["gauges", "🎯 Today's gauges"], ["boss", "👹 Weekly boss and chest"], ["missions", "⚔ Daily missions"],
   ["potions", "🧪 Water and milk"], ["quests", "🗺 Side quests"], ["habits", "🔁 Habit quests"], ["library", "📚 Library"], ["pantry", "🎒 Inventory"],
 ];

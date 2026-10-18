@@ -1,5 +1,6 @@
 "use client";
 
+import { StudyLock } from "@/components/FixCard";
 import { WhenPicker } from "@/components/When";
 import { useEffect, useMemo, useState } from "react";
 import { Pic } from "@/components/Pic";
@@ -222,6 +223,7 @@ function MediaSheet({ start, at, onClose, onLogged }: { start: Recent; at: () =>
       <WherePicker value={where} onChange={setWhere} />
       <WhenPicker label="When" value={when} onChange={setWhen} />
       <input className="input" placeholder="Note: what did you learn or think? (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+      {!m.good && title.trim() && <StudyLock />}
       <button onClick={save} disabled={!title.trim()} className="btn-primary w-full">Log it</button>
     </Sheet>
   );

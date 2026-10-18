@@ -2,6 +2,7 @@ import { gaps, handledToday } from "@/lib/gaps";
 import { habitStats, judged, tplOf } from "@/lib/habits";
 import { sumMl } from "@/lib/goals";
 import { logKarma } from "@/lib/karma";
+import { studyGate, worst } from "@/lib/worst";
 import { isOffDay, phaseNow, sched, toMin, wokeRecently } from "@/lib/schedule";
 import { pick, SLEEP_WHY } from "@/lib/wisdom";
 import type { CustomItem, Data, Log } from "@/lib/store";
@@ -82,6 +83,19 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
     const code = logs.filter((l) => l.kind === "coding").reduce((n, l) => n + (Number(l.data.minutes) || 0), 0);
     if (sc.codeGoal && code < sc.codeGoal) add({ id: "free-code", icon: "💻", title: `Code for ${sc.codeGoal - code} minutes`, priority: 61, action: { type: "activity", name: "Coding" },
       because: `No work today, and your coding goal is ${code}/${sc.codeGoal} min.`, why: "Skills compound. A free day is a bonus training day." });
+  }
+
+  // Exam study comes before any fun, and the worst habits get a fix every day.
+  const gate = studyGate(d, now);
+  if (gate.locked && !busy && ph.phase !== "sleep" && ph.phase !== "winddown") {
+    add({ id: "study-first", icon: "🔒", title: `Study ${gate.next?.subject ?? ""} ${gate.left} min before any fun`.replace(/  +/g, " "), priority: 86, action: { type: "href", href: `/focus?start=1${gate.next ? `&subject=${encodeURIComponent(gate.next.subject)}` : ""}` },
+      because: gate.text, why: "Exams decide years of your life; anime and manga will still be there after. Study first, then enjoy them guilt-free." });
+  }
+  if (!busy && ph.phase !== "sleep") {
+    for (const r of worst(d, now).filter((x) => !x.doneToday && !(gate.locked && x.id === "fun")).slice(0, 2)) {
+      add({ id: `fix:${r.id}`, icon: r.icon, title: r.today, priority: Math.round(55 + r.risk / 4), action: { type: "href", href: r.href },
+        because: `${r.name} is one of your worst habits right now (${r.have}; goal ${r.goal}). ${r.progress}.`, why: r.why });
+    }
   }
 
   const badMin = logs.filter((l) => logKarma(l) < 0 && (l.kind === "media" || l.kind === "activity")).reduce((n, l) => n + (Number(l.data.minutes) || 30), 0);

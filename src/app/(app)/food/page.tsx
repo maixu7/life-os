@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { CareCard } from "@/components/CareCard";
+import { EatNextList } from "@/components/FixCard";
 import { DrinkSheet } from "@/components/Drinks";
 import { FoodThumbs, MealSheet, MealsCard } from "@/components/Meals";
 import { Pic } from "@/components/Pic";
@@ -28,6 +29,7 @@ export default function FoodPage() {
       <MealsCard />
       <button onClick={() => setDrink(true)} className="btn-ghost w-full mb-4 border border-dashed border-white/25 text-sm">🥤 Log a drink (tea, coffee, sports drink, cola, soy milk…)</button>
       {drink && <DrinkSheet onClose={() => setDrink(false)} />}
+      <div className="mb-4"><EatNextList /></div>
       <CareCard open />
       <section className="card p-4 mb-4">
         <div className="flex items-center justify-between mb-2">

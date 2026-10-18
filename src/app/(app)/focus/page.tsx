@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
+import { StudyPlan } from "@/components/StudyPlan";
 import { startAmbient } from "@/lib/ambient";
 import { useApp, useCustomItems } from "@/lib/store";
 
@@ -9,7 +10,7 @@ const FOCUS_MIN = 25;
 const KEY = "lifeos-focus-end";
 
 export default function FocusPage() {
-  const { profile, saveSettings, logActivity, celebrate } = useApp();
+  const { profile, logActivity, celebrate } = useApp();
   const formulas = useCustomItems("formula");
   const [end, setEnd] = useState<number | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -22,6 +23,8 @@ export default function FocusPage() {
   // Resume a running session after navigating away; ?start=1 comes from the "Study" voice command.
   useEffect(() => {
     try {
+      const q = new URLSearchParams(location.search).get("subject");
+      if (q) setSubject(q);
       const saved = Number(localStorage.getItem(KEY));
       if (saved > Date.now()) setEnd(saved);
       else if (new URLSearchParams(location.search).get("start")) begin();
@@ -114,11 +117,7 @@ export default function FocusPage() {
         </div>
       </section>
 
-      <section className="card p-4 mb-4">
-        <label className="text-sm font-bold">Exam date
-          <input type="date" className="input mt-1" value={exam ?? ""} onChange={(e) => saveSettings({ exam_date: e.target.value || null })} />
-        </label>
-      </section>
+      <StudyPlan />
 
       <section className="card p-4">
         <h2 className="font-bold mb-2">Formula vault</h2>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { TaskLog } from "@/components/TaskLog";
+import { FixCard } from "@/components/FixCard";
 import { foodGoodness, scoreColor } from "@/lib/goodness";
 import { useTasks } from "@/components/Coach";
 import { useGoals } from "@/components/Gauges";
@@ -67,6 +68,7 @@ export default function TodayPage() {
         <input type="date" className="input !w-auto text-center" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
         <button onClick={() => setDay(shift(day, 1))} disabled={isToday} className="btn-ghost !px-3 !py-1">▶</button>
       </div>
+      {isToday && <FixCard />}
 
       <section className="card p-3 mb-4">
         <div className="flex items-center justify-between mb-2">

@@ -6,6 +6,7 @@ import { judge, searchTasks, TASKS } from "@/lib/tasks";
 import { useApp, useCustomItems } from "@/lib/store";
 import { taskGoodness } from "@/lib/goodness";
 import { GoodBadge } from "@/components/GoodBadge";
+import { StudyLock } from "@/components/FixCard";
 
 const DEED = { good: ["😇", "Good deed", "text-emerald-300"], bad: ["😈", "Bad deed (time waste)", "text-rose-300"], neutral: ["⚖️", "Neutral", "text-muted"] } as const;
 
@@ -36,6 +37,7 @@ export function TaskLog({ onClose, at }: { onClose: () => void; at?: Date }) {
         <div className="rounded-xl bg-white/5 p-3 text-xs space-y-2">
           <div className={DEED[d][2]}>{DEED[d][0]} <b>{DEED[d][1]}</b>: {j.why}</div>
           <GoodBadge compact g={taskGoodness(q)} />
+          {(d === "bad" || /anime|manga|game|scroll|youtube|tiktok|instagram|netflix|movie|series|reels?\b/i.test(q)) && <StudyLock />}
           <div className="flex gap-1">
             {(["good", "neutral", "bad"] as const).map((x) => <button key={x} onClick={() => setDeed(x)} className={`chip !py-0.5 text-[11px] ${d === x ? "chip-on" : ""}`}>{DEED[x][0]} {x}</button>)}
           </div>

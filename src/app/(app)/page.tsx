@@ -25,6 +25,7 @@ import { KIND_TOPIC, line } from "@/lib/lore";
 import { dailyMissions, streak, weeklyBoss, type Mission } from "@/lib/missions";
 import Link from "next/link";
 import { CareCard } from "@/components/CareCard";
+import { FixCard } from "@/components/FixCard";
 import { DrinkSheet } from "@/components/Drinks";
 import { TaskLog } from "@/components/TaskLog";
 import { today, toDay, useApp, useCustomItems, useLogs, type CustomItem, type Log } from "@/lib/store";
@@ -135,6 +136,7 @@ export default function TodayPage() {
       {isToday && show("coach") && <CoachCard />}
       {isToday && show("learn") && <LearnToday compact />}
       {isToday && show("gaps") && <GapsCard />}
+      {isToday && show("fix") && <FixCard open={false} />}
       {isToday && show("care") && <CareCard />}
 
       {isToday && show("sleep") && <SleepCard onLogged={setToast} />}
