@@ -1,5 +1,6 @@
 "use client";
 
+import { isLite, liteChoice, setLite, type LiteChoice } from "@/lib/perf";
 import { useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { useApp } from "@/lib/store";
@@ -86,6 +87,8 @@ export function CustomizeSheet({ onClose }: { onClose: () => void }) {
         <input type="checkbox" checked={ui.startLeft !== false} onChange={(e) => set({ startLeft: e.target.checked })} /> Open the app on the leftmost tab
       </label>
 
+      <SmoothMode />
+
       <div className="text-xs text-muted pt-2">Base Camp sections</div>
       <div className="grid gap-1.5">
         {SECTIONS.map(([id, l]) => (
@@ -100,5 +103,19 @@ export function CustomizeSheet({ onClose }: { onClose: () => void }) {
         <button onClick={() => { saveSettings({ ui }); onClose(); }} className="btn-primary flex-1">Save</button>
       </div>
     </Sheet>
+  );
+}
+
+// Fewer effects for slower phones and tablets.
+function SmoothMode() {
+  const [c, setC] = useState<LiteChoice>(() => liteChoice());
+  const pickIt = (x: LiteChoice) => { setLite(x); setC(x); };
+  return (
+    <div className="rounded-xl bg-white/5 px-3 py-2 text-sm space-y-1.5">
+      <div>⚡ Smooth mode <span className="text-xs text-muted">(fewer glows and blur, for slower phones and tablets)</span></div>
+      <div className="flex gap-1.5">
+        {(["auto", "on", "off"] as const).map((x) => <button key={x} onClick={() => pickIt(x)} className={`chip !py-0.5 text-xs ${c === x ? "chip-on" : ""}`}>{x === "auto" ? `Auto${c === "auto" ? (isLite() ? " (on)" : " (off)") : ""}` : x === "on" ? "On" : "Off"}</button>)}
+      </div>
+    </div>
   );
 }

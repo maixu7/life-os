@@ -35,9 +35,9 @@ export function LiquidGlass({
               key={splash}
               d="M-60 6 Q-45 -2 -30 6 T0 6 T30 6 T60 6 T90 6 T120 6 T150 6 V200 H-60 Z"
               fill={`url(#liq-${id})`}
-              style={{ animation: `slosh ${splash ? 1.2 : 3}s ease-in-out infinite` }}
+              className="slosh" style={{ animation: `slosh ${splash ? 1.2 : 3}s ease-in-out infinite` }}
             />
-            <path d="M-60 10 Q-45 4 -30 10 T0 10 T30 10 T60 10 T90 10 T120 10 T150 10" stroke="white" strokeOpacity=".35" fill="none" style={{ animation: "slosh 2.4s ease-in-out infinite reverse" }} />
+            <path d="M-60 10 Q-45 4 -30 10 T0 10 T30 10 T60 10 T90 10 T120 10 T150 10" stroke="white" strokeOpacity=".35" fill="none" className="slosh" style={{ animation: "slosh 2.4s ease-in-out infinite reverse" }} />
           </g>
         </g>
         <path d="M15 8 L85 8 L76 122 Q75 126 70 126 L30 126 Q25 126 24 122 Z" fill="none" stroke="white" strokeOpacity=".5" strokeWidth="3" />

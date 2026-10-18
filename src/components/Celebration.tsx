@@ -1,5 +1,6 @@
 "use client";
 
+import { canvasDpr, isLite } from "@/lib/perf";
 import { useEffect, useRef } from "react";
 import { useApp } from "@/lib/store";
 
@@ -33,49 +34,59 @@ type Particle = { x: number; y: number; vx: number; vy: number; life: number; co
 
 function hanabi(canvas: HTMLCanvasElement, bursts: number) {
   const ctx = canvas.getContext("2d")!;
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = canvasDpr();
   canvas.width = innerWidth * dpr;
   canvas.height = innerHeight * dpr;
   ctx.scale(dpr, dpr);
   const colors = ["#ff4fd8", "#46e6ff", "#ffd166", "#7cff9b", "#ff6a2a", "#ffffff"];
-  const parts: Particle[] = [];
+  let parts: Particle[] = [];
+  const n = isLite() ? 36 : 56;
   const burst = () => {
     const x = innerWidth * (0.15 + Math.random() * 0.7);
     const y = innerHeight * (0.15 + Math.random() * 0.35);
     const color = colors[Math.floor(Math.random() * colors.length)];
-    for (let i = 0; i < 70; i++) {
-      const a = (i / 70) * Math.PI * 2;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
       const s = 2 + Math.random() * 3.5;
       parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, color });
     }
   };
-  for (let i = 0; i < bursts; i++) setTimeout(burst, i * 280);
-  let raf = 0;
-  const frame = () => {
+  const timers = Array.from({ length: bursts }, (_, i) => setTimeout(burst, i * 280));
+  let raf = 0, last = performance.now();
+  const end = last + bursts * 280 + 2500;
+  // Movement follows real time, so a slow device drops frames instead of
+  // playing in slow motion.
+  const frame = (t: number) => {
+    const k = Math.min(4, (t - last) / 16.7);
+    last = t;
     ctx.globalCompositeOperation = "destination-out";
-    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    ctx.fillStyle = `rgba(0,0,0,${Math.min(0.9, 0.22 * k)})`;
     ctx.fillRect(0, 0, innerWidth, innerHeight);
     ctx.globalCompositeOperation = "lighter";
+    const keep: Particle[] = [];
     for (const p of parts) {
-      p.x += p.vx;
-      p.y += p.vy;
-      p.vy += 0.05;
-      p.vx *= 0.985;
-      p.life -= 0.012;
+      p.x += p.vx * k;
+      p.y += p.vy * k;
+      p.vy += 0.05 * k;
+      p.vx *= Math.pow(0.985, k);
+      p.life -= 0.012 * k;
       if (p.life <= 0) continue;
       ctx.fillStyle = p.color;
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = p.color;
-      ctx.globalAlpha = p.life;
+      ctx.globalAlpha = p.life * 0.35;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 2.2, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
       ctx.fill();
+      ctx.globalAlpha = p.life;
+      ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+      keep.push(p);
     }
+    parts = keep;
     ctx.globalAlpha = 1;
-    raf = requestAnimationFrame(frame);
+    if (t < end || parts.length) raf = requestAnimationFrame(frame);
+    else ctx.clearRect(0, 0, innerWidth, innerHeight);
   };
-  frame();
-  return () => cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(frame);
+  return () => { cancelAnimationFrame(raf); timers.forEach(clearTimeout); };
 }
 
 export function CelebrationLayer() {

@@ -25,9 +25,12 @@
   --font-display: var(--font-display);
 }
 
-html, body { background: var(--bg); color: var(--text); }
-body {
-  min-height: 100dvh;
+html { background: var(--bg); color: var(--text); }
+body { color: var(--text); min-height: 100dvh; -webkit-tap-highlight-color: transparent; }
+/* The starry sky sits on its own fixed layer: a fixed body background makes
+   Android repaint the whole screen on every scroll frame. */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background-image:
     radial-gradient(1px 1px at 20px 30px, #ffffffaa, transparent),
     radial-gradient(1px 1px at 120px 80px, #ffffff77, transparent),
@@ -37,8 +40,6 @@ body {
     radial-gradient(circle at 110% 40%, color-mix(in srgb, var(--accent2) 18%, transparent), transparent 45%),
     linear-gradient(180deg, #0d0822, var(--bg) 60%);
   background-size: 250px 250px, 250px 250px, 250px 250px, 250px 250px, auto, auto, auto;
-  background-attachment: fixed;
-  -webkit-tap-highlight-color: transparent;
 }
 /* faint scanlines for a game-screen feel */
 body::after {
@@ -50,11 +51,10 @@ h1, h2, h3, .font-game { font-family: var(--font-display), sans-serif; letter-sp
 @layer components {
   .card {
     position: relative;
-    background: linear-gradient(160deg, rgba(36, 24, 78, .78), rgba(14, 9, 32, .92));
+    background: linear-gradient(160deg, rgba(36, 24, 78, .9), rgba(14, 9, 32, .96));
     border: 1px solid var(--border);
     border-radius: 16px;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 10px 30px rgba(0,0,0,.45);
-    backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 6px 16px rgba(0,0,0,.4);
   }
   /* corner brackets like a game HUD frame */
   .frame::before, .frame::after {
@@ -106,7 +106,7 @@ h1, h2, h3, .font-game { font-family: var(--font-display), sans-serif; letter-sp
   .bar > div {
     height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent2));
     box-shadow: 0 0 12px var(--accent); transition: width .6s cubic-bezier(.2,1.4,.4,1);
-    background-size: 200% 100%; animation: flow 3s linear infinite;
+    background-size: 200% 100%;
   }
   .section-title { font-family: var(--font-display); font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--accent2); }
 }
@@ -137,3 +137,13 @@ h1, h2, h3, .font-game { font-family: var(--font-display), sans-serif; letter-sp
   background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.45) 50%, transparent 70%);
   animation: shimmer 1s ease-out 2;
 }
+
+/* Smooth mode for slower phones and tablets: no blur, no endless glows. */
+html.lite *, html.lite *::before, html.lite *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+html.lite .animate-float, html.lite .animate-pulse-glow, html.lite .animate-shake, html.lite .animate-pulse, html.lite .animate-spin, html.lite .animate-ping, html.lite .animate-bounce { animation: none !important; }
+html.lite .glow-text, html.lite .frame::before, html.lite .frame::after { filter: none !important; }
+html.lite body::after { display: none; }
+html.lite .card { box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+html.lite .btn-primary, html.lite .btn-hot, html.lite .btn-gold { box-shadow: 0 4px 0 rgba(0,0,0,.45); }
+@media (prefers-reduced-motion: reduce) { .animate-float, .animate-pulse-glow, .animate-shake { animation: none !important; } }
+html.lite .slosh { animation: none !important; }

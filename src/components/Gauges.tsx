@@ -1,5 +1,6 @@
 "use client";
 
+import { canvasDpr, isLite } from "@/lib/perf";
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { learnedOn } from "@/components/Learn";
@@ -107,33 +108,38 @@ export function Fireworks({ onDone, seconds = 7 }: { onDone: () => void; seconds
     const c = ref.current;
     if (!c) return;
     const ctx = c.getContext("2d")!;
-    const W = (c.width = innerWidth * devicePixelRatio), H = (c.height = innerHeight * devicePixelRatio);
+    const dpr = canvasDpr();
+    const W = (c.width = innerWidth * dpr), H = (c.height = innerHeight * dpr);
+    const few = isLite();
     type Pt = { x: number; y: number; vx: number; vy: number; life: number; color: string; rocket?: boolean; ty?: number };
     let pts: Pt[] = [];
     const COLORS = ["#ff4d6d", "#ffd166", "#06d6a0", "#4cc9f0", "#c77dff", "#ff9f1c", "#ffffff"];
     const launch = () => pts.push({ x: W * (0.15 + Math.random() * 0.7), y: H, vx: (Math.random() - 0.5) * 2, vy: -H / 70 - Math.random() * 4, life: 1, color: "#fff", rocket: true, ty: H * (0.15 + Math.random() * 0.35) });
     const burst = (x: number, y: number) => {
-      const color = COLORS[Math.floor(Math.random() * COLORS.length)], n = 70 + Math.floor(Math.random() * 40), sp = 3 + Math.random() * 4;
-      for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, s = sp * (0.6 + Math.random() * 0.4) * devicePixelRatio; pts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, color }); }
+      const color = COLORS[Math.floor(Math.random() * COLORS.length)], n = (few ? 40 : 60) + Math.floor(Math.random() * 30), sp = 3 + Math.random() * 4;
+      for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2, s = sp * (0.6 + Math.random() * 0.4) * dpr; pts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 1, color }); }
     };
-    let raf = 0, last = 0;
-    const start = performance.now();
+    let raf = 0, last = 0, prev = performance.now();
+    const start = prev;
+    // Real-time movement: slow devices skip frames instead of slow motion.
     const tick = (t: number) => {
+      const k = Math.min(4, (t - prev) / 16.7);
+      prev = t;
       if (t - last > 380 && t - start < seconds * 1000 - 1500) { launch(); if (Math.random() < 0.5) launch(); last = t; }
       ctx.globalCompositeOperation = "destination-out";
-      ctx.fillStyle = "rgba(0,0,0,0.22)";
+      ctx.fillStyle = `rgba(0,0,0,${Math.min(0.9, 0.22 * k)})`;
       ctx.fillRect(0, 0, W, H);
       ctx.globalCompositeOperation = "lighter";
       const next: Pt[] = [];
       for (const p of pts) {
-        p.x += p.vx; p.y += p.vy;
+        p.x += p.vx * k; p.y += p.vy * k;
         if (p.rocket) {
           if (p.y <= p.ty!) { burst(p.x, p.y); continue; }
-        } else { p.vy += 0.06 * devicePixelRatio; p.vx *= 0.985; p.vy *= 0.985; p.life -= 0.012; }
+        } else { p.vy += 0.06 * dpr * k; p.vx *= Math.pow(0.985, k); p.vy *= Math.pow(0.985, k); p.life -= 0.012 * k; }
         if (p.life <= 0) continue;
         ctx.globalAlpha = Math.max(0, p.life);
         ctx.fillStyle = p.color;
-        ctx.beginPath(); ctx.arc(p.x, p.y, (p.rocket ? 2.5 : 2) * devicePixelRatio, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(p.x, p.y, (p.rocket ? 2.5 : 2) * dpr, 0, Math.PI * 2); ctx.fill();
         next.push(p);
       }
       ctx.globalAlpha = 1;
