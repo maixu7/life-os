@@ -37,7 +37,7 @@ export function WorkoutRunner({ row, onClose }: { row: PlanRow; onClose: () => v
   const timed = /s$/i.test(row.reps.trim());
   const saved = remembered(row.name);
   const [setup, setSetup] = useState<Setup>({
-    sets: saved.sets ?? row.sets,
+    sets: Math.min(saved.sets ?? row.sets, row.sets),
     work: saved.work ?? (timed ? parseInt(row.reps) || 60 : 45),
     rest: saved.rest ?? (timed ? 15 : 60),
   });

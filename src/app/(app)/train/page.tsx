@@ -229,7 +229,7 @@ export default function TrainPage() {
                 </div>
                 {full
                   ? <span aria-label="Done" className="h-8 w-8 shrink-0 rounded-full bg-emerald-500 grid place-items-center text-base">✓</span>
-                  : <button aria-label={`Start ${r.name}`} onClick={() => setRun(r)} className="shrink-0 rounded-full bg-[var(--accent2)] text-[#0b0420] px-3 h-8 text-xs font-bold active:scale-90">▶ Start</button>}
+                  : <button aria-label={`Start ${r.name}`} onClick={() => setRun(done > 0 ? { ...r, sets: Math.max(1, r.sets - done) } : r)} className="shrink-0 rounded-full bg-[var(--accent2)] text-[#0b0420] px-3 h-8 text-xs font-bold active:scale-90">▶ Start</button>}
               </li>
             );
           })}
