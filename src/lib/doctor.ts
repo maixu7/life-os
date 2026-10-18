@@ -3,13 +3,14 @@
 // first-aid level guidance from a fixed list, not a diagnosis.
 
 import { EXTRA_CONDITIONS, EXTRA_MEDS, EXTRA_SYMPTOMS } from "./doctor2";
+import { MORE_CONDITIONS, MORE_MEDS, MORE_SYMPTOMS } from "./doctor3";
 
-export type Area = "general" | "head" | "eent" | "chest" | "stomach" | "urinary" | "skin" | "body" | "mind" | "context";
+export type Area = "general" | "head" | "eent" | "chest" | "stomach" | "urinary" | "sex" | "skin" | "body" | "mind" | "context";
 export type Symptom = { id: string; label: string; ja: string; area: Area; red?: boolean };
 
 export const AREAS: [Area, string][] = [
   ["general", "🌡️ Whole body"], ["head", "🤕 Head"], ["eent", "👃 Eyes, ears, nose, mouth"], ["chest", "🫁 Chest & breathing"],
-  ["stomach", "🤢 Stomach"], ["urinary", "🚻 Pee & private parts"], ["skin", "🖐️ Skin"], ["body", "🦴 Muscles & joints"], ["mind", "🧠 Mind & sleep"], ["context", "📝 What happened"],
+  ["stomach", "🤢 Stomach"], ["urinary", "🚻 Pee & private parts"], ["sex", "❤️ Sex & hormones"], ["skin", "🖐️ Skin"], ["body", "🦴 Muscles & joints"], ["mind", "🧠 Mind & sleep"], ["context", "📝 What happened"],
 ];
 
 const S = (id: string, label: string, ja: string, area: Area, red = false): Symptom => ({ id, label, ja, area, red });
@@ -67,6 +68,7 @@ export const SYMPTOMS: Symptom[] = [
   S("heatexp", "Was out in the heat", "暑い所にいた", "context"), S("newfood", "Ate a new food / took a new medicine", "新しい食べ物・薬", "context"), S("sitting", "Sit for long hours", "長時間座っている", "context"),
   S("travel", "Recent travel abroad", "海外旅行", "context"),
   ...EXTRA_SYMPTOMS,
+  ...MORE_SYMPTOMS,
 ];
 export const symptom = (id: string) => SYMPTOMS.find((s) => s.id === id);
 
@@ -124,6 +126,7 @@ export const MEDS: Record<string, Med> = {
   vitb: M("Alinamin EX Plus (アリナミンEXプラス)", "vitamin B1/B6/B12", "Tired eyes, stiff shoulders, nerve tingling.", "Safe.", "第3類"),
   aftercare: M("Calamine / cooling gel (カーマインローション)", "soothing lotion", "Sunburn, heat rash.", "Safe.", "第3類"),
   ...EXTRA_MEDS,
+  ...MORE_MEDS,
 };
 
 export type Severity = "mild" | "moderate" | "serious" | "emergency";
@@ -242,6 +245,7 @@ export const CONDITIONS: Condition[] = [
   C("Stress overload", "ストレス過多", "mind", "mild", "stress:3 headache:1 insomnia:1 neckpain:1 upperpain:1", "Too much pressure for too long.", ["Write your worries on paper", "Exercise", "Sleep before midnight", "Say no to one thing this week"], [], "If it lasts weeks or affects sleep and eating.", "心療内科", 7),
   C("Eye-screen headache combo", "VDT症候群", "eent", "mild", "screen:3 dryeye:2 headache:2 neckpain:2", "Computer vision syndrome: long screen hours.", ["20-20-20 rule", "Blink more", "Screen brightness = room brightness"], ["santear", "vitb"], "If vision changes.", "眼科", 7),
   ...EXTRA_CONDITIONS,
+  ...MORE_CONDITIONS,
 ];
 
 // ----- The consult -----
