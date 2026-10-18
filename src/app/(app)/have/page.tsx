@@ -7,6 +7,8 @@ import { Pic } from "@/components/Pic";
 import { Sheet } from "@/components/Sheet";
 import { MealSheet } from "@/components/Meals";
 import { guessFood } from "@/lib/body";
+import { foodGoodness } from "@/lib/goodness";
+import { GoodBadge } from "@/components/GoodBadge";
 import { emojiFor } from "@/lib/emoji";
 import { loadImage, recognise, smallPhoto } from "@/lib/foodphoto";
 import { fromPhoto, itemKind, kindOf, KINDS, kitOf, kitText, whenToEat, withGear, type Kind } from "@/lib/have";
@@ -144,6 +146,7 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
         <div className="rounded-xl bg-white/5 p-3 text-xs space-y-1">
           <div className="font-semibold">🍽️ When to eat it</div>
           <div>{whenToEat(name)}</div>
+          <GoodBadge g={foodGoodness({ name, kcal: fd?.kcal, protein: fd?.protein })} />
           {fd && <div className="text-muted">{fd.emoji} {fd.per}: {fd.kcal} kcal, {fd.protein} g protein</div>}
           <div className="text-muted">It shows up in your meals and on the Food tab. Eating it takes it off this list.</div>
         </div>

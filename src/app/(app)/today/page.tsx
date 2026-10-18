@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
+import { TaskLog } from "@/components/TaskLog";
+import { foodGoodness, scoreColor } from "@/lib/goodness";
 import { useTasks } from "@/components/Coach";
 import { useGoals } from "@/components/Gauges";
 import { learnedOn } from "@/components/Learn";
@@ -27,6 +29,7 @@ export default function TodayPage() {
   const goals = useGoals(day);
   const tasks = useTasks();
   const [editGoals, setEditGoals] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   const s = profile.settings, sc = sched(s.schedule);
   const logs = data.logs.filter((l) => l.day === day).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const sum = (k: string) => logs.filter((l) => l.kind === k).reduce((n, l) => n + Number(l.data.ml ?? 0), 0);
@@ -116,6 +119,7 @@ export default function TodayPage() {
                               {f.photo ? <img src={f.photo} alt={f.name} className="h-7 w-7 rounded object-cover" /> : <span className="h-7 w-7 grid place-items-center">🍽️</span>}
                               <span className="flex-1">{f.name}{f.qty !== 1 ? ` × ${f.qty}` : ""}</span>
                               <span className="text-muted">{f.kcal} kcal{f.sugar ? ` · ${f.sugar} g sugar` : ""}</span>
+                              <span className={`w-5 text-right font-bold ${scoreColor(foodGoodness(f).score)}`} title="Health score">{foodGoodness(f).score}</span>
                             </div>
                           ))}
                         </div>
@@ -128,7 +132,8 @@ export default function TodayPage() {
             </tbody>
           </table>
         )}
-        <Link href="/" className="block text-center text-xs text-[var(--accent2)] mt-3">+ Log something on Base Camp</Link>
+        <button onClick={() => setLogOpen(true)} className="block w-full text-center text-xs text-[var(--accent2)] mt-3">📝 Log anything you did</button>
+        {logOpen && <TaskLog at={isToday ? undefined : new Date(`${day}T12:00:00`)} onClose={() => setLogOpen(false)} />}
       </section>
     </>
   );

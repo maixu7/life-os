@@ -5,6 +5,7 @@ import { BAD_OPTION, REWARD_OPTION } from "@/lib/slots";
 import { checkinKarma, EXTRA_KARMA } from "@/lib/tools";
 import type { Data, Log } from "@/lib/store";
 import { toDay } from "@/lib/store";
+import { judge } from "@/lib/tasks";
 
 // Angel vs Devil. Every record is a good deed, a bad deed, or neutral.
 // Treats bought with gold in the reward shop are earned, so they never count as bad.
@@ -38,7 +39,9 @@ export function logKarma(l: Log): number {
       if (opts.some((o) => REWARD_OPTION.test(o))) return 0;
       if (opts.some((o) => BAD_OPTION.test(o))) return -5;
       if (l.data.alignment === "shadow" || (l.data.alignment !== "light" && DEVIL.test(name))) return -5;
-      return 2;
+      if (l.data.alignment === "light") return 2;
+      const j = judge(name);
+      return j.deed === "bad" ? -5 : j.deed === "good" ? 2 : 1;
     }
     default: return checkinKarma(l) ?? EXTRA_KARMA[l.kind] ?? 0;
   }

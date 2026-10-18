@@ -6,6 +6,9 @@ import { emojiFor } from "@/lib/emoji";
 import { lookupBarcode } from "@/lib/foodlookup";
 import { animeStyle, loadImage, recognise, smallPhoto } from "@/lib/foodphoto";
 import { readLabel } from "@/lib/label";
+import { foodGoodness } from "@/lib/goodness";
+import { GoodBadge } from "@/components/GoodBadge";
+import { produceOf, PRODUCE, SIZES, sized, type Produce } from "@/lib/produce";
 import { useApp, useCustomItems } from "@/lib/store";
 
 // One food in a meal, with its own photo (what it looked like) and its own
@@ -14,8 +17,14 @@ import { useApp, useCustomItems } from "@/lib/store";
 export type Dish = {
   key: string; name: string; qty: number; per: string; contents?: string;
   kcal: string; protein: string; fat: string; carbs: string; sugar: string; salt: string;
-  photo?: string; label?: string; status?: string; busy?: boolean;
+  photo?: string; label?: string; status?: string; busy?: boolean; size?: string;
 };
+
+// A vegetable or fruit at one of 10 sizes: grams and nutrition scale with it.
+export function sizeFill(p: Produce, size: string): Partial<Dish> {
+  const s = sized(p, size);
+  return { size, per: `${size.toLowerCase()} ${p.name.toLowerCase()} (~${s.g} g)`, kcal: String(s.kcal), protein: String(s.protein), carbs: String(s.carbs), sugar: String(s.sugar), fat: String(s.fat), salt: "" };
+}
 
 const n = (s: string) => Number(s) || 0;
 const r1 = (x: number) => Math.round(x * 10) / 10;
@@ -41,7 +50,9 @@ export function DishCard({ d, set, remove, anime }: { d: Dish; set: (p: Partial<
   const foods = allFoods(data.items);
 
   // A known food (built-in or saved from a label) fills its numbers in.
-  const fill = (name: string, force = false) => {
+  const fill = (name: string, force = false): Partial<Dish> => {
+    const pr = name.trim().length > 2 ? produceOf(name) : undefined;
+    if (pr && (force || !d.kcal)) return sizeFill(pr, d.size ?? "Medium");
     const mine = items.find((i) => i.name.toLowerCase() === name.trim().toLowerCase());
     const fd = foods.find((x) => x.name.toLowerCase() === name.trim().toLowerCase()) ?? guessFood(name, data.items);
     if (!fd || (!force && d.kcal)) return {};
@@ -102,6 +113,7 @@ export function DishCard({ d, set, remove, anime }: { d: Dish; set: (p: Partial<
     <label className="text-[10px] text-muted">{l}<input className="input mt-0.5 !px-1.5 !py-1 text-xs" inputMode="decimal" value={d[k]} onChange={(e) => set({ [k]: e.target.value })} /></label>
   );
 
+  const pr = d.name.trim().length > 2 ? produceOf(d.name) : undefined;
   return (
     <div className="rounded-xl border border-white/10 bg-black/20 p-2.5 space-y-2">
       <div className="flex gap-2">
@@ -123,7 +135,16 @@ export function DishCard({ d, set, remove, anime }: { d: Dish; set: (p: Partial<
           </div>
         </div>
       </div>
+      {pr && (
+        <div className="space-y-1">
+          <div className="text-[10px] text-muted">{pr.emoji} Size of the {pr.name.toLowerCase()} (medium ≈ {pr.g} g) · {pr.raw ? "fine to eat raw" : "cook it first"}{pr.vit.length ? ` · rich in ${pr.vit.slice(0, 3).join(", ")}` : ""}</div>
+          <div className="flex flex-wrap gap-1">
+            {SIZES.map(([s]) => <button key={s} onClick={() => set(sizeFill(pr, s))} className={`chip !px-1.5 !py-0 text-[10px] ${(d.size ?? "") === s ? "chip-on" : ""}`}>{s}</button>)}
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-6 gap-1">{num("kcal", "kcal")}{num("protein", "Prot g")}{num("fat", "Fat g")}{num("carbs", "Carb g")}{num("sugar", "Sugar g")}{num("salt", "Salt g")}</div>
+      {d.name.trim().length > 2 && <GoodBadge compact g={foodGoodness({ ...dishTotals(d), contents: d.contents })} />}
       {d.status && <p className={`text-[11px] ${d.busy ? "animate-pulse text-[var(--accent2)]" : "text-muted"}`}>{d.status}</p>}
       {n(d.kcal) > 0 && <div className="text-[11px] text-right">= <b>{Math.round(n(d.kcal) * d.qty)} kcal</b> · {r1(n(d.protein) * d.qty)} g protein</div>}
     </div>
@@ -132,5 +153,6 @@ export function DishCard({ d, set, remove, anime }: { d: Dish; set: (p: Partial<
 
 export function FoodNames() {
   const { data } = useApp();
-  return <datalist id="all-foods">{allFoods(data.items).map((f) => <option key={f.name} value={f.name} />)}</datalist>;
+  const names = [...new Set([...allFoods(data.items).map((f) => f.name), ...PRODUCE.map((p) => p.name)])];
+  return <datalist id="all-foods">{names.map((n) => <option key={n} value={n} />)}</datalist>;
 }

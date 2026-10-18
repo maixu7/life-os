@@ -1,5 +1,6 @@
 import { bodyOf, eaten, type Eaten } from "@/lib/body";
 import { haveFoods } from "@/lib/have";
+import { produceOf } from "@/lib/produce";
 import { sched } from "@/lib/schedule";
 import { toDay, type Data, type Log } from "@/lib/store";
 
@@ -23,7 +24,12 @@ const G: [Group, RegExp][] = [
   ["fried", /chips|crisps|fries|fried|karaage|tempura|burger|pizza|maggi|instant noodle|cup noodle|ramen|samosa|pakora|kurkure|puri|nugget|揚げ|ポテト|カップ麺/i],
   ["sugary", /cola|coke|pepsi|soda|fanta|sprite|energy drink|red bull|monster|juice|frappuccino|sweet tea|ジュース|コーラ/i],
 ];
-export const groupsOf = (f: Pick<Eaten, "name" | "contents">) => G.filter(([, re]) => re.test(`${f.name} ${f.contents ?? ""}`)).map(([g]) => g);
+export const groupsOf = (f: Pick<Eaten, "name" | "contents">) => {
+  const out = G.filter(([, re]) => re.test(`${f.name} ${f.contents ?? ""}`)).map(([g]) => g);
+  const p = f.name.length > 2 ? produceOf(f.name) : undefined;
+  if (p) out.push(p.kind === "fruit" ? "fruit" : "veg");
+  return [...new Set(out)];
+};
 
 const BAD_INGREDIENTS: [RegExp, string][] = [
   [/ショートニング|shortening|margarine|マーガリン|hydrogenated/i, "trans fat (shortening/margarine)"],

@@ -1,6 +1,7 @@
 import { guessFood, type Eaten } from "@/lib/body";
 import { howTo } from "@/lib/howto";
 import { MOVES, type Move } from "@/lib/moves";
+import { produceOf } from "@/lib/produce";
 import type { Log, PantryItem } from "@/lib/store";
 
 // "What I have": food, fruit, drinks, books and gym equipment at home, and
@@ -19,7 +20,12 @@ const RE: [Kind, RegExp][] = [
   ["veg", /spinach|broccoli|carrot|cabbage|lettuce|tomato|cucumber|onion|potato|pepper|capsicum|eggplant|brinjal|okra|bean sprout|kale|radish|daikon|pumpkin|kabocha|mushroom|veg|greens|komatsuna|negi|sweet potato|corn/i],
   ["drink", /water|juice|milk|cola|soda|tea|coffee|drink|pocari|aquarius|beer|sake|yakult|smoothie|shake|calpis/i],
 ];
-export const kindOf = (name: string): Kind => RE.find(([, re]) => re.test(name))?.[0] ?? (guessFood(name) ? "food" : "other");
+export const kindOf = (name: string): Kind => {
+  const hit = RE.find(([, re]) => re.test(name))?.[0];
+  if (hit) return hit;
+  const p = name.trim().length > 2 ? produceOf(name) : undefined;
+  return p ? (p.kind === "fruit" ? "fruit" : "veg") : guessFood(name) ? "food" : "other";
+};
 
 // MobileNet labels that mean a kind (from a photo).
 const SEEN: [RegExp, Kind, string][] = [

@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { DRINK_CATS, DRINKS, type Drink, type DrinkCat } from "@/lib/drinks";
 import { useApp } from "@/lib/store";
+import { drinkGoodness, scoreColor } from "@/lib/goodness";
+import { GoodBadge } from "@/components/GoodBadge";
 
 // Any drink: pick it, pick how much, and the app logs calories, sugar and
 // caffeine. Water and milk count toward their goals.
@@ -42,7 +44,8 @@ export function DrinkSheet({ onClose, at }: { onClose: () => void; at?: Date }) 
           <button key={d.name} onClick={() => choose(d)} className={`w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs ${pick?.name === d.name ? "bg-[var(--accent2)]/15" : ""}`}>
             <span className="text-lg">{d.emoji}</span>
             <span className="flex-1 min-w-0"><span className="block truncate">{d.name}</span>{d.ja && <span className="block text-[10px] text-muted truncate">{d.ja}</span>}</span>
-            <span className="text-muted whitespace-nowrap">{d.kcal100} kcal · {d.sugar100} g sugar /100 ml</span>
+            <span className="text-muted whitespace-nowrap">{d.kcal100} kcal · {d.sugar100} g sugar</span>
+            <span className={`w-6 text-right font-bold ${scoreColor(drinkGoodness(d).score)}`}>{drinkGoodness(d).score}</span>
           </button>
         ))}
         {!list.length && <p className="p-3 text-xs text-muted">Not found. Try another word.</p>}
@@ -60,6 +63,7 @@ export function DrinkSheet({ onClose, at }: { onClose: () => void; at?: Date }) 
             <div className="rounded-lg bg-white/5 p-1.5"><b>{((pick.protein100 ?? 0) * k).toFixed(1)}</b><br /><span className="text-muted">g protein</span></div>
             <div className="rounded-lg bg-white/5 p-1.5"><b>{Math.round((pick.caffeine100 ?? 0) * k)}</b><br /><span className="text-muted">mg caffeine</span></div>
           </div>
+          <GoodBadge g={drinkGoodness(pick, ml)} />
           {pick.sugar100 * k > 25 && <p className="text-[11px] text-rose-300">That&apos;s more sugar than the WHO&apos;s ideal for a whole day (25 g).</p>}
           {pick.alcohol ? <p className="text-[11px] text-amber-300">Alcohol {pick.alcohol}%. Drink water too, and not before training.</p> : null}
           <button onClick={save} className="btn-primary w-full">Log it</button>

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { battleFor, bodyOf, health, skills, strength, weightForecast, type Battle, type Lift } from "@/lib/body";
 import { howTo } from "@/lib/howto";
+import { moveGoodness } from "@/lib/goodness";
+import { GoodBadge } from "@/components/GoodBadge";
 import { PoseDemo, tutorialUrl } from "@/components/PoseDemo";
 import { moveOf, variantOf, type Move } from "@/lib/moves";
 import { toDay, useApp } from "@/lib/store";
@@ -217,6 +219,7 @@ export function ImpactCard({ name, variant, move }: { name: string; variant?: st
   return (
     <div className="rounded-xl bg-white/5 p-3 text-xs space-y-1">
       <div className="font-semibold text-sm">{m.kind === "body" ? "💪" : "🧠"} What {m.name.toLowerCase()} does for you</div>
+      <GoodBadge g={moveGoodness(m)} />
       {m.muscles && <div><span className="text-muted">Works: </span>{m.muscles.join(", ")}</div>}
       {m.body.length > 0 && <div><span className="text-muted">Body: </span>{m.body.join(", ")}</div>}
       {m.mind.length > 0 && <div><span className="text-muted">Mind: </span>{m.mind.join(", ")}</div>}

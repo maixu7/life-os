@@ -26,6 +26,7 @@ import { dailyMissions, streak, weeklyBoss, type Mission } from "@/lib/missions"
 import Link from "next/link";
 import { CareCard } from "@/components/CareCard";
 import { DrinkSheet } from "@/components/Drinks";
+import { TaskLog } from "@/components/TaskLog";
 import { today, toDay, useApp, useCustomItems, useLogs, type CustomItem, type Log } from "@/lib/store";
 
 const shiftDay = (day: string, n: number) => {
@@ -87,6 +88,7 @@ export default function TodayPage() {
   const [adding, setAdding] = useState(false);
   const [toast, setToast] = useState<Log | null>(null);
   const [drinkOpen, setDrinkOpen] = useState(false);
+  const [taskOpen, setTaskOpen] = useState(false);
   const [actItem, setActItem] = useState<CustomItem | null>(null);
 
   useEffect(() => {
@@ -180,6 +182,8 @@ export default function TodayPage() {
       {drinkOpen && <DrinkSheet at={atFor(day)} onClose={() => setDrinkOpen(false)} />}
       </>}
 
+      <button onClick={() => setTaskOpen(true)} className="btn-ghost w-full mb-3 border border-dashed border-white/25 text-sm">📝 Log anything you did (2,000+ tasks, good or bad decided for you)</button>
+      {taskOpen && <TaskLog at={atFor(day)} onClose={() => setTaskOpen(false)} />}
       {show("quests") && <Activities onLog={(a) => (/^coding$/i.test(a.name) ? setCodeOpen((n) => n + 1) : setActItem(a))} />}
 
       {isToday && show("habits") && <HabitQuests />}

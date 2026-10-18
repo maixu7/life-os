@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { care } from "@/lib/care";
+import { LONG_LIFE } from "@/lib/goodness";
 import { useApp } from "@/lib/store";
 
 // "Take care of me": what's too much, what's missing and what to take,
@@ -55,6 +56,14 @@ export function CareCard({ open: start = false }: { open?: boolean }) {
               </table>
             </div>
           )}
+          <div>
+            <div className="font-semibold mb-1">🌱 What you need for a long, healthy life</div>
+            <table className="w-full">
+              <tbody>
+                {LONG_LIFE.map(([i, n, t]) => <tr key={n} className="border-t border-white/5 align-top"><td className="py-1 pr-1">{i}</td><td className="py-1 pr-2 whitespace-nowrap font-semibold">{n}</td><td className="py-1">{t}</td></tr>)}
+              </tbody>
+            </table>
+          </div>
           <div>
             <div className="font-semibold mb-1">📊 Your habits this week</div>
             <table className="w-full">
