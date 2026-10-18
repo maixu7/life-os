@@ -57,6 +57,41 @@ const MOVE: Record<string, HowTo> = {
   "Toes to bar": { pose: "pull" },
 };
 
+
+// The right moving picture for each exercise (checked one by one).
+const PICTURE: Record<string, HowTo> = {
+  "Jumping jacks": { pose: "jacks" }, Skipping: { pose: "jumprope" }, Walking: { pose: "walk" }, Cycling: { pose: "cycle" }, Swimming: { pose: "swim" },
+  "Lateral raise": { pose: "lateral", prop: "dumbbell" }, "Front raise": { pose: "frontraise", prop: "dumbbell" }, "Rear delt fly": { pose: "revfly", prop: "dumbbell" },
+  "Face pull": { pose: "facepull" }, "Upright row": { pose: "uprow", prop: "barbell" }, Handstand: { pose: "handstand", scene: "wall" },
+  "Lat pulldown": { pose: "pulldown" }, "Seated cable row": { pose: "seatrow" }, "Inverted row": { pose: "invrow" }, "Muscle-up": { pose: "muscleup" },
+  "Back extension": { pose: "superman" }, "Farmer's walk": { pose: "walk", prop: "dumbbell" }, "Leg press": { pose: "legpress" }, "Leg curl": { pose: "legcurl" },
+  "Leg extension": { pose: "legext" }, "Donkey kicks": { pose: "donkey" }, "Side lunges": { pose: "sidelunge" }, "Nordic curl": { pose: "nordic" },
+  "Bicycle crunch": { pose: "bicycle" }, "Flutter kicks": { pose: "flutterkick" }, "Hollow hold": { pose: "hollow" }, "Dead bug": { pose: "deadbug" },
+  "Bird dog": { pose: "birddog" }, "Toe touches": { pose: "vup" }, "L-sit": { pose: "lsit" }, "Dragon flag": { pose: "dragonflag" }, "Reverse crunch": { pose: "revcrunch" },
+  "Star jumps": { pose: "jacks" }, "Stair climbing": { pose: "boxstep" }, "Rowing machine": { pose: "rowmachine" }, Elliptical: { pose: "walk" },
+  "Shadow boxing": { pose: "punch" }, "Bear crawl": { pose: "bear" }, "Battle ropes": { pose: "ropes" }, Hiking: { pose: "walk" }, Dancing: { pose: "jacks" },
+  "Sun salutation": { pose: "sunsal" }, "Downward dog": { pose: "downdog" }, "Cobra stretch": { pose: "cobra" }, "Child's pose": { pose: "child" },
+  "Hamstring stretch": { pose: "seatfold" }, "Hip flexor stretch": { pose: "kneelunge" }, "Cat-cow": { pose: "catcow" }, Inchworm: { pose: "inchworm" },
+  "Neck and shoulder rolls": { pose: "neck" }, "Dumbbell pullover": { pose: "pullover", prop: "dumbbell" }, "Lateral hops": { pose: "skater" },
+  "Dead hang": { pose: "hang" }, "Scapular pull-up": { pose: "hang" }, "Front lever": { pose: "lever" }, "Y-T-W raise": { pose: "lateral", prop: "none" },
+  "Medicine ball slam": { pose: "medball" }, Sledgehammer: { pose: "medball" }, "Suitcase carry": { pose: "walk", prop: "kettlebell" }, "Overhead carry": { pose: "walk", prop: "dumbbell" },
+  "Glute ham raise": { pose: "nordic" }, "Hip abduction": { pose: "sideleg" }, "Hip adduction": { pose: "sideleg" }, "Glute kickback": { pose: "glutekick" },
+  Jackknife: { pose: "vup" }, "Wall angels": { pose: "lateral" }, "World's greatest stretch": { pose: "kneelunge" }, "Pigeon pose": { pose: "pigeon" },
+  "Butterfly stretch": { pose: "butterfly" }, "Quad stretch": { pose: "quadstretch" }, "Calf stretch": { pose: "lunge", scene: "wall" }, "Chest stretch": { pose: "warrior" },
+  "Kettlebell high pull": { pose: "uprow", prop: "kettlebell" }, "Kettlebell lateral lunge": { pose: "sidelunge", prop: "kettlebell" },
+  "Kettlebell rack walk": { pose: "walk", prop: "kettlebell" }, "Kettlebell farmer carry": { pose: "walk", prop: "kettlebell" },
+  "Seal jacks": { pose: "jacks" }, "Cross jacks": { pose: "jacks" }, "Ski jumps": { pose: "skater" }, "Pogo jumps": { pose: "jumprope" }, "Lateral shuffle": { pose: "skater" },
+  Carioca: { pose: "walk" }, "Heel walk": { pose: "walk" }, "Toe walk": { pose: "calf" }, "Standing knee raise": { pose: "kneeup" }, "Standing oblique crunch": { pose: "kneeup" },
+  "Reverse lunge knee drive": { pose: "lungeknee" }, "Reverse plank": { pose: "crab" }, "Crab toe touch": { pose: "crabtoe" }, "Plank to downward dog": { pose: "plankdog" },
+  "Side plank reach": { pose: "sideplank" }, "Bear plank hold": { pose: "bear" }, "Sit-out": { pose: "bear" }, "Boat pose": { pose: "vup" }, "Hollow rock": { pose: "hollow" },
+  "Side-lying leg raise": { pose: "sideleg" }, "Seated knee tuck": { pose: "vup" }, "Arm circles": { pose: "lateral" }, "Cable fly": { pose: "fly" },
+  "Sissy squat": { pose: "sissy" }, "Straight-arm pulldown": { pose: "frontraise" }, "Plank shoulder taps": { pose: "shouldertap" }, "Plank jacks": { pose: "plankjack" },
+  "Side plank dips": { pose: "sideplank" }, "Hanging knee raise": { pose: "hangraise" }, "Toes to bar": { pose: "toesbar" }, "Pallof press": { pose: "frontraise" },
+  "Wood chop": { pose: "medball" }, "Skater jumps": { pose: "skater" }, "Lateral bounds": { pose: "skater" }, "Spin bike": { pose: "cycle" }, "Ice skating": { pose: "skater" },
+  Kayaking: { pose: "seatrow" }, "Tai chi": { pose: "warrior" }, "Zumba / aerobics": { pose: "jacks" }, "Yoga / stretching": { pose: "downdog" }, "Chest fly": { pose: "fly", prop: "dumbbell" },
+  "Squat jacks": { pose: "sumo" },
+};
+
 // Each type of an exercise, done the real-world way.
 const TYPES: Record<string, Record<string, HowTo>> = {
   "Push-ups": {
@@ -68,7 +103,7 @@ const TYPES: Record<string, Record<string, HowTo>> = {
     Decline: { pose: "declinepush", steps: ["Feet up on a bench or bed, hands on the floor.", "Lower your head towards the floor, body straight.", "Push back up. More weight goes to your upper chest and shoulders."] },
     Pike: { pose: "pikepush", steps: ["Hips high like an upside-down V, hands shoulder-width.", "Bend your elbows to bring the top of your head towards the floor.", "Press back up. This trains you for handstand push-ups."] },
     Clap: { pose: "plyopush", steps: ["Start in a normal push-up.", "Lower, then push up so hard your hands leave the floor and clap.", "Land with soft elbows straight into the next rep."] },
-    Archer: { pose: "push", steps: ["Hands very wide, fingers out to the sides.", "Lower towards one hand while the other arm stays straight.", "Push up and switch sides."] },
+    Archer: { pose: "archer", steps: ["Hands very wide, fingers out to the sides.", "Lower towards one hand while the other arm stays straight.", "Push up and switch sides."] },
     "One-arm": { pose: "push", steps: ["Feet wide, one hand under the middle of your chest, other hand behind your back.", "Lower slowly, keeping hips square to the floor.", "Push up. Start with the incline version on a bench."] },
   },
   "Pull-ups": {
@@ -86,7 +121,7 @@ const TYPES: Record<string, Record<string, HowTo>> = {
   Squats: {
     Half: { pose: "squat", steps: ["Feet shoulder-width.", "Bend until your thighs are halfway to level.", "Stand back up. Good for starting out or sore knees."] },
     Bodyweight: { pose: "squat" },
-    Sumo: { pose: "squat", steps: ["Feet very wide, toes turned out.", "Sit straight down, knees pushed out over your toes.", "Stand up squeezing your inner thighs and glutes."] },
+    Sumo: { pose: "sumo", steps: ["Feet very wide, toes turned out.", "Sit straight down, knees pushed out over your toes.", "Stand up squeezing your inner thighs and glutes."] },
     Jump: { pose: "jumpsquat", steps: ["Squat down with arms back.", "Explode up and swing your arms, leaving the floor.", "Land softly and go straight into the next squat."] },
     "Bulgarian split": { pose: "lunge", prop: "dumbbell", steps: ["Back foot on a bench behind you, dumbbells at your sides.", "Lower your back knee towards the floor.", "Push up through your front heel. Switch legs."] },
     Pistol: { pose: "pistol", steps: ["Stand on one leg, other leg straight out in front.", "Squat all the way down on the standing leg, arms forward for balance.", "Stand back up. Hold a door frame to learn it."] },
@@ -98,7 +133,7 @@ const TYPES: Record<string, Record<string, HowTo>> = {
   },
   Plank: {
     Knee: { pose: "plank", steps: ["Forearms down, knees on the floor.", "Straight line from knees to head.", "Hold and breathe."] },
-    Side: { pose: "plank", steps: ["Lie on your side, elbow under your shoulder.", "Lift your hips so your body is straight.", "Hold, then switch sides."] },
+    Side: { pose: "sideplank", steps: ["Lie on your side, elbow under your shoulder.", "Lift your hips so your body is straight.", "Hold, then switch sides."] },
     Weighted: { pose: "plank", steps: ["Ask someone to put a plate on your upper back.", "Hold a perfect plank.", "Have the plate taken off before you drop."] },
   },
   Lunges: {
@@ -121,7 +156,7 @@ const TYPES: Record<string, Record<string, HowTo>> = {
     Press: { pose: "ohpress", steps: ["Bell in the rack position at your shoulder.", "Press straight up until your arm is locked.", "Lower back to the rack with control."] },
     Snatch: { pose: "snatch", steps: ["Swing the bell back between your legs.", "Snap your hips and pull it up close to your body.", "Punch your hand through so it lands softly overhead."] },
     "Turkish get-up": { pose: "getup", steps: ["Lie down holding the bell straight up, eyes on it.", "Roll to your elbow, then hand, lift your hips and sweep your leg under.", "Stand up, then reverse every step back to lying."] },
-    Windmill: { pose: "ohpress", steps: ["Bell locked overhead, feet turned away from it.", "Push your hip out and slide your other hand down your leg.", "Rise back up keeping the bell straight above you."] },
+    Windmill: { pose: "windmill", steps: ["Bell locked overhead, feet turned away from it.", "Push your hip out and slide your other hand down your leg.", "Rise back up keeping the bell straight above you."] },
     Halo: { pose: "halo", steps: ["Hold the bell upside down by the horns at your chest.", "Circle it around your head, close to your neck.", "Go the other way. Keep your core tight."] },
   },
   "Bench press": {
@@ -157,7 +192,7 @@ const TYPES: Record<string, Record<string, HowTo>> = {
   },
   Running: { Sprint: { pose: "highknee", steps: ["Warm up well first.", "Run all out for 10 to 30 seconds, knees high, arms driving.", "Walk to recover fully, then repeat."] } },
   "Glute bridge": { "Single-leg": { pose: "bridge", steps: ["Lie on your back, one foot flat, other leg straight up.", "Push through the heel on the floor to lift your hips.", "Lower slowly. Switch legs."] } },
-  Handstand: { Wall: { pose: "pikepush", scene: "wall" }, "Push-up": { pose: "pikepush", scene: "wall" } },
+  Handstand: { Wall: { pose: "handstand", scene: "wall" }, Freestanding: { pose: "handstand", scene: "none" }, "Push-up": { pose: "hspu", scene: "wall" } },
 };
 
 const PROP_IN_NAME: [RegExp, Prop][] = [[/kettle/i, "kettlebell"], [/barbell|\bbar\b|ez.?bar|smith/i, "barbell"], [/dumbbell|\bdb\b/i, "dumbbell"]];
@@ -170,9 +205,9 @@ export function howTo(m: Move | undefined, variant?: string, name?: string): How
   const t = (variant && TYPES[m.name]?.[variant]) || {};
   const named = PROP_IN_NAME.find(([re]) => re.test(variant ?? "") || re.test(name ?? ""))?.[1];
   const out: HowTo = {
-    pose: m.ownPose ? m.pose : t.pose ?? m.pose ?? base.pose ?? m.pattern,
-    prop: m.ownProp ? m.prop : t.prop ?? named ?? m.prop ?? base.prop,
-    scene: t.scene ?? m.scene ?? base.scene,
+    pose: m.ownPose ? m.pose : t.pose ?? PICTURE[m.name]?.pose ?? m.pose ?? base.pose ?? m.pattern,
+    prop: m.ownProp ? m.prop : t.prop ?? named ?? PICTURE[m.name]?.prop ?? m.prop ?? base.prop,
+    scene: t.scene ?? PICTURE[m.name]?.scene ?? m.scene ?? base.scene,
     steps: m.ownSteps ? m.steps : t.steps ?? m.steps,
   };
   return out;

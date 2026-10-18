@@ -10,6 +10,7 @@ export type Move = {
 };
 
 import { EXTRA_MOVES, type Pattern } from "@/lib/exercises";
+import { NEW_MOVES } from "@/lib/exercises2";
 import type { PoseKey, Prop, Scene } from "@/components/PoseDemo";
 
 const v = (name: string, factor: number, note: string): Variant => ({ name, factor, note });
@@ -96,11 +97,18 @@ for (const m of CORE) if (HOW[m.name]) { m.pattern = HOW[m.name][0]; m.steps = H
 
 // Broad catch-alls go last so specific exercises win.
 const LAST = /^(Weights|Sports|Yoga \/ stretching)$/;
-export const MOVES: Move[] = [...CORE.filter((m) => !LAST.test(m.name)), ...EXTRA_MOVES, ...CORE.filter((m) => LAST.test(m.name))];
+const BASE_MOVES: Move[] = [...CORE.filter((m) => !LAST.test(m.name)), ...EXTRA_MOVES, ...CORE.filter((m) => LAST.test(m.name))];
+// 300+ newer exercises, each with its own picture (skipping any already listed).
+const known = new Set(BASE_MOVES.map((m) => m.name.toLowerCase()));
+export const MOVES: Move[] = [...BASE_MOVES, ...NEW_MOVES.filter((m) => !known.has(m.name.toLowerCase()))];
 
 // The move whose name pattern matches the most text wins, so "nordic curl"
 // finds Nordic curl rather than Bicep curl.
+const BY_NAME = new Map(MOVES.map((m) => [m.name.toLowerCase(), m]));
 export const moveOf = (name: string) => {
+  // An exact name always wins.
+  const exact = BY_NAME.get(name.trim().toLowerCase());
+  if (exact) return exact;
   let best: Move | undefined, len = 0;
   for (const m of MOVES) { const hit = name.match(m.re)?.[0].length ?? 0; if (hit > len) { best = m; len = hit; } }
   return best;

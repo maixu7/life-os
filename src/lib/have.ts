@@ -143,10 +143,15 @@ export function setsText(sets: number, reps: string) {
 export function dayPlan(kit: Kit, day = new Date()): PlanRow[] {
   const seed = Math.floor(day.getTime() / 86_400_000);
   const pick = <T,>(xs: T[], i = 0) => xs[(seed + i) % Math.max(1, xs.length)];
-  const all = doable(kit);
+  // Sports, breathing and rest poses are great, but not plan moves.
+  const all = doable(kit).filter((m) => !/badminton|tennis|basketball|football|cricket|kata|gardening|meditation|breathing|corpse|legs up the wall|mountain pose|swimming|aqua|hill sprint|stair sprint|sled|foam roll|intervals/i.test(m.name));
   const weighted = (m: Move) => needs(m).some((g) => g === "dumbbell" || g === "kettlebell" || g === "barbell");
-  const by = (re: RegExp, pref = true) => {
-    const hits = all.filter((m) => re.test(`${m.pattern} ${howTo(m).pose} ${m.muscles?.join(" ")}`));
+  // Elite skills and holds don't belong in an everyday plan.
+  const HARD = /handstand|planche|one-arm|human flag|muscle-up|front lever|back lever|dragon flag|pistol|shrimp|nordic|skin the cat|l-sit|crow|wheel pose|double unders|typewriter|archer|deficit|behind-the-neck|z press|clap/i;
+  const NOT_PLAN = /zumba|trampoline|^sports$|pinch|pilates|hula|wood ?chop|belt squat|hack squat|yoga|tai chi|dancing|hiking|skating|climbing|kayak|gardening|spin bike|treadmill|elliptical|wrist|seated calf|stretch|pose|kick|band|rope|cable|machine|walk|reach|shadow|boxing|jab|uppercut|hold|carry|circles|swing intervals|leg swings|flow|salutation|breathing/i;
+  const strong = (ms: Move[]) => ms.filter((m) => m.type !== "time");
+  const by = (pats: string[], pref = true, extra?: RegExp) => {
+    const hits = all.filter((m) => pats.includes(m.pattern ?? "") && !HARD.test(m.name) && !NOT_PLAN.test(m.name) && (!extra || extra.test(`${m.name} ${m.muscles?.join(" ")}`)));
     const w = hits.filter(weighted);
     return pref && w.length ? w : hits;
   };
@@ -156,15 +161,16 @@ export function dayPlan(kit: Kit, day = new Date()): PlanRow[] {
     const m = pick(ms, i);
     return m ? { part, name: m.name, sets, reps: m.type === "time" ? "30 s" : reps, kg: weighted(m) ? kgFor(m) : undefined } : null;
   };
+  const stretches = all.filter((m) => m.pattern === "stretch" && m.type === "time" && !HARD.test(m.name));
   return [
-    { part: "Warm-up", name: "Jumping jacks", sets: 1, reps: "60 s" },
-    row("Legs", by(/squat|lunge|Quads/), 3, "10-12", 1),
-    row("Push", by(/push|press|benchpress|ohpress|Chest/), 3, "8-12", 2),
-    row("Pull", by(/pull|row|chinup|widepull|Back|Lats/), 3, "8-12", 3),
-    row("Hips", by(/hinge|swing|deadlift|bridge|hipthrust|Glutes|Hamstrings/), 3, "10-15", 4),
-    row("Arms", by(/curl|Biceps|Triceps|dip/), 2, "10-12", 5),
-    row("Core", by(/plank|crunch|situp|raise|twist|flutter|Abs|Core/, false), 3, "12-15", 6),
-    row("Finisher", by(/jump|burpee|climber|highknee|swing|run/, false), 2, "30 s", 7),
-    { part: "Cool-down", name: "Hamstring stretch", sets: 1, reps: "60 s" },
+    { part: "Warm-up", name: pick(["Jumping jacks", "Marching in place", "Arm circles", "Butt kicks", "High knees"], 0), sets: 1, reps: "60 s" },
+    row("Legs", strong(by(["squat", "lunge"])), 3, "10-12", 1),
+    row("Push", strong(by(["push", "press", "dip"], true, /chest|shoulder|tricep/i)), 3, "8-12", 2),
+    row("Pull", strong(by(["pull", "row"])), 3, "8-12", 3),
+    row("Hips", strong(by(["hinge", "bridge"])), 3, "10-15", 4),
+    row("Arms", strong(by(["curl", "dip"], true, /bicep|tricep|forearm/i)), 2, "10-12", 5),
+    row("Core", by(["plank", "crunch", "raise", "twist"], false), 3, "12-15", 6),
+    row("Finisher", by(["jump", "run"], false), 2, "30 s", 7),
+    stretches.length ? { part: "Cool-down", name: pick(stretches, 8).name, sets: 1, reps: "60 s" } : { part: "Cool-down", name: "Hamstring stretch", sets: 1, reps: "60 s" },
   ].filter((x): x is PlanRow => !!x);
 }
