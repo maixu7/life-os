@@ -9,6 +9,8 @@ import { TaskLog } from "@/components/TaskLog";
 import { emojiFor } from "@/lib/emoji";
 import { arrange, PAGE_SECTIONS, QUICK_DEFAULT, quickChoices, type Block, type MiniSlot, type SlotAction } from "@/lib/layout";
 import { today, useApp } from "@/lib/store";
+import { StatsButton } from "@/components/Review";
+import { BLOCK_METRIC } from "@/lib/review";
 
 // ---------- Running a mini-slot ----------
 // Some slots log at once; others open a sheet, which <SlotHost/> (in the app
@@ -117,7 +119,11 @@ export function OwnBlock({ b }: { b: Block }) {
   const head = (
     <div className="flex items-center justify-between mb-2">
       <h2 className="section-title">{b.icon} {b.title}</h2>
-      <Link href="/control?tab=pages" className="text-[11px] text-muted">🎛️</Link>
+      <span className="flex items-center gap-2">
+        {b.kind === "counter" && <StatsButton metric={`counter:${b.id}`} title={`${b.icon} ${b.title}`} />}
+        {b.kind === "checklist" && !!b.items?.length && <StatsButton metric={`done:${b.items.join("|")}`} title={`${b.icon} ${b.title} (ticks)`} />}
+        <Link href="/control?tab=pages" className="text-[11px] text-muted">🎛️</Link>
+      </span>
     </div>
   );
   if (b.kind === "note") return <section className="card p-4 mb-4">{head}<p className="text-sm whitespace-pre-wrap">{b.text || <span className="text-muted">Empty note. Edit it in Control Centre.</span>}</p></section>;
@@ -166,7 +172,15 @@ export function OwnBlock({ b }: { b: Block }) {
 // in Control Centre, leaving out hidden ones.
 export function Blocks({ page, parts }: { page: string; parts: Record<string, React.ReactNode> }) {
   const { profile } = useApp();
-  return <>{arrange(profile.settings.ui, page).map(({ id, own }) => (own ? <OwnBlock key={id} b={own} /> : parts[id] ? <div key={id} className="contents">{parts[id]}</div> : null))}</>;
+  // Blocks with a matching chart get a small 📊 on their top edge (30-day chart).
+  return <>{arrange(profile.settings.ui, page).map(({ id, own }) => {
+    if (own) return <OwnBlock key={id} b={own} />;
+    if (!parts[id]) return null;
+    const metric = BLOCK_METRIC[`${page}:${id}`];
+    return metric
+      ? <div key={id} className="relative">{parts[id]}<StatsButton metric={metric} className="absolute -top-2.5 right-3 z-10" /></div>
+      : <div key={id} className="contents">{parts[id]}</div>;
+  })}</>;
 }
 
 // Own blocks for pages without a built-in block list: shown under the page.

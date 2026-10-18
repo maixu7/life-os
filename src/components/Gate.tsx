@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { PasswordHint } from "@/components/Safety";
 import { AppProvider, initialData, mergeData, normalizeData, type Data } from "@/lib/store";
 import {
   forgetDevice, getLockout, lastUser, login, readBackup, recordAttempt, register, remembered, rememberDevice,
@@ -268,6 +269,7 @@ function SignIn({ onDone, initialError = "" }: { onDone: (s: Session, d: Data) =
         <input autoCapitalize="none" autoComplete="username" placeholder="Username or email" className="input" value={user} onChange={(e) => setUser(e.target.value)} />
         {mode === "up" && !backup && <input placeholder="Your name" className="input" value={name} onChange={(e) => setName(e.target.value)} />}
         <input type="password" autoComplete={mode === "in" ? "current-password" : "new-password"} placeholder="Password" className="input" value={pw} onChange={(e) => setPw(e.target.value)} />
+        {mode === "in" && <PasswordHint user={user} />}
         {mode === "up" && <input type="password" autoComplete="new-password" placeholder="Repeat password" className="input" value={pw2} onChange={(e) => setPw2(e.target.value)} />}
         {mode === "up" && <p className="text-xs text-amber-300">There is no password reset. If you forget it, nobody can recover your data, not even the server.</p>}
         <p className="min-h-5 text-sm text-rose-400">{wait > 0 ? `Locked. Try again in ${wait}s.` : error}</p>

@@ -8,6 +8,8 @@ import { nextTasks, snooze, type Action, type Task } from "@/lib/coach";
 import { isNapTime } from "@/lib/slots";
 import { useApp, useCustomItems } from "@/lib/store";
 import { ScheduleSheet } from "@/components/ScheduleSheet";
+import { SpeakButton } from "@/components/Safety";
+import { speak } from "@/lib/safety";
 import { gaps, handledToday } from "@/lib/gaps";
 import { wokeRecently } from "@/lib/schedule";
 import { DAY_LABEL, fmt12, isQuiet, PHASE_LINES, phaseNow, sched, sleepTimes, type Now } from "@/lib/schedule";
@@ -65,7 +67,8 @@ function TaskBody({ t }: { t: Task }) {
     <>
       <div className="flex items-center gap-3">
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/10 text-2xl">{t.icon}</span>
-        <div className="font-game font-bold">{t.title}</div>
+        <div className="font-game font-bold flex-1">{t.title}</div>
+        <SpeakButton text={`${t.title}. ${t.why}`} />
       </div>
       <div className="mt-2 text-sm"><span className="text-[var(--accent2)] font-semibold">Why do it: </span>{t.why}</div>
       <div className="mt-1 text-xs text-muted"><span className="font-semibold">Why I picked this: </span>{t.because}</div>
@@ -210,6 +213,12 @@ export function Popper() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Read-aloud mode (Display & reading) speaks each pop-up as it appears.
+  useEffect(() => {
+    if (!pop) return;
+    speak(pop.kind === "task" ? `${pop.t.title}. ${pop.t.why}` : pop.kind === "phase" ? pop.line : pop.w.text);
+  }, [pop]);
+
   // Nothing closes by itself: Sensei's orders and quotes stay until tapped.
 
   // Big motivational quotes at random moments, on any screen.
@@ -231,6 +240,7 @@ export function Popper() {
     return () => clearTimeout(timer);
   }, [sc.popups]);
   // Quotes stay until the hero taps them.
+  useEffect(() => { if (quote) speak(quote.text); }, [quote]);
 
   // Check-ins at 9 AM, 12 PM, 5 PM and 8 PM: what's lacking and what to do now.
   const [cp, setCp] = useState<{ hour: number; tasks: Task[] } | null>(null);

@@ -15,7 +15,9 @@ import { karma } from "@/lib/karma";
 import { Deeds } from "@/components/Deeds";
 import { initialData, useApp, type Log } from "@/lib/store";
 import { LOCK_KEY, lockMinutes } from "@/components/Gate";
-import { addDecoy, exportBackup } from "@/lib/vault";
+import { addDecoy } from "@/lib/vault";
+import { LevelUpCard } from "@/components/Review";
+import { BackupCard, DisplaySheet } from "@/components/Safety";
 import { ATTRIBUTES, progress, RANKS, UNLOCKS } from "@/lib/xp";
 
 const THEMES = [
@@ -71,14 +73,7 @@ export default function RankPage() {
   });
   const unlocked = new Set(UNLOCKS.filter((u) => p.level >= u.level).map((u) => u.id));
 
-  const backup = async () => {
-    const blob = new Blob([await exportBackup(session, data)], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `life-os-${new Date().toISOString().slice(0, 10)}.lifeos`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
+  const [display, setDisplay] = useState(false);
 
   const makeDecoy = async () => {
     if (decoyPw.length < 8) return setMsg("Use at least 8 characters.");
@@ -130,6 +125,8 @@ export default function RankPage() {
         )}
       </section>
 
+      <LevelUpCard />
+
       <CharacterPanel />
 
       <GapsCard />
@@ -150,7 +147,7 @@ export default function RankPage() {
       <section className="card p-4 mb-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="section-title">🏆 Achievements</h2>
-          <span className="text-xs text-muted">{Object.keys(profile.achievements).length}/{ACHIEVEMENTS.length}</span>
+          <Link href="/trophies" className="chip text-xs">🏆 Trophy room · {Object.keys(profile.achievements).length}/{ACHIEVEMENTS.length}</Link>
         </div>
         <div className="grid grid-cols-3 gap-2">
           {ACHIEVEMENTS.map((a) => {
@@ -160,6 +157,7 @@ export default function RankPage() {
                 <div className={`text-3xl ${got ? "drop-shadow-[0_0_10px_var(--gold)]" : ""}`}>{got ? a.icon : "🔒"}</div>
                 <div className="text-[11px] mt-1 font-semibold leading-tight">{a.name}</div>
                 <div className="text-[9px] text-muted leading-tight">{a.desc}</div>
+                {got && <div className="text-[9px] gold-text mt-0.5">{new Date(got).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "2-digit" })}</div>}
               </div>
             );
           })}
@@ -208,6 +206,8 @@ export default function RankPage() {
           })}
         </div>
         <p className="mt-2 text-xs text-muted">Ranks: {RANKS.map((r) => r.name).join(" → ")}</p>
+        <button onClick={() => setDisplay(true)} className="btn-ghost w-full mt-3">☀️ Light mode, text size, bigger buttons, read-aloud</button>
+        {display && <DisplaySheet onClose={() => setDisplay(false)} />}
       </section>
 
       <section className="card p-4 mb-4 space-y-2">
@@ -239,7 +239,6 @@ export default function RankPage() {
           <p className="text-sm text-muted">This device remembers you, so the app opens without a password.</p>
         )}
         <button onClick={signOut} className="btn-ghost w-full">Sign out of this device</button>
-        <button onClick={backup} className="btn-ghost w-full">📦 Download encrypted backup</button>
         <p className="text-xs text-muted">Your data syncs to all your devices, end-to-end encrypted. The backup file is an extra safety copy, still locked by your password (photos not included).</p>
         <div className="flex gap-2">
           <input type="password" className="input" placeholder="Decoy password" value={decoyPw} onChange={(e) => setDecoyPw(e.target.value)} />
@@ -247,6 +246,8 @@ export default function RankPage() {
         </div>
         {msg && <p className="text-xs text-[var(--accent2)]">{msg}</p>}
       </section>
+
+      <BackupCard />
     </>
   );
 }

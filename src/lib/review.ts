@@ -135,7 +135,7 @@ export function dayScore(d: Data, day: string, dd?: DayDeeds) {
 
 export type Reason = { icon: string; text: string; lost: number; tip: string };
 
-export function whyDay(d: Data, day: string, f = allFacts(d)) {
+export function whyDay(d: Data, day: string, f = allFacts(d), withLinks = true) {
   const dd = f.deeds.get(day);
   const { score, health: h } = dayScore(d, day, dd);
   const facts = f.days.get(day);
@@ -152,10 +152,10 @@ export function whyDay(d: Data, day: string, f = allFacts(d)) {
   if (facts && goal && facts.studyMin < goal * 0.5) reasons.push({ icon: "📖", text: "Little study", lost: Math.round(Math.min(10, (1 - facts.studyMin / goal) * 10)), tip: `${facts.studyMin} of ${goal} study minutes.` });
   // How this day's habits have played out on your other days.
   const scores = new Map<string, number>();
-  for (const k of [...f.days.keys()].filter((x) => x <= day).sort().slice(-60)) scores.set(k, dayScore(d, k, f.deeds.get(k)).score);
+  for (const k of [...f.days.keys()].filter((x) => x <= day && (withLinks || x >= shift(day, -14))).sort().slice(-60)) scores.set(k, dayScore(d, k, f.deeds.get(k)).score);
   const rows = [...scores.keys()].map((k) => f.days.get(k)!);
   const lim = sched(d.profile.settings.schedule).screenLimit;
-  const links = compare(rows, (r) => scores.get(r.day) ?? null, [
+  const links = !withLinks ? [] : compare(rows, (r) => scores.get(r.day) ?? null, [
     { icon: "😴", label: "Sleep", good: "7 h+ sleep", bad: "under 7 h", test: (r) => (r.sleepH == null ? null : r.sleepH >= 7) },
     { icon: "📱", label: "Phone time", good: `time-pass under ${lim} min`, bad: "more", test: (r) => r.screenMin <= lim },
     { icon: "🍟", label: "Junk food", good: "no junk food", bad: "with junk", test: (r) => r.junk === 0 },
@@ -250,8 +250,8 @@ export const METRICS: Record<string, Metric> = {
 };
 // Which chart each built-in block opens ("page:block").
 export const BLOCK_METRIC: Record<string, string> = {
-  "/:coach": "xp", "/:learn": "study", "/:care": "health", "/:sleep": "sleep", "/:meals": "kcal", "/:gauges": "health", "/:boss": "xp",
-  "/:missions": "missions", "/:potions": "water", "/:quests": "good", "/:habits": "good", "/:fix": "bad", "/:gaps": "protein", "/:library": "study",
+  "/:learn": "study", "/:care": "health", "/:sleep": "sleep", "/:meals": "kcal", "/:gauges": "health", "/:boss": "xp",
+  "/:missions": "missions", "/:potions": "water", "/:quests": "good", "/:library": "study",
   "/today:basics": "records", "/today:did": "xp", "/today:fix": "bad",
   "/food:meals": "kcal", "/food:week": "kcal", "/food:next": "protein", "/food:care": "health", "/food:drink": "water",
   "/train:done": "sets", "/train:plan": "sets", "/train:list": "sets", "/train:lift": "sets",

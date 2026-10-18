@@ -9,6 +9,7 @@ import { PushSync } from "@/components/Push";
 import { GameWatcher } from "@/components/GameWatcher";
 import { Gate } from "@/components/Gate";
 import { Nav } from "@/components/Nav";
+import { SafetyLayer } from "@/components/Safety";
 import { ResumeRoute } from "@/components/ResumeRoute";
 import { StageIntro } from "@/components/StageIntro";
 import { VoiceButton } from "@/components/VoiceButton";
@@ -30,6 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <CelebrationLayer />
       <AlarmLayer />
       <SlotHost />
+      <SafetyLayer />
     </Gate>
   );
 }
