@@ -1,3 +1,4 @@
+import { setsText } from "@/lib/have";
 import { MEDIA, type MediaType } from "@/lib/media";
 import { ordinal } from "@/lib/slots";
 import { CHECKIN_BY_KIND } from "@/lib/tools";
@@ -66,7 +67,7 @@ function describeInner(l: Log, currency: string): { emoji: string; title: string
     case "workout":
       return {
         emoji: "🏋️", title: String(d.exercise ?? "Workout"),
-        detail: join(`${d.sets ?? 1} × ${d.reps}`, d.weight ? `${d.weight} kg` : "", note),
+        detail: join(setsText(Number(d.sets ?? 1), d.seconds ? `${d.seconds} s` : String(d.reps ?? "")), d.weight ? `${d.weight} kg` : "", note),
       };
     case "focus":
       return { emoji: "📖", title: "Focus session", detail: join(`${d.minutes} min`, d.subject, note) };
