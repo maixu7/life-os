@@ -1,5 +1,6 @@
 "use client";
 
+import { StartButton } from "@/components/Doing";
 import { useState } from "react";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { WhenPicker } from "@/components/When";
@@ -73,7 +74,8 @@ export function MealSheet({ meal: initial, log, onClose, start }: { meal?: strin
       )}
       <textarea className="input min-h-12 text-sm" placeholder="Notes (home made, how much oil…)" value={contents} onChange={(e) => setContents(e.target.value)} />
       <div className="rounded-xl bg-white/5 p-3 text-sm flex justify-between"><span>Total ({foods.length})</span><b>{kcal} kcal · {protein} g protein</b></div>
-      <button onClick={save} className="btn-primary w-full">{log ? "Save changes" : `Log ${meal.toLowerCase()}`}</button>
+      <button onClick={save} className="btn-primary w-full">{log ? "Save changes" : `Log ${meal.toLowerCase()} (eaten)`}</button>
+      {!log && <StartButton onClick={save} label="▶ Start eating, tick Complete after" />}
     </Sheet>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { StartButton } from "@/components/Doing";
 import { useEffect, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { ImpactCard, LiftCard } from "@/components/RealMe";
@@ -283,7 +284,8 @@ export default function TrainPage() {
             </div>
           )}
 
-          <button onClick={log} className="btn-primary w-full">Log set</button>
+          <button onClick={log} className="btn-primary w-full">Log set (done)</button>
+          <StartButton onClick={log} label="▶ Start this set, tick Complete after" />
         </section>
       )}
       {editEx && <ExerciseEditor item={editEx} onClose={() => setEditEx(null)} />}

@@ -1,5 +1,6 @@
 "use client";
 
+import { StartButton } from "@/components/Doing";
 import { StudyLock } from "@/components/FixCard";
 import { WhenPicker } from "@/components/When";
 import { useEffect, useMemo, useState } from "react";
@@ -224,7 +225,8 @@ function MediaSheet({ start, at, onClose, onLogged }: { start: Recent; at: () =>
       <WhenPicker label="When" value={when} onChange={setWhen} />
       <input className="input" placeholder="Note: what did you learn or think? (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
       {!m.good && title.trim() && <StudyLock />}
-      <button onClick={save} disabled={!title.trim()} className="btn-primary w-full">Log it</button>
+      <button onClick={save} disabled={!title.trim()} className="btn-primary w-full">Log it (done)</button>
+      <StartButton onClick={save} disabled={!title.trim()} />
     </Sheet>
   );
 }
@@ -325,7 +327,8 @@ function CodingSheet({ at, onClose, onLogged }: { at: () => Date; onClose: () =>
       <input className="input" inputMode="numeric" placeholder="Minutes" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
       <WherePicker value={where} onChange={setWhere} />
       <WhenPicker label="When" value={when} onChange={setWhen} />
-      <button onClick={save} disabled={kind !== "typing" && !language} className="btn-primary w-full">Log coding</button>
+      <button onClick={save} disabled={kind !== "typing" && !language} className="btn-primary w-full">Log coding (done)</button>
+      <StartButton onClick={save} disabled={kind !== "typing" && !language} />
     </Sheet>
   );
 }

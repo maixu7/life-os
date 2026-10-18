@@ -1,5 +1,6 @@
 "use client";
 
+import { StartButton } from "@/components/Doing";
 import { useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { judge, searchTasks, TASKS } from "@/lib/tasks";
@@ -45,6 +46,7 @@ export function TaskLog({ onClose, at }: { onClose: () => void; at?: Date }) {
             <input className="input !py-1 !w-24 text-xs" inputMode="numeric" placeholder="minutes" value={minutes} onChange={(e) => setMinutes(e.target.value)} />
             <button onClick={() => save()} className="btn-primary flex-1 !py-1.5 text-sm">Log “{q.trim()}”</button>
           </div>
+          <StartButton onClick={() => save()} />
           {!items.some((i) => i.name.toLowerCase() === q.trim().toLowerCase()) && <button onClick={() => add(q.trim(), { emoji: j.emoji })} className="text-[11px] text-[var(--accent2)]">＋ Also add it to my side quests</button>}
         </div>
       )}

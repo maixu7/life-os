@@ -1,5 +1,6 @@
 "use client";
 
+import { StartButton } from "@/components/Doing";
 import { useMemo, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { DRINK_CATS, DRINKS, type Drink, type DrinkCat } from "@/lib/drinks";
@@ -66,7 +67,8 @@ export function DrinkSheet({ onClose, at }: { onClose: () => void; at?: Date }) 
           <GoodBadge g={drinkGoodness(pick, ml)} />
           {pick.sugar100 * k > 25 && <p className="text-[11px] text-rose-300">That&apos;s more sugar than the WHO&apos;s ideal for a whole day (25 g).</p>}
           {pick.alcohol ? <p className="text-[11px] text-amber-300">Alcohol {pick.alcohol}%. Drink water too, and not before training.</p> : null}
-          <button onClick={save} className="btn-primary w-full">Log it</button>
+          <button onClick={save} className="btn-primary w-full">Log it (drank)</button>
+          <StartButton onClick={save} label="▶ Start drinking, tick Complete after" />
         </div>
       )}
     </Sheet>

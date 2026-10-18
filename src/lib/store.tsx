@@ -179,6 +179,12 @@ type Ctx = {
   celebration: Celebration | null;
   clearCelebration: () => void;
   logActivity: (kind: string, data?: Record<string, unknown>, at?: Date, xp?: number) => Log;
+  // "Start now, complete later": the next logActivity call is kept as a task
+  // in progress instead of a record, until you tick Complete.
+  startNext: () => void;
+  doing: CustomItem[];
+  completeDoing: (id: string) => void;
+  cancelDoing: (id: string) => void;
   saveProfile: (patch: Partial<Profile>) => void;
   updateLog: (id: string, patch: { data?: Record<string, unknown>; at?: Date }) => void;
   deleteLog: (id: string) => void;
@@ -240,9 +246,28 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
     document.documentElement.dataset.theme = data.profile.settings.theme;
   }, [data.profile.settings.theme]);
 
-  const celebrate = useCallback((c: Celebration) => setCelebration(c), [setCelebration]);
+  const starting = useRef(false);
+  const quietUntil = useRef(0);
+  const celebrate = useCallback((c: Celebration) => {
+    // While starting a task, its "well done" waits for Complete.
+    if (Date.now() < quietUntil.current) return;
+    setCelebration(c);
+  }, [setCelebration]);
+  const startNext = useCallback(() => {
+    starting.current = true;
+    setTimeout(() => { starting.current = false; }, 0);
+  }, []);
 
   const logActivity = useCallback((kind: string, payload: Record<string, unknown> = {}, at = new Date(), xpOverride?: number) => {
+    if (starting.current) {
+      starting.current = false;
+      quietUntil.current = Date.now() + 400;
+      const name = String(payload.name ?? payload.exercise ?? payload.title ?? payload.lang ?? kind);
+      const item: CustomItem = { id: id(), category: "doing", name, sort: Date.now(), config: { kind, data: payload, xp: xpOverride ?? null, started: new Date().toISOString(), emoji: payload.emoji ?? null } };
+      update((d) => ({ ...d, items: [...d.items, item] }));
+      setCelebration({ title: "▶ STARTED", subtitle: `${name}. Tick ✓ Complete when you finish.`, kind: "small" });
+      return { id: item.id, day: toDay(at), kind, data: payload, xp: 0, created_at: at.toISOString() };
+    }
     const xp = xpOverride ?? XP[kind] ?? 5;
     // Real-world common sense: move records that clash with sleep, driving, training…
     const fix = realityCheck(kind, payload, at, latest.current.logs);
@@ -269,6 +294,18 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
     return log;
   }, [update, setCelebration]);
 
+  const doing = useMemo(() => data.items.filter((i) => i.category === "doing"), [data.items]);
+  const cancelDoing = useCallback((itemId: string) => update((d) => ({ ...d, items: d.items.filter((i) => i.id !== itemId), deleted: [...d.deleted, itemId] })), [update]);
+  const completeDoing = useCallback((itemId: string) => {
+    const it = latest.current.items.find((i) => i.id === itemId);
+    if (!it) return;
+    const c = it.config as { kind: string; data: Record<string, unknown>; xp: number | null; started: string };
+    const mins = Math.max(1, Math.round((Date.now() - new Date(c.started).getTime()) / 60_000));
+    cancelDoing(itemId);
+    const row = logActivity(c.kind, { ...c.data, minutes: c.data.minutes ?? mins, started_at: c.started }, new Date(), c.xp ?? undefined);
+    setCelebration({ title: "✓ COMPLETE!", subtitle: `${it.name} · ${mins} min`, xp: row.xp, icon: String(c.data.emoji ?? "✅") });
+  }, [cancelDoing, logActivity, setCelebration]);
+
   const value: Ctx = {
     session,
     data,
@@ -280,6 +317,10 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
     clearCelebration: () => setQueue((q) => q.slice(1)),
     saveProfile: (patch) => update((d) => ({ ...d, profile: { ...d.profile, ...patch, updated_at: now() } })),
     logActivity,
+    startNext,
+    doing,
+    completeDoing,
+    cancelDoing,
     updateLog: (logId, { data: patch, at }) => update((d) => ({
       ...d,
       logs: d.logs.map((l) => l.id !== logId ? l : {

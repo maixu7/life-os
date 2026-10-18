@@ -1,5 +1,6 @@
 "use client";
 
+import { DoingCard } from "@/components/Doing";
 import { WhenPicker } from "@/components/When";
 import { useEffect, useMemo, useState } from "react";
 import { isNapTime, optionsFor } from "@/lib/slots";
@@ -133,6 +134,7 @@ export default function TodayPage() {
         <Link href="/today" aria-label="Today's table" title="Today's table" className="btn-ghost h-10 w-10 !p-0 grid place-items-center text-lg">📋</Link>
       </div>
 
+      {isToday && <DoingCard />}
       {isToday && show("coach") && <CoachCard />}
       {isToday && show("learn") && <LearnToday compact />}
       {isToday && show("gaps") && <GapsCard />}

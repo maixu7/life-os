@@ -1,4 +1,5 @@
 import { CelebrationLayer } from "@/components/Celebration";
+import { DoingTray } from "@/components/Doing";
 import { Popper } from "@/components/Coach";
 import { BattleWatcher } from "@/components/RealMe";
 import { ReminderWatcher } from "@/components/tools/Insights";
@@ -21,6 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Popper />
       <BattleWatcher />
       <ReminderWatcher />
+      <DoingTray />
       <CelebrationLayer />
     </Gate>
   );

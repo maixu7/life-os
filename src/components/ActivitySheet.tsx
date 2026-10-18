@@ -1,5 +1,6 @@
 "use client";
 
+import { StartButton } from "@/components/Doing";
 import { WhenPicker } from "@/components/When";
 import { useState } from "react";
 import { dtLocal, Sheet } from "@/components/Sheet";
@@ -94,7 +95,8 @@ export function ActivitySheet({ item, at, onClose, onLogged }: { item: CustomIte
       <WherePicker value={where} onChange={setWhere} />
       <WhenPicker label="When" value={when} onChange={setWhen} />
       <input className="input" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-      <button onClick={save} className="btn-primary w-full">Log {item.name}</button>
+      <button onClick={save} className="btn-primary w-full">Log {item.name} (done)</button>
+      <StartButton onClick={save} />
     </Sheet>
   );
 }

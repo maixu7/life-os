@@ -1,5 +1,6 @@
 "use client";
 
+import { DoingCard } from "@/components/Doing";
 import Link from "next/link";
 import { useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
@@ -68,6 +69,7 @@ export default function TodayPage() {
         <input type="date" className="input !w-auto text-center" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
         <button onClick={() => setDay(shift(day, 1))} disabled={isToday} className="btn-ghost !px-3 !py-1">▶</button>
       </div>
+      {isToday && <DoingCard />}
       {isToday && <FixCard />}
 
       <section className="card p-3 mb-4">
