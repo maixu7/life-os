@@ -30,8 +30,20 @@ const Meal = z.object({
 export type AiFood = z.infer<typeof Food>;
 
 const SYSTEM = `You are a nutritionist who estimates what someone ate from a photo and/or their description.
-List each separate food or drink as its own item (rice and ramen are two items). Judge the portion from the bowl/plate size, depth and any packaging you can read; the description wins over the photo if they disagree about what or how much.
-Use standard nutrition tables (Japanese 食品成分表 values for Japanese foods). For instant noodles count the whole pack with its soup unless told the soup was left. Give numbers for the whole amount eaten, not per 100 g. If nothing edible is shown, return an empty list.`;
+Write every name, portion, ingredient and note in English, even if the food or packaging is Japanese.
+List each separate food or drink as its own item (rice and ramen are two items).
+Portions: the photo shows what the person is eating, so count everything served in each bowl or plate, even if it is spread out or partly eaten. Judge size from the bowl and the chopsticks/spoon. Do not underestimate: rice filling a large bowl is usually 200-300 g cooked. Packaged foods such as instant noodles count as one whole pack with its soup unless the description says otherwise. The description wins over the photo if they disagree about what or how much.
+Numbers: use standard tables (Japanese 食品成分表 values for Japanese foods), for the whole amount eaten, not per 100 g. "sugar" means only sugars (糖類), not total carbohydrate (糖質): plain rice and noodles have almost no sugar (under 1 g per serving). "salt" is salt equivalent (食塩相当量).
+If nothing edible is shown, return an empty list.`;
+
+// Small fixes for common model slips: sugar above carbs, negative or silly decimals.
+const tidy = (m: z.infer<typeof Meal>) => ({
+  ...m,
+  foods: m.foods.map((f) => {
+    const r = (x: number) => Math.max(0, Math.round(x * 10) / 10);
+    return { ...f, kcal: Math.max(0, Math.round(f.kcal)), protein: r(f.protein), fat: r(f.fat), carbs: r(f.carbs), sugar: r(Math.min(f.sugar, f.carbs)), salt: r(f.salt) };
+  }),
+});
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -72,7 +84,7 @@ export async function POST(req: Request) {
     });
     if (msg.stop_reason === "refusal") return bad("Couldn't read that one. Type what you ate.", 422);
     if (!msg.parsed_output) return bad("Couldn't read that one. Try again.", 502);
-    return NextResponse.json(msg.parsed_output);
+    return NextResponse.json(tidy(msg.parsed_output));
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) return bad("Busy right now. Try again in a minute.", 429);
     if (e instanceof Anthropic.AuthenticationError) return bad("AI key is wrong. Check ANTHROPIC_API_KEY in Vercel.", 501);
@@ -95,7 +107,7 @@ async function readWithGemini(key: string, ask: string, img: { mime: string; dat
   const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
   const parts: object[] = [];
   if (img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
-  parts.push({ text: `${ask}\nGive all numbers for the whole amount eaten: kcal, and grams of protein, fat, carbs, sugar and salt equivalent.` });
+  parts.push({ text: `${ask}\nAnswer in English. Give all numbers for the whole amount eaten: kcal, and grams of protein, fat, carbs, sugar and salt equivalent.` });
   let why = "";
   for (const model of models) {
     try {
@@ -113,7 +125,7 @@ async function readWithGemini(key: string, ask: string, img: { mime: string; dat
       }
       const text = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
       const meal = Meal.safeParse(JSON.parse(text || "null"));
-      if (meal.success) return NextResponse.json(meal.data);
+      if (meal.success) return NextResponse.json(tidy(meal.data));
       why = `Gemini answer wasn't readable (${j?.candidates?.[0]?.finishReason ?? "empty"})`;
     } catch (e) {
       why = `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
