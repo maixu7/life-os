@@ -27,7 +27,8 @@ import { logKarma } from "@/lib/karma";
 import { KIND_TOPIC, line } from "@/lib/lore";
 import { dailyMissions, streak, weeklyBoss, type Mission } from "@/lib/missions";
 import Link from "next/link";
-import { Blocks } from "@/components/Blocks";
+import { Blocks, openSlotSheet } from "@/components/Blocks";
+import { askDetails } from "@/components/Details";
 import { arrange } from "@/lib/layout";
 import { CareCard } from "@/components/CareCard";
 import { FixCard } from "@/components/FixCard";
@@ -86,7 +87,7 @@ export default function TodayPage() {
     return () => window.removeEventListener("lifeos-do", on);
   }, [activityItems]);
 
-  const { profile, logActivity, celebrate, data } = useApp();
+  const { profile, celebrate, data } = useApp();
   const { logs } = useLogs(day);
   const settings = profile.settings;
   const show = (id: string) => arrange(settings.ui, "/").some((x) => x.id === id);
@@ -112,14 +113,6 @@ export default function TodayPage() {
     celebrate({ kind: "mission", title: "PERFECT STAGE!", subtitle: "Every mission cleared", big: true, icon: "🎆", quote: line("perfect") });
   }, [doneCount, goals.length, day, isToday, celebrate]);
 
-
-  const log = (kind: string, payload: Record<string, unknown>, title: string) => {
-    const row = logActivity(kind, payload, atFor(day));
-    const k = logKarma(row);
-    celebrate({ title: k < 0 ? `🌒 THE SHADOW STIRS…` : title, xp: row.xp });
-    setToast(row);
-    return row;
-  };
 
   const hour = new Date().getHours();
   const greet = hour < 5 ? "Late night" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -195,9 +188,9 @@ export default function TodayPage() {
       <h2 className="section-title mb-2">🧪 Potions</h2>
       <section className="grid grid-cols-2 gap-3 mb-4">
         <LiquidGlass label="Water" color="#46c8ff" ml={sumMl(logs, "water")} goal={settings.water_goal_ml}
-          onAdd={(ml) => log("water", { ml }, "GULP!")} />
+          onAdd={() => openSlotSheet({ kind: "drink", cat: "water" })} />
         <LiquidGlass label="Milk" color="#fff6e8" ml={sumMl(logs, "milk")} goal={settings.milk_goal_ml}
-          onAdd={(ml) => log("milk", { ml }, "STRONG BONES!")} />
+          onAdd={() => openSlotSheet({ kind: "drink", cat: "milk" })} />
       </section>
       <button onClick={() => setDrinkOpen(true)} className="btn-ghost w-full mb-4 border border-dashed border-white/25 text-sm">🥤 Other drinks: tea, coffee, sports drink, cola, soy milk, juice…</button>
       {drinkOpen && <DrinkSheet at={atFor(day)} onClose={() => setDrinkOpen(false)} />}
@@ -280,7 +273,7 @@ export default function TodayPage() {
         </div>
       )}
       {editing && <EditLog log={editing} onClose={() => setEditing(null)} />}
-      {brief && <MissionBrief m={missions.find((x) => x.id === brief.id) ?? brief} onClose={() => setBrief(null)} log={log} />}
+      {brief && <MissionBrief m={missions.find((x) => x.id === brief.id) ?? brief} onClose={() => setBrief(null)} />}
       {adding && <AddEntry day={day} onClose={() => setAdding(false)} />}
       {actItem && <ActivitySheet item={actItem} at={atFor(day)} onClose={() => setActItem(null)} onLogged={setToast} />}
     </>
@@ -319,9 +312,8 @@ function SleepCard({ onLogged }: { onLogged: (l: Log) => void }) {
         <div className="text-4xl">😴</div>
         <div className="mt-1 font-bold">Sleeping since {fmtTime(open.data.start as string)}</div>
         <div className="text-3xl font-black tabular-nums glow-text">{fmtDuration(Date.now() - since.getTime())}</div>
-        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
-          <button onClick={() => setAsk("wake")} className="btn-primary text-lg">☀️ I woke up…</button>
-          <button onClick={() => wake()} className="btn-ghost" aria-label="Woke up now">✓ Now</button>
+        <div className="mt-3">
+          <button onClick={() => setAsk("wake")} className="btn-primary text-lg w-full">☀️ I woke up…</button>
         </div>
         {sheet}
       </section>
@@ -333,7 +325,6 @@ function SleepCard({ onLogged }: { onLogged: (l: Log) => void }) {
         <span className="text-3xl">{icon}</span>
         <span className="min-w-0"><span className="block font-bold leading-tight">{title}</span><span className="text-[11px] text-muted">{sub}</span></span>
       </button>
-      <button onClick={() => (kind === "wake" ? wake() : sleep())} aria-label={`${title} now`} className="btn-ghost !py-1.5 text-xs">✓ Now</button>
     </div>
   );
   return (
@@ -471,16 +462,20 @@ function Activities({ onLog }: { onLog: (a: CustomItem) => void }) {
   );
 }
 
-function PantryStrip({ day, onLogged }: { day: string; onLogged: (l: Log) => void }) {
-  const { data, update, logActivity, celebrate } = useApp();
+function PantryStrip({ onLogged }: { day: string; onLogged: (l: Log) => void }) {
+  const { data, update } = useApp();
   const stock = data.pantry.filter((p) => p.qty > 0);
   if (!stock.length) return null;
   const use = (id: string) => {
     const p = data.pantry.find((x) => x.id === id)!;
-    update((d) => ({ ...d, pantry: d.pantry.map((x) => (x.id === id ? { ...x, qty: Math.max(0, +(x.qty - 1).toFixed(2)), updated_at: new Date().toISOString() } : x)) }));
-    const row = logActivity("use", { pantry_id: id, name: p.name, emoji: p.emoji, qty: 1, unit: p.unit }, atFor(day));
-    celebrate({ title: `${p.emoji} ${p.qty - 1} LEFT` });
-    onLogged(row);
+    askDetails({
+      title: `Used ${p.name}`, icon: p.emoji, kind: "use", data: { pantry_id: id, name: p.name, emoji: p.emoji, unit: p.unit }, ask: "count", unit: p.unit, start: 1,
+      after: (row) => {
+        const n = Number(row.data.n) || 1;
+        update((d) => ({ ...d, pantry: d.pantry.map((x) => (x.id === id ? { ...x, qty: Math.max(0, +(x.qty - n).toFixed(2)), updated_at: new Date().toISOString() } : x)) }));
+        onLogged({ ...row, data: { ...row.data, qty: n } });
+      },
+    });
   };
   return (
     <section className="card p-4 mb-4">
@@ -591,7 +586,7 @@ function BossAndChest() {
   );
 }
 
-function MissionBrief({ m, onClose, log }: { m: Mission; onClose: () => void; log: (k: string, p: Record<string, unknown>, t: string) => unknown }) {
+function MissionBrief({ m, onClose }: { m: Mission; onClose: () => void }) {
   const [advice] = useState(() => line(KIND_TOPIC[m.topic] ?? m.topic));
   const [meal, setMeal] = useState<string | null>(null);
   const pct = Math.min(100, (m.progress / m.target) * 100);
@@ -612,18 +607,12 @@ function MissionBrief({ m, onClose, log }: { m: Mission; onClose: () => void; lo
       ) : (
         <div className="grid grid-cols-2 gap-2">
           {m.id === "water" && <>
-            <button className="btn-primary" onClick={() => log("water", { ml: 250 }, "GULP!")}>+250 ml</button>
-            <button className="btn-primary" onClick={() => log("water", { ml: 500 }, "GULP GULP!")}>+500 ml</button>
+            <button className="btn-primary col-span-2" onClick={() => { onClose(); openSlotSheet({ kind: "drink", cat: "water" }); }}>💧 Log water…</button>
           </>}
           {m.id === "milk" && <>
-            <button className="btn-primary" onClick={() => log("milk", { ml: 250 }, "STRONG BONES!")}>+250 ml</button>
-            <button className="btn-primary" onClick={() => log("milk", { ml: 500 }, "STRONG BONES!")}>+500 ml</button>
+            <button className="btn-primary col-span-2" onClick={() => { onClose(); openSlotSheet({ kind: "drink", cat: "milk" }); }}>🥛 Log milk…</button>
           </>}
-          {m.id === "wake" && <button className="btn-primary col-span-2" onClick={() => {
-            const d = new Date();
-            log("wake", { time: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` }, "OHAYO!");
-            onClose();
-          }}>☀️ I&apos;m awake</button>}
+          {m.id === "wake" && <button className="btn-primary col-span-2" onClick={() => { onClose(); openSlotSheet({ kind: "wake" }); }}>☀️ I&apos;m awake…</button>}
           {m.id === "meal" && MEALS.map(([n, e]) => (
             <button key={n} className="btn-primary" onClick={() => setMeal(n)}>{e} {n}</button>
           ))}

@@ -69,7 +69,7 @@ export function useQuickLogs() {
   const router = useRouter();
   return [
     { id: "meal", icon: "🍱", label: "Meal", go: () => openSlotSheet({ kind: "meal" }) },
-    { id: "water", icon: "💧", label: "Water +250", go: () => run({ type: "water", ml: 250 }) },
+    { id: "water", icon: "💧", label: "Water", go: () => run({ type: "water", ml: 250 }) },
     { id: "study", icon: "📖", label: "Study", go: () => router.push("/focus?start=1") },
     { id: "train", icon: "⚔️", label: "Workout", go: () => router.push("/train") },
     { id: "mood", icon: "😊", label: "Mood", go: openMood },

@@ -86,6 +86,9 @@ function mergeAchievements(a: Profile, b: Profile) {
 let settleFn: ((before: Data, after: Data, days: string[]) => Data) | null = null;
 export const registerSettle = (f: typeof settleFn) => { settleFn = f; };
 
+// How many records of a kind a day still earn XP.
+const DAILY_XP_CAP: Record<string, number> = { wake: 1, sleep: 1, water: 8, milk: 3, drink: 6 };
+
 export function mergeData(server: Data, local: Data): Data {
   const deleted = [...new Set([...(server.deleted ?? []), ...(local.deleted ?? [])])];
   const gone = new Set(deleted);
@@ -304,7 +307,10 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
       setCelebration({ title: "▶ STARTED", subtitle: `${name}. Tick ✓ Complete when you finish.`, kind: "small" });
       return { id: item.id, day: toDay(at), kind, data: payload, xp: 0, created_at: at.toISOString() };
     }
-    const xp = xpOverride ?? XP[kind] ?? 5;
+    // Repeats earn nothing: one wake-up and one sleep a day, and only the
+    // first few glasses of water, milk and drinks.
+    const sameDay = latest.current.logs.filter((l) => l.kind === kind && l.day === toDay(at) && !l.data.auto).length;
+    const xp = xpOverride ?? (sameDay >= (DAILY_XP_CAP[kind] ?? Infinity) ? 0 : XP[kind] ?? 5);
     // Real-world common sense: move records that clash with sleep, driving, training…
     const fix = realityCheck(kind, payload, at, latest.current.logs);
     const extra: Log[] = [];

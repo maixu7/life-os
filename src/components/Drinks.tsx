@@ -11,26 +11,31 @@ import { CaffeineWarning } from "@/components/FoodPlus";
 
 // Any drink: pick it, pick how much, and the app logs calories, sugar and
 // caffeine. Water and milk count toward their goals.
-export function DrinkSheet({ onClose, at, start, slot }: { onClose: () => void; at?: Date; start?: string; slot?: string }) {
+export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { onClose: () => void; at?: Date; start?: string; slot?: string; cat?: DrinkCat }) {
   const { data, logActivity, celebrate } = useApp();
   const [q, setQ] = useState(() => (start && DRINKS.some((d) => `${d.name} ${d.ja ?? ""}`.toLowerCase().includes(start.toLowerCase())) ? start : ""));
-  const [cat, setCat] = useState<DrinkCat | "">("");
-  const [pick, setPick] = useState<Drink | null>(null);
-  const [ml, setMl] = useState(0);
+  const [cat, setCat] = useState<DrinkCat | "">(startCat ?? "");
+  const first = startCat ? DRINKS.find((d) => d.cat === startCat) ?? null : null;
+  const [pick, setPick] = useState<Drink | null>(first);
+  const [ml, setMl] = useState(first ? 250 : 0);
+  // When you drank it (now by default), so a glass from earlier lands at the right time.
+  const [time, setTime] = useState(() => { const t = when ?? new Date(); return `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`; });
+  const atTime = () => { const t = new Date(when ?? Date.now()); const [h, m] = time.split(":").map(Number); if (!isNaN(h)) t.setHours(h, m || 0, 0, 0); return t; };
   const recent = useMemo(() => [...new Set(data.logs.filter((l) => l.kind === "drink").slice(-30).reverse().map((l) => String(l.data.name)))].slice(0, 8), [data.logs]);
   const list = DRINKS.filter((d) => (!cat || d.cat === cat) && (!q || `${d.name} ${d.ja ?? ""}`.toLowerCase().includes(q.toLowerCase()))).slice(0, 80);
   const choose = (d: Drink) => { setPick(d); setMl(d.ml); };
   const k = ml / 100;
   const save = () => {
-    if (!pick) return;
+    if (!pick || ml <= 0) return;
+    const at = atTime();
     const kcal = Math.round(pick.kcal100 * k), sugar = +(pick.sugar100 * k).toFixed(1);
-    if (pick.cat === "water") logActivity("water", { ml, name: pick.name, slot }, at);
-    else if (pick.cat === "milk" && /^(whole |low.?fat |skim |)milk/i.test(pick.name)) logActivity("milk", { ml, name: pick.name, slot }, at);
-    else logActivity("drink", {
+    const r = pick.cat === "water" ? logActivity("water", { ml, name: pick.name, slot }, at)
+      : pick.cat === "milk" && /^(whole |low.?fat |skim |)milk/i.test(pick.name) ? logActivity("milk", { ml, name: pick.name, slot }, at)
+      : logActivity("drink", {
       name: pick.name, emoji: pick.emoji, cat: pick.cat, slot, ml, kcal, sugar, protein: pick.protein100 ? +(pick.protein100 * k).toFixed(1) : undefined,
       caffeine: pick.caffeine100 ? Math.round(pick.caffeine100 * k) : undefined, alcohol: pick.alcohol, water_ml: Math.round(ml * (pick.water ?? 0.9)),
     }, at);
-    celebrate({ title: "GULP!", subtitle: `${pick.emoji} ${pick.name} ${ml} ml${kcal ? ` · ${kcal} kcal` : ""}${sugar >= 10 ? ` · ${sugar} g sugar` : ""}` });
+    celebrate({ title: "GULP!", subtitle: `${pick.emoji} ${pick.name} ${ml} ml${kcal ? ` · ${kcal} kcal` : ""}${sugar >= 10 ? ` · ${sugar} g sugar` : ""}`, xp: r.xp, kind: "small" });
     onClose();
   };
   return (
@@ -69,6 +74,7 @@ export function DrinkSheet({ onClose, at, start, slot }: { onClose: () => void; 
           {pick.sugar100 * k > 25 && <p className="text-[11px] text-rose-300">That&apos;s more sugar than the WHO&apos;s ideal for a whole day (25 g).</p>}
           <CaffeineWarning mg={Math.round((pick.caffeine100 ?? 0) * k)} />
           {pick.alcohol ? <p className="text-[11px] text-amber-300">Alcohol {pick.alcohol}%. Drink water too, and not before training.</p> : null}
+          <label className="flex items-center gap-2 text-xs text-muted">🕒 When <input type="time" className="input !w-28 !py-0.5 text-xs" value={time} onChange={(e) => setTime(e.target.value)} /></label>
           <button onClick={save} className="btn-primary w-full">Log it (drank)</button>
           <StartButton onClick={save} label="▶ Start drinking, tick Complete after" />
         </div>

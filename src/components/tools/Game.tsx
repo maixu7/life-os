@@ -1,5 +1,6 @@
 "use client";
 
+import { askDetails } from "@/components/Details";
 import { useMemo, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { karma, logKarma } from "@/lib/karma";
@@ -22,7 +23,7 @@ export function QuoteOfDay() {
 }
 
 export function DailyChallenge() {
-  const { data, logActivity, celebrate } = useApp();
+  const { data, celebrate } = useApp();
   const day = today();
   const name = CHALLENGES[seed(day) % CHALLENGES.length];
   const done = data.logs.some((l) => l.kind === "challenge" && l.day === day);
@@ -31,10 +32,10 @@ export function DailyChallenge() {
       <div className="text-[10px] font-game tracking-widest gold-text">🔥 DAILY CHALLENGE · +40 XP · 😇 +5</div>
       <div className="mt-1 font-game font-bold">{name}</div>
       <p className="text-xs text-muted">A new challenge every day. Beat it for bonus XP and angel points.</p>
-      <button disabled={done} onClick={() => {
-        const row = logActivity("challenge", { name }, new Date(), 40);
-        celebrate({ title: "CHALLENGE BEATEN!", subtitle: name, xp: row.xp, big: true, icon: "🔥", quote: "What stands in the way becomes the way. (Marcus Aurelius)" });
-      }} className={`${done ? "btn-ghost" : "btn-gold"} w-full mt-2 !py-2`}>{done ? "✓ Beaten today" : "I did it!"}</button>
+      <button disabled={done} onClick={() => askDetails({
+        title: name, icon: "🔥", kind: "challenge", data: { name }, xp: 40, ask: "minutes",
+        after: (row) => celebrate({ title: "CHALLENGE BEATEN!", subtitle: name, xp: row.xp, big: true, icon: "🔥", quote: "What stands in the way becomes the way. (Marcus Aurelius)" }),
+      })} className={`${done ? "btn-ghost" : "btn-gold"} w-full mt-2 !py-2`}>{done ? "✓ Beaten today" : "I did it!"}</button>
     </section>
   );
 }

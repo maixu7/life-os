@@ -1,5 +1,6 @@
 "use client";
 
+import { askDetails } from "@/components/Details";
 import { useMemo, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { gold } from "@/lib/economy";
@@ -49,9 +50,8 @@ export function ListSheet({ kind, onClose }: { kind: ListKind; onClose: () => vo
     setName(""); setExtra("");
   };
   const complete = (i: CustomItem, list: string, xp = 10) => {
-    update(i.id, { config: { ...i.config, done: true, doneAt: new Date().toISOString() } });
-    logActivity("task", { name: i.name, list }, new Date(), xp);
-    celebrate({ title: "QUEST CLEARED!", subtitle: `✅ ${i.name}`, xp });
+    askDetails({ title: i.name, icon: "✅", kind: "task", data: { name: i.name, list }, xp, ask: "minutes",
+      after: () => update(i.id, { config: { ...i.config, done: true, doneAt: new Date().toISOString() } }) });
   };
 
   let shown = items;
@@ -90,8 +90,8 @@ export function ListSheet({ kind, onClose }: { kind: ListKind; onClose: () => vo
                   onClick={() => {
                     if (isRoutine) {
                       if (done) return;
-                      logActivity("routine", { name: i.name, list: kind, item: i.id }, new Date(), 5);
-                      if (doneToday.size + 1 === items.length) celebrate({ title: `${kind === "morning" ? "🌅 MORNING" : "🌙 NIGHT"} ROUTINE COMPLETE`, big: true, xp: 5, quote: "Routines are how heroes win the day before it starts." });
+                      askDetails({ title: i.name, icon: kind === "morning" ? "🌅" : "🌙", kind: "routine", data: { name: i.name, list: kind, item: i.id }, xp: 5, ask: "minutes",
+                        after: () => { if (doneToday.size + 1 === items.length) celebrate({ title: `${kind === "morning" ? "🌅 MORNING" : "🌙 NIGHT"} ROUTINE COMPLETE`, big: true, xp: 5, quote: "Routines are how heroes win the day before it starts." }); } });
                     } else if (kind === "watchlist") {
                       if (gold(data) < 60) return celebrate({ title: "NOT ENOUGH GOLD", subtitle: "Finish missions to earn 60 gold first." });
                       update(i.id, { config: { ...i.config, done: true, doneAt: new Date().toISOString() } });
@@ -117,7 +117,7 @@ export function ListSheet({ kind, onClose }: { kind: ListKind; onClose: () => vo
                   onChange={(e) => update(i.id, { config: { ...i.config, progress: Number(e.target.value) } })}
                   onPointerUp={(e) => {
                     const p = Number((e.target as HTMLInputElement).value);
-                    logActivity("goalstep", { name: i.name, progress: p }, new Date(), 10);
+                    logActivity("goalstep", { name: i.name, progress: p }, new Date(), 0); // XP comes when the goal is done
                     if (p >= 100) complete(i, "Goal", 100);
                   }} />
               )}

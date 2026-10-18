@@ -1,11 +1,11 @@
 "use client";
 
+import { openSlotSheet } from "@/components/Blocks";
 import { alarmPrefs, ring } from "@/lib/alarm";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { nextTasks, snooze, type Action, type Task } from "@/lib/coach";
-import { isNapTime } from "@/lib/slots";
 import { useApp, useCustomItems } from "@/lib/store";
 import { ScheduleSheet } from "@/components/ScheduleSheet";
 import { SpeakButton } from "@/components/Safety";
@@ -19,28 +19,15 @@ import { pushInbox } from "@/lib/inbox";
 // Runs what the Sensei asked for. Simple things are logged right away;
 // things that need details open the right sheet on Base Camp.
 export function useRunAction() {
-  const { data, logActivity, updateLog, celebrate } = useApp();
   const router = useRouter();
   const path = usePathname();
   return useCallback((a: Action) => {
-    const now = new Date();
-    const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     switch (a.type) {
-      case "water": logActivity("water", { ml: 250 }); celebrate({ title: "GULP!", subtitle: "+250 ml water" }); return;
-      case "milk": logActivity("milk", { ml: 250 }); celebrate({ title: "STRONG BONES!", subtitle: "+250 ml milk" }); return;
-      case "sleep": {
-        const nap = isNapTime(now);
-        logActivity("sleep", { start: now.toISOString(), end: null, type: nap ? "nap" : "night" });
-        celebrate({ title: nap ? "POWER NAP!" : "OYASUMI!", subtitle: nap ? "Day nap started" : "Night sleep started. Tonight your day's work fights the demon. Sleep well, hero." });
-        return;
-      }
-      case "wake": {
-        const open = [...data.logs].reverse().find((l) => l.kind === "sleep" && !l.data.end);
-        if (open) updateLog(open.id, { data: { end: now.toISOString() } });
-        logActivity("wake", { time: hhmm, slept_from: open?.data.start ?? null });
-        celebrate({ title: "OHAYO!", subtitle: `Woke up at ${hhmm}` });
-        return;
-      }
+      // Never log on a bare tap: these open the sheet that asks for the details.
+      case "water": openSlotSheet({ kind: "drink", cat: "water" }); return;
+      case "milk": openSlotSheet({ kind: "drink", cat: "milk" }); return;
+      case "sleep": openSlotSheet({ kind: "sleep" }); return;
+      case "wake": openSlotSheet({ kind: "wake" }); return;
       case "href": router.push(a.href); return;
       default: {
         const detail = a.type === "activity" ? `activity:${a.name}` : "library";
@@ -48,7 +35,7 @@ export function useRunAction() {
         else router.push(`/?do=${encodeURIComponent(detail)}`);
       }
     }
-  }, [data.logs, logActivity, updateLog, celebrate, router, path]);
+  }, [router, path]);
 }
 
 export function useTasks() {

@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { DrinkSheet } from "@/components/Drinks";
 import { MealSheet } from "@/components/Meals";
 import { TaskLog } from "@/components/TaskLog";
+import { SleepSheet, WakeSheet } from "@/components/WakeSleep";
+import { askDetails } from "@/components/Details";
 import { WidgetBlock } from "@/components/hub/Widgets";
 import { emojiFor } from "@/lib/emoji";
 import { arrange, PAGE_SECTIONS, QUICK_DEFAULT, quickChoices, type Block, type MiniSlot, type SlotAction } from "@/lib/layout";
@@ -16,39 +18,33 @@ import { BLOCK_METRIC } from "@/lib/review";
 // ---------- Running a mini-slot ----------
 // Some slots log at once; others open a sheet, which <SlotHost/> (in the app
 // layout) shows, so a slot works the same on every page.
-type Open = { kind: "meal"; name?: string } | { kind: "drink" } | { kind: "anything" } | null;
+type Open = { kind: "meal"; name?: string } | { kind: "drink"; cat?: "water" | "milk" } | { kind: "anything" } | { kind: "wake" } | { kind: "sleep" } | null;
 export const openSlotSheet = (o: Exclude<Open, null>) => window.dispatchEvent(new CustomEvent("lifeos-slot", { detail: o }));
 
 export function useRunSlot() {
-  const { data, logActivity, updateLog, celebrate } = useApp();
+  const { data } = useApp();
   const router = useRouter();
   return useCallback((a: SlotAction) => {
-    const now = new Date();
-    const hhmm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     switch (a.type) {
       case "page": router.push(a.href); return;
       case "url": window.open(a.url, "_blank", "noopener"); return;
-      case "water": { const ml = a.ml ?? 250; const r = logActivity("water", { ml }); celebrate({ title: "GULP!", subtitle: `+${ml} ml water`, xp: r.xp, kind: "small", icon: "💧" }); return; }
-      case "milk": { const ml = a.ml ?? 250; const r = logActivity("milk", { ml }); celebrate({ title: "STRONG BONES!", subtitle: `+${ml} ml milk`, xp: r.xp, kind: "small", icon: "🥛" }); return; }
-      case "log": { const r = logActivity("activity", { name: a.name, emoji: emojiFor(a.name) }); celebrate({ title: "✓ DONE", subtitle: a.name, xp: r.xp, kind: "small" }); return; }
-      case "wake": {
-        const open = [...data.logs].reverse().find((l) => l.kind === "sleep" && !l.data.end);
-        if (open) updateLog(open.id, { data: { end: now.toISOString() } });
-        const r = logActivity("wake", { time: hhmm, slept_from: open?.data.start ?? null });
-        celebrate({ title: "OHAYO!", subtitle: `Woke up at ${hhmm}`, xp: r.xp, icon: "🌅" });
+      // Water and milk ask what, how much and when, like any drink.
+      case "water": openSlotSheet({ kind: "drink", cat: "water" }); return;
+      case "milk": openSlotSheet({ kind: "drink", cat: "milk" }); return;
+      case "log": {
+        // Doing the same thing twice in a day logs it, but XP only comes once.
+        const again = data.logs.some((l) => l.day === today() && l.kind === "activity" && String(l.data.name) === a.name);
+        askDetails({ title: a.name, icon: emojiFor(a.name), kind: "activity", data: { name: a.name, emoji: emojiFor(a.name) }, ask: "minutes", xp: again ? 0 : undefined });
         return;
       }
-      case "sleep": {
-        const r = logActivity("sleep", { start: now.toISOString(), end: null, type: "night" });
-        celebrate({ title: "OYASUMI!", subtitle: "Sleep started. Tap Woke up in the morning.", xp: r.xp, icon: "😴" });
-        return;
-      }
+      case "wake": openSlotSheet({ kind: "wake" }); return;
+      case "sleep": openSlotSheet({ kind: "sleep" }); return;
       case "meal": openSlotSheet({ kind: "meal", name: a.name || undefined }); return;
       case "photo": openSlotSheet({ kind: "meal" }); return;
       case "drink": openSlotSheet({ kind: "drink" }); return;
       case "anything": openSlotSheet({ kind: "anything" }); return;
     }
-  }, [data.logs, logActivity, updateLog, celebrate, router]);
+  }, [data.logs, router]);
 }
 
 export function SlotHost() {
@@ -61,7 +57,9 @@ export function SlotHost() {
   if (!open) return null;
   const close = () => setOpen(null);
   if (open.kind === "meal") return <MealSheet meal={open.name} onClose={close} />;
-  if (open.kind === "drink") return <DrinkSheet onClose={close} />;
+  if (open.kind === "drink") return <DrinkSheet onClose={close} cat={open.cat} />;
+  if (open.kind === "wake") return <WakeSheet onClose={close} />;
+  if (open.kind === "sleep") return <SleepSheet onClose={close} />;
   return <TaskLog onClose={close} />;
 }
 
@@ -114,7 +112,7 @@ export function QuickBar() {
 
 // ---------- The hero's own blocks ----------
 export function OwnBlock({ b }: { b: Block }) {
-  const { data, logActivity, deleteLog, celebrate } = useApp();
+  const { data, deleteLog } = useApp();
   const day = today();
   const todays = data.logs.filter((l) => l.day === day);
   const head = (
@@ -138,7 +136,7 @@ export function OwnBlock({ b }: { b: Block }) {
           {items.map((n) => {
             const l = hit(n);
             return (
-              <li key={n}><button onClick={() => { if (l) deleteLog(l.id); else { const r = logActivity("activity", { name: n, emoji: emojiFor(n) }); celebrate({ title: "✓ DONE", subtitle: n, xp: r.xp, kind: "small" }); } }}
+              <li key={n}><button onClick={() => { if (l) deleteLog(l.id); else askDetails({ title: n, icon: emojiFor(n), kind: "activity", data: { name: n, emoji: emojiFor(n) }, ask: "minutes" }); }}
                 className={`w-full flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-left ${l ? "bg-emerald-500/15" : "bg-white/5"}`}>
                 <span className={`h-5 w-5 rounded-md border grid place-items-center text-xs ${l ? "bg-emerald-500 border-emerald-400" : "border-white/30"}`}>{l ? "✓" : ""}</span>
                 <span className={l ? "line-through text-muted" : ""}>{n}</span>
@@ -160,7 +158,7 @@ export function OwnBlock({ b }: { b: Block }) {
         <div className="flex items-center gap-3">
           <button aria-label="One less" disabled={!mine.length} onClick={() => deleteLog(mine[mine.length - 1].id)} className="h-12 w-12 rounded-full bg-white/10 text-xl">−</button>
           <div className="flex-1 text-center"><div className="text-4xl font-black tabular-nums">{n}</div><div className="text-xs text-muted">{b.unit || "times"} today{goal ? ` · goal ${goal}` : ""}</div></div>
-          <button aria-label="One more" onClick={() => logActivity("counter", { name: b.title, block: b.id, n: 1, unit: b.unit, emoji: b.icon })} className="h-12 w-12 rounded-full bg-[var(--accent)] text-xl">＋</button>
+          <button aria-label="One more" onClick={() => askDetails({ title: b.title, icon: b.icon, kind: "counter", data: { name: b.title, block: b.id, unit: b.unit, emoji: b.icon }, ask: "count", unit: b.unit, start: 1 })} className="h-12 w-12 rounded-full bg-[var(--accent)] text-xl">＋</button>
         </div>
         {goal > 0 && <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-emerald-400" style={{ width: `${Math.min(100, (n / goal) * 100)}%` }} /></div>}
       </section>

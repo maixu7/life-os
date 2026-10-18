@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet } from "@/components/Sheet";
 import { openSlotSheet, useRunSlot } from "@/components/Blocks";
+import { askDetails } from "@/components/Details";
 import { openHub } from "@/components/hub/registry";
 import { surprise, type Surprise } from "@/lib/hub";
 import { today, useApp, useCustomItems, type CustomItem } from "@/lib/store";
@@ -26,18 +27,19 @@ export function MorningSheet({ onClose }: { onClose: () => void }) {
   const m = useMorning();
   const { logActivity, celebrate } = useApp();
   const run = useRunSlot();
-  const tick = (s: CustomItem) => {
-    logActivity("routine", { name: s.name, list: "morning", item: s.id }, new Date(), 5);
-    // Linked steps also count as the real thing.
-    if (/water/i.test(s.name)) logActivity("water", { ml: 250 });
-    const last = m.steps.filter((x) => !m.done.has(x.id) && x.id !== s.id).length === 0;
-    if (last) {
-      const r = logActivity("routine", { name: "All steps in order", list: "morning-all", item: "all" }, new Date(), 20);
-      celebrate({ title: "MORNING ROUTINE CLEAR!", subtitle: "Every step, in order. The day is yours.", xp: r.xp + 5, big: true, icon: "🌅" });
-    }
-    else celebrate({ title: "✓ STEP DONE", subtitle: s.name, xp: 5, kind: "small" });
-    if (/plan/i.test(s.name)) { onClose(); openHub("planner"); }
-  };
+  const tick = (s: CustomItem) => askDetails({
+    title: s.name, icon: "🌅", kind: "routine", data: { name: s.name, list: "morning", item: s.id }, xp: 5, ask: "minutes",
+    after: () => {
+      const last = m.steps.filter((x) => !m.done.has(x.id) && x.id !== s.id).length === 0;
+      if (last) {
+        const r = logActivity("routine", { name: "All steps in order", list: "morning-all", item: "all" }, new Date(), 20);
+        celebrate({ title: "MORNING ROUTINE CLEAR!", subtitle: "Every step, in order. The day is yours.", xp: r.xp + 5, big: true, icon: "🌅" });
+      }
+      // Linked steps: the water step asks what and how much you drank.
+      if (/water/i.test(s.name)) { onClose(); openSlotSheet({ kind: "drink", cat: "water" }); }
+      if (/plan/i.test(s.name)) { onClose(); openHub("planner"); }
+    },
+  });
   return (
     <Sheet title="🌅 Morning routine" onClose={onClose}>
       <p className="text-sm text-muted">Do the steps in order. Each one unlocks the next.</p>
@@ -121,7 +123,6 @@ export function BrainDumpSheet({ onClose }: { onClose: () => void }) {
 const HOURS = Array.from({ length: 19 }, (_, i) => i + 6); // 6:00 .. 24:00
 export function PlannerSheet({ onClose }: { onClose: () => void }) {
   const { items, add, update } = useCustomItems("list:todo");
-  const { logActivity, celebrate } = useApp();
   const day = today();
   const [pick, setPick] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -136,9 +137,8 @@ export function PlannerSheet({ onClose }: { onClose: () => void }) {
     setPick(null);
   };
   const done = (i: CustomItem) => {
-    update(i.id, { config: { ...i.config, done: true, doneAt: new Date().toISOString() } });
-    logActivity("task", { name: i.name, list: "To-do" }, new Date(), 10);
-    celebrate({ title: "QUEST CLEARED!", subtitle: `✅ ${i.name}`, xp: 10, kind: "small" });
+    askDetails({ title: i.name, icon: "✅", kind: "task", data: { name: i.name, list: "To-do" }, xp: 10, ask: "minutes",
+      after: () => update(i.id, { config: { ...i.config, done: true, doneAt: new Date().toISOString() } }) });
   };
   return (
     <Sheet title="🗓️ Day planner" onClose={onClose}>

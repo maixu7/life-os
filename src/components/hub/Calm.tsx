@@ -1,5 +1,6 @@
 "use client";
 
+import { openSlotSheet } from "@/components/Blocks";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Sheet } from "@/components/Sheet";
@@ -194,7 +195,7 @@ export function NightSheet({ onClose }: { onClose: () => void }) {
 }
 // Mounted once in the app layout.
 export function NightLayer() {
-  const { data, profile, logActivity, deleteLog, celebrate } = useApp();
+  const { data, profile, deleteLog } = useApp();
   const [on, setOn] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [caught, setCaught] = useState<Log | null>(null);
@@ -225,7 +226,7 @@ export function NightLayer() {
       {!asleep && (
         <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[61] rounded-full bg-[#1a1030]/95 border border-indigo-300/30 px-3 py-1.5 text-xs flex items-center gap-2 shadow-lg">
           <span>🌙 {mins > 720 ? "Past bedtime!" : `Bed in ${Math.floor(mins / 60) ? `${Math.floor(mins / 60)}h ` : ""}${mins % 60}m`} · 🔒 fun</span>
-          <button className="chip !py-0.5 !px-2" onClick={() => { logActivity("sleep", { start: new Date().toISOString(), end: null, type: "night" }); celebrate({ title: "OYASUMI!", subtitle: "Sleep well, hero.", icon: "😴" }); }}>😴 Sleep</button>
+          <button className="chip !py-0.5 !px-2" onClick={() => openSlotSheet({ kind: "sleep" })}>😴 Sleep</button>
           <button aria-label="Night mode off" className="text-muted" onClick={() => setNight(false)}>✕</button>
         </div>
       )}
