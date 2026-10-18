@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 import { ACCESSORIES, AvatarArt, CLASSES, EXPRESSIONS, EYES, HAIR_STYLES, HAIRS, OUTFITS, PANTS, SHOES, SKINS } from "@/components/AvatarArt";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { ABOUT_HINTS, HABITS, suggestHabits } from "@/lib/habits";
+import { MeasureCharts } from "@/components/Fitness";
+import { MEASURES } from "@/lib/fitness";
 import { useApp, useCustomItems, type Avatar } from "@/lib/store";
 
 function Swatches({ list, value, onPick }: { list: string[]; value: string; onPick: (c: string) => void }) {
@@ -116,6 +118,7 @@ export function BodyStats() {
           </svg>
         </div>
       )}
+      <MeasureCharts />
       {open && (
         <BodySheet
           height={h}
@@ -124,7 +127,9 @@ export function BodyStats() {
           onSave={(v) => {
             if (v.height && v.height !== h) saveProfile({ height_cm: v.height });
             if (v.birthYear && v.birthYear !== profile.birth_year) saveProfile({ birth_year: v.birthYear });
-            if (v.weight) logActivity("body", { weight: v.weight, height: v.height ?? undefined, waist: v.waist ?? undefined }, v.at);
+            // Weight and measurements are one body check; any of them is enough to save.
+            const sizes = Object.fromEntries(Object.entries(v.sizes).filter(([, x]) => x > 0));
+            if (v.weight || Object.keys(sizes).length) logActivity("body", { weight: v.weight ?? undefined, height: v.height ?? undefined, ...sizes }, v.at);
             setOpen(false);
           }}
         />
@@ -135,11 +140,11 @@ export function BodyStats() {
 
 function BodySheet({ height, birthYear, onClose, onSave }: {
   height: number | null; birthYear: number | null; onClose: () => void;
-  onSave: (v: { weight: number | null; height: number | null; waist: number | null; birthYear: number | null; at: Date }) => void;
+  onSave: (v: { weight: number | null; height: number | null; sizes: Record<string, number>; birthYear: number | null; at: Date }) => void;
 }) {
   const [w, setW] = useState("");
   const [hh, setH] = useState(height ? String(height) : "");
-  const [waist, setWaist] = useState("");
+  const [sizes, setSizes] = useState<Record<string, string>>({});
   const [by, setBy] = useState(birthYear ? String(birthYear) : "");
   const [when, setWhen] = useState(dtLocal(new Date()));
   const n = (x: string) => (x ? Number(x) : null);
@@ -148,11 +153,14 @@ function BodySheet({ height, birthYear, onClose, onSave }: {
       <div className="grid grid-cols-2 gap-2">
         <label className="text-xs text-muted">Weight (kg)<input autoFocus className="input mt-1" inputMode="decimal" value={w} onChange={(e) => setW(e.target.value)} /></label>
         <label className="text-xs text-muted">Height (cm)<input className="input mt-1" inputMode="decimal" value={hh} onChange={(e) => setH(e.target.value)} /></label>
-        <label className="text-xs text-muted">Waist (cm, optional)<input className="input mt-1" inputMode="decimal" value={waist} onChange={(e) => setWaist(e.target.value)} /></label>
         <label className="text-xs text-muted">Birth year<input className="input mt-1" inputMode="numeric" value={by} onChange={(e) => setBy(e.target.value)} /></label>
       </div>
+      <div className="text-xs text-muted">📏 Measurements in cm (optional, tape around the widest part; arms flexed)</div>
+      <div className="grid grid-cols-4 gap-2">
+        {MEASURES.map(([k, l]) => <label key={k} className="text-[11px] text-muted">{l}<input className="input mt-1 !px-2" inputMode="decimal" value={sizes[k] ?? ""} onChange={(e) => setSizes({ ...sizes, [k]: e.target.value })} /></label>)}
+      </div>
       <WhenPicker label="When" value={when} onChange={setWhen} />
-      <button className="btn-primary w-full" onClick={() => onSave({ weight: n(w), height: n(hh), waist: n(waist), birthYear: n(by), at: new Date(when) })}>Save</button>
+      <button className="btn-primary w-full" onClick={() => onSave({ weight: n(w), height: n(hh), sizes: Object.fromEntries(Object.entries(sizes).map(([k, x]) => [k, Number(x) || 0])), birthYear: n(by), at: new Date(when) })}>Save</button>
     </Sheet>
   );
 }
