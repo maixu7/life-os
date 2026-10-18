@@ -12,6 +12,7 @@ import { gaps, handledToday } from "@/lib/gaps";
 import { wokeRecently } from "@/lib/schedule";
 import { DAY_LABEL, fmt12, isQuiet, PHASE_LINES, phaseNow, sched, sleepTimes, type Now } from "@/lib/schedule";
 import { pick, SLEEP_WHY, WISDOM, type Wisdom } from "@/lib/wisdom";
+import { pushInbox } from "@/lib/inbox";
 
 // Runs what the Sensei asked for. Simple things are logged right away;
 // things that need details open the right sheet on Base Camp.
@@ -211,6 +212,13 @@ export function Popper() {
   }, []);
 
   // Nothing closes by itself: Sensei's orders and quotes stay until tapped.
+  // Every popup is also kept in the bell inbox.
+  useEffect(() => {
+    if (!pop) return;
+    if (pop.kind === "task") pushInbox({ kind: "sensei", icon: pop.t.icon, title: pop.t.title, body: pop.t.why });
+    else if (pop.kind === "phase") pushInbox({ kind: "sensei", icon: "🥷", title: pop.n.label, body: pop.line });
+    else if (pop.kind === "wisdom") pushInbox({ kind: "wisdom", icon: "💬", title: pop.w.text, body: pop.w.by });
+  }, [pop]);
 
   // Big motivational quotes at random moments, on any screen.
   const [quote, setQuote] = useState<Wisdom | null>(null);
@@ -231,9 +239,12 @@ export function Popper() {
     return () => clearTimeout(timer);
   }, [sc.popups]);
   // Quotes stay until the hero taps them.
+  useEffect(() => { if (quote) pushInbox({ kind: "wisdom", icon: quote.kind === "quote" ? "💬" : quote.kind === "fact" ? "🧠" : "🥷", title: quote.text, body: quote.by }); }, [quote]);
 
   // Check-ins at 9 AM, 12 PM, 5 PM and 8 PM: what's lacking and what to do now.
   const [cp, setCp] = useState<{ hour: number; tasks: Task[] } | null>(null);
+
+  useEffect(() => { if (cp) pushInbox({ kind: "sensei", icon: "🕘", title: `${cp.hour > 12 ? cp.hour - 12 : cp.hour} ${cp.hour >= 12 ? "PM" : "AM"} check-in`, body: cp.tasks.map((t) => `${t.icon} ${t.title}`).join(" · ") || "See what you're lacking." }); }, [cp]);
 
   // Reads the clock against the hero's schedule whenever the app is opened or
   // comes back to the screen, and every minute while it stays open.

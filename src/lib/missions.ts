@@ -41,7 +41,9 @@ export function byDay(logs: Log[]) {
 // Days in a row (ending today or yesterday) with at least 3 missions cleared.
 export function streak(data: Data) {
   const days = byDay(data.logs);
-  const ok = (d: string) => dailyMissions(days[d] ?? [], data.profile.settings).filter((x) => x.done).length >= 3;
+  // A streak freeze (bought with gold) saves a missed day.
+  const frozen = new Set(data.logs.filter((l) => l.kind === "freeze").map((l) => String(l.data.for)));
+  const ok = (d: string) => frozen.has(d) || dailyMissions(days[d] ?? [], data.profile.settings).filter((x) => x.done).length >= 3;
   const cur = new Date();
   if (!ok(toDay(cur))) cur.setDate(cur.getDate() - 1);
   let n = 0;

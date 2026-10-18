@@ -56,7 +56,7 @@ export type Fix = { at: Date; endSleep?: Log; message: string };
 
 // Checks a new record against everything you were busy doing at that time.
 export function realityCheck(kind: string, data: Record<string, unknown>, at: Date, logs: Log[]): Fix | null {
-  if (kind === "wake" || kind === "bonus" || kind === "chest" || kind === "spin" || kind === "login" || kind === "redeem" || kind === "body" || kind === "battle" || kind === "sick") return null;
+  if (kind === "wake" || kind === "bonus" || kind === "chest" || kind === "spin" || kind === "login" || kind === "redeem" || kind === "body" || kind === "battle" || kind === "sick" || ["loot", "rival", "freeze", "detox"].includes(kind)) return null;
   const cat = categoryOf(kind, data);
   const t = at.getTime();
   const hm = (d: Date) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });

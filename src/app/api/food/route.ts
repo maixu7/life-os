@@ -74,7 +74,7 @@ const tidy = (m: z.infer<typeof Meal>) => ({
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-  const { user, auth, text, image, mode } = body ?? {};
+  const { user, auth, text, image, mode, summary } = body ?? {};
   if (!validUser(user) || !validAuth(auth)) return bad("Invalid request.");
   const gemini = process.env.GEMINI_API_KEY;
   if (!gemini && !process.env.ANTHROPIC_API_KEY) return bad("AI food reading isn't switched on yet.", 501);
@@ -91,6 +91,15 @@ export async function POST(req: Request) {
   if (used >= 80) return bad("That's today's limit of food scans. Type the numbers or try tomorrow.", 429);
   await kv!.set(key, used + 1);
 
+  if (mode === "chat") {
+    // Sensei chat: a short answer from a compact summary of the last 7 days.
+    const facts = typeof summary === "string" ? summary.slice(0, 3000) : "";
+    return chat(gemini, `My data:\n${facts}\n\nMy question: ${words}`);
+  }
+  if (mode === "guess") {
+    const ask = "What is in this photo? Answer with one kind.";
+    return gemini ? guessWithGemini(gemini, ask, m ? { mime: m[1], data: m[2] } : null) : guessWithClaude(ask, m ? { mime: m[1], data: m[2] } : null);
+  }
   if (mode === "product") {
     const ask = `What product is this?${words ? ` Hint from me: ${words}` : ""}`;
     return gemini ? productWithGemini(gemini, ask, m ? { mime: m[1], data: m[2] } : null) : productWithClaude(ask, m ? { mime: m[1], data: m[2] } : null);
@@ -225,4 +234,75 @@ async function productWithGemini(key: string, ask: string, img: { mime: string; 
     }
   }
   return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the name instead, or try tomorrow." : why || "Couldn't reach the product reader.", why.includes(" 429") ? 429 : 502);
+}
+
+// ---------- Sensei chat (Hero hub) ----------
+const CHAT_SYSTEM = `You are Sensei Kaito, a warm, practical life coach inside an anime-RPG habit app. The user is a young man living in Japan who is studying for exams.
+Answer in 2 to 4 short sentences in plain, simple English. Use his numbers from "My data" when they help, and suggest one concrete next step (foods easy to get in Japan: konbini, supermarket).
+Health safety: give only general, safe advice. Never diagnose, never give medicine doses, never suggest extreme diets or fasting. For pain, illness, injury or serious low mood, tell him to see a doctor or call 119 in an emergency.`;
+async function chat(gemini: string | undefined, ask: string) {
+  if (gemini) {
+    const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+    let why = "";
+    for (const model of models) {
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": gemini.trim() },
+          body: JSON.stringify({ systemInstruction: { parts: [{ text: CHAT_SYSTEM }] }, contents: [{ role: "user", parts: [{ text: ask }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 300 } }),
+        });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) { why = `Gemini ${r.status}`; if (r.status === 404 || r.status === 429) continue; return bad(why, 502); }
+        const answer = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("").trim();
+        if (answer) return NextResponse.json({ answer: answer.slice(0, 1200) });
+        why = "Empty answer";
+      } catch { why = "Gemini network error"; }
+    }
+    return bad(why || "Couldn't reach Sensei.", 502);
+  }
+  try {
+    const client = new Anthropic();
+    const msg = await client.messages.create({ model: "claude-opus-5-5", max_tokens: 400, system: CHAT_SYSTEM, messages: [{ role: "user", content: ask }] });
+    const answer = msg.content.map((c) => (c.type === "text" ? c.text : "")).join("").trim();
+    return answer ? NextResponse.json({ answer: answer.slice(0, 1200) }) : bad("Sensei had no answer. Try again.", 502);
+  } catch (e) {
+    if (e instanceof Anthropic.RateLimitError) return bad("Busy right now. Try again in a minute.", 429);
+    return bad("Couldn't reach Sensei. Try again.", 502);
+  }
+}
+
+// ---------- "Snap anything": what kind of photo is this? ----------
+const Guess = z.object({ kind: z.enum(["meal", "packet", "receipt", "book", "other"]).describe("meal = food or drink being eaten; packet = a packaged product or its label; receipt = a shop receipt; book = a book cover or page; other = anything else") });
+const GUESS_SYSTEM = "You sort photos for a life-tracking app into one kind: meal, packet, receipt, book or other.";
+async function guessWithClaude(ask: string, img: { mime: string; data: string } | null) {
+  if (!img) return bad("Send a photo.");
+  try {
+    const client = new Anthropic();
+    const msg = await client.beta.messages.parse({
+      model: "claude-opus-5-5", max_tokens: 200, system: GUESS_SYSTEM,
+      messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: img.mime as "image/jpeg", data: img.data } }, { type: "text", text: ask }] }],
+      output_config: { format: betaZodOutputFormat(Guess) },
+      fallbacks: "default", betas: ["server-side-fallback-2026-07-01"],
+    });
+    return msg.parsed_output ? NextResponse.json(msg.parsed_output) : bad("Couldn't tell what it is.", 502);
+  } catch { return bad("Couldn't reach the photo reader.", 502); }
+}
+async function guessWithGemini(key: string, ask: string, img: { mime: string; data: string } | null) {
+  if (!img) return bad("Send a photo.");
+  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+  for (const model of models) {
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: GUESS_SYSTEM }] }, contents: [{ role: "user", parts: [{ inline_data: { mime_type: img.mime, data: img.data } }, { text: ask }] }],
+          generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { kind: { type: "STRING", enum: ["meal", "packet", "receipt", "book", "other"] } }, required: ["kind"] }, temperature: 0 } }),
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) { if (r.status === 404 || r.status === 429) continue; return bad(`Gemini ${r.status}`, 502); }
+      const out = Guess.safeParse(JSON.parse(j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") || "null"));
+      if (out.success) return NextResponse.json(out.data);
+    } catch {}
+  }
+  return bad("Couldn't tell what it is.", 502);
 }

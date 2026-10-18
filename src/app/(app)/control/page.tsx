@@ -1,5 +1,6 @@
 "use client";
 
+import { WIDGETS } from "@/components/hub/Widgets";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
@@ -158,8 +159,9 @@ const KINDS: [BlockKind, string, string][] = [
   ["checklist", "☑️ Checklist", "Things to tick off each day. Each tick is logged and counts in Today."],
   ["counter", "🔢 Counter", "Tap + to count anything today (push-ups, cigarettes avoided, pages…) with a goal."],
   ["note", "📝 Note", "Text you want to see on this page: a goal, a reminder, a motto."],
+  ["widget", "🧩 Widget", "A live picture: water glass, calorie ring, study bar or exam countdown."],
 ];
-const blankBlock = (kind: BlockKind): Block => ({ id: `b-${uid()}`, kind, icon: kind === "slots" ? "🔘" : kind === "checklist" ? "☑️" : kind === "counter" ? "🔢" : "📝", title: "", slots: [], items: [], text: "", goal: 0, unit: "" });
+const blankBlock = (kind: BlockKind): Block => ({ id: `b-${uid()}`, kind, icon: kind === "slots" ? "🔘" : kind === "checklist" ? "☑️" : kind === "counter" ? "🔢" : kind === "widget" ? "💧" : "📝", title: kind === "widget" ? "Water glass" : "", widget: kind === "widget" ? "water" : undefined, slots: [], items: [], text: "", goal: 0, unit: "" });
 
 function NewBlock({ onPick, onClose }: { onPick: (k: BlockKind) => void; onClose: () => void }) {
   return (
@@ -228,6 +230,15 @@ function BlockEditor({ block, isNew, onSave, onDelete, onClose }: { block: Block
         <div className="grid grid-cols-2 gap-2">
           <label className="text-xs text-muted">Goal per day<input className="input mt-1" inputMode="numeric" value={b.goal || ""} onChange={(e) => set({ goal: Number(e.target.value) || 0 })} /></label>
           <label className="text-xs text-muted">Unit<input className="input mt-1" placeholder="push-ups, glasses…" value={b.unit ?? ""} onChange={(e) => set({ unit: e.target.value })} /></label>
+        </div>
+      )}
+      {b.kind === "widget" && (
+        <div className="grid grid-cols-2 gap-2">
+          {WIDGETS.map((w) => (
+            <button key={w.id} onClick={() => set({ widget: w.id, icon: w.icon, title: w.title })} className={`rounded-xl p-2 text-left ${b.widget === w.id ? "bg-[var(--accent2)]/20 ring-1 ring-[var(--accent2)]" : "bg-white/5"}`}>
+              <div className="text-2xl">{w.icon}</div><div className="text-sm font-semibold">{w.title}</div><div className="text-[10px] text-muted">{w.desc}</div>
+            </button>
+          ))}
         </div>
       )}
       {b.kind === "note" && <textarea className="input min-h-28 text-sm" placeholder="Write anything…" value={b.text ?? ""} onChange={(e) => set({ text: e.target.value })} />}

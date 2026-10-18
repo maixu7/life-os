@@ -2,12 +2,13 @@ import { MEDIA, type MediaType } from "@/lib/media";
 import type { Data, Log } from "@/lib/store";
 import { sleepHours } from "@/lib/missions";
 import { toDay } from "@/lib/store";
+import { SKILL_TITLES } from "@/lib/skilltree";
 
 // Gold: half of all XP you earn, plus chest loot, minus what you spend on rewards.
 export function gold(d: Data) {
   let g = 0;
   for (const l of d.logs) {
-    if (l.kind === "chest" || l.kind === "spin" || l.kind === "login" || l.kind === "battle") g += Number(l.data.gold ?? 0);
+    if (l.kind === "chest" || l.kind === "spin" || l.kind === "login" || l.kind === "battle" || l.kind === "loot" || l.kind === "rival") g += Number(l.data.gold ?? 0);
     else if (l.kind === "redeem") g -= Number(l.data.cost ?? 0);
     else g += l.xp / 2;
   }
@@ -54,6 +55,7 @@ export const TITLES: { title: string; need: string; test: (d: Data) => boolean }
   { title: "Flame Walker", need: "7-day streak", test: (d) => !!d.profile.achievements["streak-7"] },
   { title: "Dragon Spirit", need: "30-day streak", test: (d) => !!d.profile.achievements["streak-30"] },
   { title: "Legend", need: "Reach level 20", test: (d) => !!d.profile.achievements.lv20 },
+  ...SKILL_TITLES, // earned in the skill tree (Hero hub)
 ];
 
 export const CHAPTERS = [

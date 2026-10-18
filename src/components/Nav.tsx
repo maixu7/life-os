@@ -5,12 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
 import { tabOf, tabsOf } from "@/lib/ui";
+import { useT } from "@/lib/i18n";
 
 export function Nav() {
   const path = usePathname();
   const router = useRouter();
   const { profile } = useApp();
   const ui = profile.settings.ui;
+  const tr = useT();
   const TABS = tabsOf(ui);
   const [folder, setFolder] = useState<string | null>(null);
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -46,7 +48,7 @@ export function Nav() {
             <div className="col-span-4 text-xs text-muted">{open.icon} {open.label}</div>
             {(open.items ?? []).map((h) => tabOf(h, ui)).filter(Boolean).map((t) => (
               <Link key={t!.href} href={t!.href} onClick={() => setFolder(null)} className={`rounded-xl bg-white/5 py-2 flex flex-col items-center text-[10px] ${on(t!.href) ? "text-[var(--accent2)]" : ""}`}>
-                <span className="text-2xl">{t!.icon}</span>{t!.label}
+                <span className="text-2xl">{t!.icon}</span>{tr(t!.label)}
               </Link>
             ))}
           </div>
@@ -61,7 +63,7 @@ export function Nav() {
               <>
                 {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-[var(--accent2)] shadow-[0_0_10px_var(--accent2)]" />}
                 <span className={`${many ? "text-lg" : "text-xl"} transition ${active ? "scale-125 drop-shadow-[0_0_8px_var(--accent2)]" : "grayscale-[40%]"}`}>{t.icon}</span>
-                <span className="truncate max-w-full px-0.5">{t.label}</span>
+                <span className="truncate max-w-full px-0.5">{tr(t.label)}</span>
               </>
             );
             return t.items ? (

@@ -17,13 +17,14 @@ export type SlotAction =
   | { type: "url"; url: string };
 export type MiniSlot = { id: string; icon: string; label: string; action: SlotAction };
 
-export type BlockKind = "slots" | "note" | "checklist" | "counter";
+export type BlockKind = "slots" | "note" | "checklist" | "counter" | "widget";
 export type Block = {
   id: string; kind: BlockKind; icon: string; title: string;
   slots?: MiniSlot[]; // kind "slots"
   text?: string; // kind "note"
   items?: string[]; // kind "checklist": each ticks off a log of that name for today
   goal?: number; unit?: string; // kind "counter"
+  widget?: "water" | "kcal" | "study" | "exam"; // kind "widget" (Hero hub widgets)
 };
 export type PageLayout = { order?: string[]; hide?: string[]; blocks?: Block[] };
 export type CustomPage = { id: string; icon: string; label: string }; // its blocks live in ui.pages["/custom/<id>"]
@@ -37,9 +38,9 @@ export const PAGE_SECTIONS: Record<string, [string, string][]> = {
   "/food": [["quick", "⚡ Quick add"], ["meals", "🍱 Food today"], ["drink", "🥤 Log a drink"], ["next", "🍽️ What to eat next"], ["care", "🩺 Take care of me"], ["have", "🎒 Food you have"], ["packet", "🏷️ New packet food"], ["week", "📅 Last 7 days"], ["mine", "🍽️ My foods"]],
   "/train": [["list", "🏋️ My exercises"], ["plan", "📅 Today's full workout"], ["library", "📚 All exercises"], ["move", "🎯 Selected exercise"], ["lift", "📈 Strength forecast"], ["rest", "⏱️ Rest timer"], ["done", "✅ Today's sets"]],
   "/learn": [["plan", "🗓️ Study plan"], ["today", "📖 Learning today"], ["books", "📚 Books you have"], ["library", "📚 Library (read, listen, watch)"], ["skills", "🧠 Skills: noob to expert"]],
-  "/": [["coach", "🥷 Sensei's next tasks"], ["learn", "📖 Learning today"], ["gaps", "🔍 What you're lacking"], ["fix", "🚨 Fix my worst habits"], ["care", "🩺 Take care of me"], ["sleep", "😴 Sleep and wake"],
+  "/": [["pins", "📌 Pinned actions & camera"], ["routine", "🌅 Morning routine"], ["event", "🎃 Seasonal event"], ["coach", "🥷 Sensei's next tasks"], ["learn", "📖 Learning today"], ["gaps", "🔍 What you're lacking"], ["fix", "🚨 Fix my worst habits"], ["care", "🩺 Take care of me"], ["sleep", "😴 Sleep and wake"],
     ["meals", "🍱 Food today"], ["gauges", "🎯 Today's gauges"], ["boss", "👹 Weekly boss and chest"], ["missions", "⚔ Daily missions"],
-    ["potions", "🧪 Water and milk"], ["quests", "🗺 Side quests"], ["habits", "🔁 Habit quests"], ["library", "📚 Library"], ["pantry", "🎒 Inventory"]],
+    ["potions", "🧪 Water and milk"], ["quests", "🗺 Side quests"], ["habits", "🔁 Habit quests"], ["library", "📚 Library"], ["pantry", "🎒 Inventory"], ["rival", "⚔️ Rival duel & loot"]],
 };
 // Pages without a list above still get the hero's own blocks (shown at the top).
 

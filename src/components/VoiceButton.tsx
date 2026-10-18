@@ -34,7 +34,7 @@ export function VoiceButton() {
     r.onresult = async (e) => {
       const said = e.results[0][0].transcript;
       const p = parseCommand(said, items.map((i) => i.name));
-      if (!p) return setToast(`Didn't catch a command in "${said}"`);
+      if (!p) return setToast(`Didn't catch a command in "${said}". Try "studied 40 min math", "drank 2 glasses of water", "walked 20 minutes" or "feeling tired".`);
       if (p.kind === "focus-start") return router.push("/focus?start=1");
       if ("data" in p) {
         logActivity(p.kind, p.data);

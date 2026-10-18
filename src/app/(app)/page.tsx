@@ -32,6 +32,9 @@ import { CareCard } from "@/components/CareCard";
 import { FixCard } from "@/components/FixCard";
 import { DrinkSheet } from "@/components/Drinks";
 import { TaskLog } from "@/components/TaskLog";
+import { PinsCard } from "@/components/hub/Hub";
+import { MorningCard } from "@/components/hub/Plan";
+import { EventCard, RivalCard } from "@/components/hub/Play";
 import { today, toDay, useApp, useCustomItems, useLogs, type CustomItem, type Log } from "@/lib/store";
 
 const shiftDay = (day: string, n: number) => {
@@ -139,6 +142,10 @@ export default function TodayPage() {
 
       {isToday && <DoingCard />}
       <Blocks page="/" parts={{
+        pins: isToday ? <PinsCard /> : null,
+        routine: isToday ? <MorningCard /> : null,
+        event: isToday ? <EventCard /> : null,
+        rival: isToday ? <RivalCard /> : null,
         coach: isToday ? <CoachCard /> : null,
         learn: isToday ? <LearnToday compact /> : null,
         gaps: isToday ? <GapsCard /> : null,

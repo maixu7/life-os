@@ -5,6 +5,7 @@ import { Sheet } from "@/components/Sheet";
 import { karma, logKarma } from "@/lib/karma";
 import { CHALLENGES, PET_STAGES } from "@/lib/tools";
 import { WISDOM } from "@/lib/wisdom";
+import { PetHunger } from "@/components/hub/Play";
 import { toDay, today, useApp, useCustomItems } from "@/lib/store";
 
 const seed = (day: string) => [...day].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
@@ -146,6 +147,7 @@ export function Pet() {
           <div className="mt-1 h-1.5 rounded-full bg-white/10"><div className="h-full rounded-full bg-[var(--gold)]" style={{ width: `${Math.min(100, (pts / next.min) * 100)}%` }} /></div>
         </div>
       )}
+      <PetHunger />
       <p className="mt-2 text-[11px] text-muted">Your companion grows with your good deeds and gets sad when you feed the devil.</p>
       {naming ? (
         <div className="mt-2 flex gap-2">
