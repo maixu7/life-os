@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { speak } from "@/lib/safety";
 import { useApp } from "@/lib/store";
-import type { PlanRow } from "@/lib/have";
+import { setsText, type PlanRow } from "@/lib/have";
+import { PoseDemo } from "@/components/PoseDemo";
+import { howTo, variantFromName } from "@/lib/howto";
+import { moveOf } from "@/lib/moves";
 
 // Guided sets: Start → get ready → set 1 (timer) → rest → set 2 … → "Completed",
 // then one workout record is saved and the plan row ticks itself. Times come
@@ -35,6 +38,10 @@ const say = (t: string) => speak(t, true);
 export function WorkoutRunner({ row, onClose }: { row: PlanRow; onClose: () => void }) {
   const { logActivity, celebrate } = useApp();
   const timed = /s$/i.test(row.reps.trim());
+  // How to do it: the moving picture, muscles and steps from the exercise guide.
+  const move = moveOf(row.name);
+  const how = howTo(move, variantFromName(move, row.name), row.name);
+  const [showSteps, setShowSteps] = useState(false);
   const saved = remembered(row.name);
   const [setup, setSetup] = useState<Setup>({
     sets: Math.min(saved.sets ?? row.sets, row.sets),
@@ -111,11 +118,19 @@ export function WorkoutRunner({ row, onClose }: { row: PlanRow; onClose: () => v
   if (!phase) {
     const total = setup.sets * setup.work + Math.max(0, setup.sets - 1) * setup.rest;
     return (
-      <div className="fixed inset-0 z-[250] bg-[#07040f]/95 backdrop-blur flex flex-col p-5 overflow-y-auto">
+      <div className="fixed inset-0 z-[250] bg-[#07040f] flex flex-col p-5 overflow-y-auto">
         <button onClick={onClose} className="self-end text-muted text-xl px-2" aria-label="Close">✕</button>
         <div className="text-xs text-muted uppercase tracking-widest">{row.part}</div>
         <h2 className="font-game text-2xl font-bold">{row.name}</h2>
-        <p className="text-sm text-muted">Plan: {row.sets} sets of {row.reps}{row.kg ? ` · ${row.kg} kg` : ""}</p>
+        <p className="text-sm text-muted">Plan: {setsText(row.sets, row.reps)}{row.kg ? ` · ${row.kg} kg` : ""}</p>
+        <div className="mt-4 flex gap-3 rounded-2xl bg-white/[.04] p-3">
+          {how.pose && <PoseDemo key={`${how.pose}${how.prop}`} pose={how.pose} prop={how.prop} scene={how.scene} className="!w-36 shrink-0" />}
+          <div className="min-w-0 text-sm space-y-1.5">
+            {move?.muscles && <div><span className="text-muted">Works: </span>{move.muscles.join(", ")}</div>}
+            {how.steps?.length ? <ol className="list-decimal pl-4 space-y-0.5">{how.steps.map((x) => <li key={x}>{x}</li>)}</ol>
+              : <p className="text-muted">No written steps for this one yet. Follow the moving picture and keep good form.</p>}
+          </div>
+        </div>
         <div className="grid grid-cols-3 gap-2 mt-5">
           <label className="text-xs text-muted">Sets<input className="input mt-1 text-center text-lg" inputMode="numeric" value={setup.sets} onChange={(e) => num("sets", e.target.value, 20)} /></label>
           <label className="text-xs text-muted">Seconds per set<input className="input mt-1 text-center text-lg" inputMode="numeric" value={setup.work} onChange={(e) => num("work", e.target.value, 900)} /></label>
@@ -136,12 +151,13 @@ export function WorkoutRunner({ row, onClose }: { row: PlanRow; onClose: () => v
   const pct = Math.min(100, ((total - left) / total) * 100);
   const color = phase.kind === "work" ? "#38e8ff" : phase.kind === "rest" ? "#7cf29a" : "#ffd166";
   return (
-    <div className="fixed inset-0 z-[250] bg-[#07040f] flex flex-col items-center justify-center p-5 text-center select-none">
+    <div className="fixed inset-0 z-[250] bg-[#07040f] flex flex-col items-center justify-center p-5 overflow-y-auto text-center select-none">
       <div className="text-sm text-muted">{row.name}</div>
       <div className="font-game text-xl tracking-widest mt-1" style={{ color }}>
         {phase.kind === "ready" ? "GET READY" : phase.kind === "work" ? `SET ${phase.set} / ${setup.sets}` : `REST · NEXT SET ${phase.set}`}
       </div>
-      <div className="relative my-6 h-64 w-64">
+      {how.pose && <PoseDemo key={`run${how.pose}${how.prop}`} pose={how.pose} prop={how.prop} scene={how.scene} speed={phase.kind === "work" ? 1 : 0.5} className="!w-32 mt-3" />}
+      <div className="relative my-4 h-56 w-56">
         <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
           <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="8" />
           <circle cx="50" cy="50" r="45" fill="none" stroke={color} strokeWidth="8" strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 45}`} strokeDashoffset={`${2 * Math.PI * 45 * (1 - pct / 100)}`} />
@@ -156,6 +172,12 @@ export function WorkoutRunner({ row, onClose }: { row: PlanRow; onClose: () => v
         <button onClick={() => setEnd(Date.now())} className="btn-ghost">⏭ Skip</button>
         <button onClick={stop} className="btn-ghost text-rose-300">■ Stop</button>
       </div>
+      {!!how.steps?.length && (
+        <div className="w-full max-w-sm mt-3 text-left">
+          <button onClick={() => setShowSteps(!showSteps)} className="text-xs text-[var(--accent2)]">{showSteps ? "▾ Hide how to do it" : "▸ How to do it"}</button>
+          {showSteps && <ol className="list-decimal pl-5 mt-1 space-y-0.5 text-xs text-muted">{how.steps.map((x) => <li key={x}>{x}</li>)}</ol>}
+        </div>
+      )}
       <p className="text-[11px] text-muted mt-3">Stop saves the sets you finished ({doneSets}).</p>
     </div>
   );
