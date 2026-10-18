@@ -49,3 +49,14 @@ export async function readProduct(s: Session, photo: string, hint = ""): Promise
     return { error: j.error ?? "Couldn't read it" };
   } catch { return { error: "offline" }; }
 }
+
+// Book cover scan for the Library: title, author, pages.
+export type BookRead = { found: boolean; title: string; author: string; pages: number; kind: string; note: string };
+export async function readBook(s: Session, photo: string, hint = ""): Promise<{ book?: BookRead; error?: string }> {
+  try {
+    const r = await fetch("/api/food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: s.user, auth: s.auth, image: photo, text: hint, mode: "book" }) });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && typeof j.title === "string") return { book: j as BookRead };
+    return { error: j.error ?? "Couldn't read it" };
+  } catch { return { error: "offline" }; }
+}

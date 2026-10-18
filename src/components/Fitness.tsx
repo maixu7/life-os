@@ -280,8 +280,8 @@ function Figure({ shapes, sets, label, onPick, sel }: { shapes: Shape[]; sets: R
       <circle cx="50" cy="17" r="10" fill="rgba(255,255,255,.1)" />
       <rect x="45" y="27" width="10" height="7" fill="rgba(255,255,255,.1)" />
       {shapes.map((s, i) => {
-        const p = { key: i, fill: FILL[level(sets[s.r])], stroke: sel === s.r ? "#fff" : "#140c24", strokeWidth: sel === s.r ? 1.2 : 1.5, onClick: () => onPick(s.r), className: "cursor-pointer" };
-        return s.el === "e" ? <ellipse {...p} cx={s.a[0]} cy={s.a[1]} rx={s.a[2]} ry={s.a[3]} /> : <rect {...p} x={s.a[0]} y={s.a[1]} width={s.a[2]} height={s.a[3]} rx="3" />;
+        const p = { fill: FILL[level(sets[s.r])], stroke: sel === s.r ? "#fff" : "#140c24", strokeWidth: sel === s.r ? 1.2 : 1.5, onClick: () => onPick(s.r), className: "cursor-pointer" };
+        return s.el === "e" ? <ellipse key={i} {...p} cx={s.a[0]} cy={s.a[1]} rx={s.a[2]} ry={s.a[3]} /> : <rect key={i} {...p} x={s.a[0]} y={s.a[1]} width={s.a[2]} height={s.a[3]} rx="3" />;
       })}
       <text x="50" y="183" textAnchor="middle" fontSize="8" fill="rgba(255,255,255,.55)">{label}</text>
     </svg>

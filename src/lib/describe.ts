@@ -108,6 +108,11 @@ function describeInner(l: Log, currency: string): { emoji: string; title: string
     case "login": return { emoji: "📅", title: `Login reward day ${d.n}`, detail: `+${d.gold} gold` };
     case "goalstep": return { emoji: "🏔️", title: `Goal progress: ${d.name}`, detail: `${d.progress}%` };
     case "sick": return { emoji: d.recovered ? "💪" : "🤒", title: d.recovered ? "Feeling better" : `Doctor consult: ${d.top ?? "symptoms"}`, detail: join(Array.isArray(d.symptoms) ? (d.symptoms as string[]).join(", ") : "", d.temp ? `${d.temp} °C` : "", String(d.advice ?? "")) };
+    case "cards": return { emoji: "🃏", title: `Flashcards: ${d.deck ?? "review"}`, detail: join(`${d.reviewed} cards`, d.right != null ? `${d.right} right` : "", d.minutes ? `${d.minutes} min` : "") };
+    case "paper": return { emoji: "📝", title: `Past paper: ${d.subject ?? ""}${d.paper ? ` (${d.paper})` : ""}`, detail: join(d.max ? `${d.score}/${d.max} · ${d.pct}%` : "", d.minutes ? `${d.minutes} min` : "", note) };
+    case "mistake": return { emoji: "📕", title: d.added ? `Mistake noted: ${d.subject ?? ""}` : "Mistakes reviewed", detail: d.added ? String(d.name ?? "") : join(`${d.reviewed} reviewed`, d.fixed ? `${d.fixed} mastered` : "") };
+    case "kanji": return { emoji: "🈶", title: `Kanji learned: ${d.chars ?? ""}`, detail: String(d.level ?? "") };
+    case "bookadd": return { emoji: "📚", title: `New book: ${d.title ?? ""}`, detail: join(d.author ? String(d.author) : "", d.pages ? `${d.pages} pages` : "") };
     case "pages": return { emoji: "📖", title: `Read ${d.pages} pages`, detail: String(d.name ?? "") };
     default: {
       const c = CHECKIN_BY_KIND[l.kind];

@@ -7,6 +7,7 @@ import { XpHeader } from "@/components/XpHeader";
 import { StudyPlan } from "@/components/StudyPlan";
 import { useFocusJail } from "@/components/StrictStudy";
 import { StudyCareCard } from "@/components/tools/BodyCare";
+import { Garden } from "@/components/Garden";
 import { startAmbient } from "@/lib/ambient";
 import { useApp, useCustomItems } from "@/lib/store";
 
@@ -68,10 +69,13 @@ export default function FocusPage() {
 
   function begin() {
     const e = Date.now() + FOCUS_MIN * 60_000;
+    setWilted(false);
     setEnd(e);
     try { localStorage.setItem(KEY, String(e)); } catch {}
   }
+  const [wilted, setWilted] = useState(false);
   const giveUp = () => {
+    setWilted(true);
     setEnd(null);
     try { localStorage.removeItem(KEY); } catch {}
   };
@@ -122,6 +126,8 @@ export default function FocusPage() {
           ))}
         </div>
       </section>
+
+      <Garden pct={end ? pct : 0} running={!!end} wilted={wilted} />
 
       <StudyCareCard />
 

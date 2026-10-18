@@ -1,6 +1,7 @@
 "use client";
 
 import { StartButton } from "@/components/Doing";
+import { BookScanSheet } from "@/components/BookScan";
 import { StudyLock } from "@/components/FixCard";
 import { WhenPicker } from "@/components/When";
 import { useEffect, useMemo, useState } from "react";
@@ -27,6 +28,7 @@ export function Library({ at, onLogged, openSignal = 0, codeSignal = 0 }: { at: 
   const { items: books } = useCustomItems("list:readlist");
   const [open, setOpen] = useState<Recent | null>(null);
   const [coding, setCoding] = useState(false);
+  const [scan, setScan] = useState(false);
   useEffect(() => { if (openSignal) setOpen({ title: "", type: "book", mode: "read" }); }, [openSignal]);
   useEffect(() => { if (codeSignal) setCoding(true); }, [codeSignal]);
   const recent = useMemo(() => {
@@ -48,7 +50,10 @@ export function Library({ at, onLogged, openSignal = 0, codeSignal = 0 }: { at: 
     <section className="card p-4 mb-4">
       <div className="flex items-center justify-between mb-1">
         <h2 className="section-title">📚 Library</h2>
-        <button onClick={() => setOpen({ title: "", type: "book", mode: "read" })} className="chip chip-on">+ Log</button>
+        <div className="flex gap-1.5">
+          <button onClick={() => setScan(true)} className="chip">📷 Add book</button>
+          <button onClick={() => setOpen({ title: "", type: "book", mode: "read" })} className="chip chip-on">+ Log</button>
+        </div>
       </div>
       <p className="text-xs text-muted mb-3">Books, study and coding feed your angel 😇. Manga, anime, movies and reels feed your devil 😈.</p>
       <div className="grid grid-cols-4 gap-2">
@@ -91,6 +96,7 @@ export function Library({ at, onLogged, openSignal = 0, codeSignal = 0 }: { at: 
         </div>
       )}
       {open && <MediaSheet start={open} at={at} onClose={() => setOpen(null)} onLogged={onLogged} />}
+      {scan && <BookScanSheet onClose={() => setScan(false)} onRead={(title) => setOpen({ title, type: "book", mode: "read" })} />}
       {coding && <CodingSheet at={at} onClose={() => setCoding(false)} onLogged={onLogged} />}
     </section>
   );
