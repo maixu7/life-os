@@ -193,11 +193,7 @@ export function Popper() {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (!pop || pop.kind === "wisdom") return; // quotes stay until tapped
-    const t = setTimeout(() => setPop(null), 12_000);
-    return () => clearTimeout(t);
-  }, [pop]);
+  // Nothing closes by itself: Sensei's orders and quotes stay until tapped.
 
   // Big motivational quotes at random moments, on any screen.
   const [quote, setQuote] = useState<Wisdom | null>(null);

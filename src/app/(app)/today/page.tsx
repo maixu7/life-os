@@ -6,7 +6,8 @@ import { XpHeader } from "@/components/XpHeader";
 import { useTasks } from "@/components/Coach";
 import { useGoals } from "@/components/Gauges";
 import { learnedOn } from "@/components/Learn";
-import { MEALS } from "@/components/Meals";
+import { FoodThumbs, MEALS } from "@/components/Meals";
+import type { Eaten } from "@/lib/body";
 import { bodyOf, energy } from "@/lib/body";
 import { describe } from "@/lib/describe";
 import { sched } from "@/lib/schedule";
@@ -15,7 +16,7 @@ import { toDay, useApp, type Log } from "@/lib/store";
 const hm = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
 const shift = (day: string, n: number) => { const d = new Date(`${day}T12:00:00`); d.setDate(d.getDate() + n); return toDay(d); };
 
-type Row = { icon: string; name: string; did: string; goal: string; done: boolean; href?: string };
+type Row = { icon: string; name: string; did: React.ReactNode; goal: string; done: boolean; href?: string };
 
 // One table for the day: the everyday basics, what the app asked for, and
 // everything the hero actually did, with how much.
@@ -47,7 +48,8 @@ export default function TodayPage() {
     ...MEALS.map(([m, ic]): Row => {
       const ls = meal(m);
       const kcal = ls.reduce((n, l) => n + Number(l.data.kcal ?? 0), 0);
-      return { icon: ic, name: m, did: ls.length ? `${hm(ls[0].created_at)}${kcal ? ` · ${kcal} kcal` : ""}` : "", goal: m === "Snack" ? "optional" : "1", done: ls.length > 0 || m === "Snack", href: "/food" };
+      const fs = ls.flatMap((l) => (l.data.foods as Eaten[] | undefined) ?? []);
+      return { icon: ic, name: m, did: ls.length ? <span className="inline-flex items-center gap-1"><FoodThumbs foods={fs} size={20} />{hm(ls[0].created_at)}{kcal ? ` · ${kcal} kcal` : ""}</span> : "", goal: m === "Snack" ? "optional" : "1", done: ls.length > 0 || m === "Snack", href: "/food" };
     }),
     { icon: "🔥", name: "Calories", did: `${e.intake} eaten · ${e.active} burned`, goal: `${e.out} used`, done: e.intake > 0 },
     { icon: "🍗", name: "Protein", did: `${e.protein} g`, goal: `${need} g+`, done: e.protein >= need },
@@ -105,7 +107,19 @@ export default function TodayPage() {
                   <tr key={l.id} className="border-t border-white/5 align-top">
                     <td className="py-1.5 pr-2 text-muted tabular-nums whitespace-nowrap">{hm(l.created_at)}</td>
                     <td className="py-1.5 pr-1">{d.emoji}</td>
-                    <td className="py-1.5"><div>{d.title}</div>{d.detail && <div className="text-muted">{d.detail}</div>}</td>
+                    <td className="py-1.5"><div>{d.title}</div>{d.detail && <div className="text-muted">{d.detail}</div>}
+                      {Array.isArray(l.data.foods) && (l.data.foods as Eaten[]).length > 0 && (
+                        <div className="mt-1 space-y-0.5">
+                          {(l.data.foods as Eaten[]).map((f, i) => (
+                            <div key={i} className="flex items-center gap-1.5">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              {f.photo ? <img src={f.photo} alt={f.name} className="h-7 w-7 rounded object-cover" /> : <span className="h-7 w-7 grid place-items-center">🍽️</span>}
+                              <span className="flex-1">{f.name}{f.qty !== 1 ? ` × ${f.qty}` : ""}</span>
+                              <span className="text-muted">{f.kcal} kcal{f.sugar ? ` · ${f.sugar} g sugar` : ""}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}</td>
                     <td className="py-1.5 pl-1 text-right whitespace-nowrap">{l.xp ? <span className="text-[var(--gold)]">+{l.xp}</span> : null}
                       <button aria-label={`Delete ${d.title}`} onClick={() => confirm(`Delete "${d.title}"?`) && deleteLog(l.id)} className="ml-2 text-muted">✕</button></td>
                   </tr>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useApp, useCustomItems } from "@/lib/store";
 import { parseCommand } from "@/lib/voice";
 
@@ -23,11 +23,6 @@ export function VoiceButton() {
   const [toast, setToast] = useState("");
   const rec = useRef<Recognition | null>(null);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(""), 3000);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   const start = () => {
     const w = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
@@ -64,7 +59,7 @@ export function VoiceButton() {
         🎙️
       </button>
       {toast && (
-        <div className="fixed bottom-40 inset-x-4 z-40 card px-4 py-3 text-sm text-center animate-pop">{toast}</div>
+        <button onClick={() => setToast("")} className="fixed bottom-40 inset-x-4 z-40 card px-4 py-3 text-sm text-center animate-pop">{toast} <span className="text-muted">✕</span></button>
       )}
     </>
   );

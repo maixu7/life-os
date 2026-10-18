@@ -42,7 +42,10 @@ export type ShopItem = {
   photo_id: string | null; status: "to_buy" | "purchased"; purchased_at: string | null; created_at: string;
 };
 // Things you own: bought items land here and go down as you use them.
-export type PantryItem = { id: string; name: string; emoji: string; qty: number; unit: string; last_price: number | null; updated_at: string };
+export type PantryItem = {
+  id: string; name: string; emoji: string; qty: number; unit: string; last_price: number | null; updated_at: string;
+  kind?: string; photo?: string; kg?: number; note?: string; // "What I have": type, picture, weight of each piece
+};
 export type Data = {
   profile: Profile; logs: Log[]; items: CustomItem[]; shopping: ShopItem[]; pantry: PantryItem[]; deleted: string[];
 };

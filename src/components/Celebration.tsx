@@ -87,7 +87,8 @@ export function CelebrationLayer() {
     chime(!!celebration.big);
     navigator.vibrate?.(celebration.big ? [60, 40, 120] : 40);
     const stop = hanabi(canvas.current, celebration.big ? 7 : 2);
-    const t = setTimeout(clearCelebration, celebration.big ? (celebration.quote ? 5200 : 3400) : 1500);
+    // Small ones (+XP) fade on their own; big ones stay until tapped.
+    const t = celebration.big ? undefined : setTimeout(clearCelebration, 1500);
     return () => {
       stop();
       clearTimeout(t);

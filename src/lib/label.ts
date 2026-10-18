@@ -3,7 +3,7 @@
 // serving, the ingredients, a name and the barcode number.
 
 export type Label = {
-  kcal?: number; protein?: number; fat?: number; carbs?: number; salt?: number;
+  kcal?: number; protein?: number; fat?: number; carbs?: number; sugar?: number; salt?: number;
   per?: string; contents?: string; names: string[]; barcode?: string; text: string;
 };
 
@@ -50,6 +50,7 @@ export function parseLabel(text: string): Label {
   const fat = after("脂質|fat", "g");
   const carbs = after("炭水化物|糖質|carbohydrates?|carbs?", "g");
   const salt = after("食塩相当量|食塩|salt", "g");
+  const sugar = after("糖類|砂糖|sugars?", "g");
   const perM = t.match(/(1(?:袋|個|本|枚|食|杯|包|箱|パック|切れ)(?:\([^)]{0,12}\))?|100g|100ml|1serving)(?:当たり|あたり|当り)?/i)
     ?? t.match(/per(100g|100ml|serving)/i);
   const per = perM ? perM[1].replace("1serving", "1 serving") : undefined;
@@ -58,7 +59,7 @@ export function parseLabel(text: string): Label {
   const names = [...new Set(text.split(/\n/).map((l) => l.replace(/\s+/g, l.match(/[a-z]{2}/i) ? " " : "").trim())
     .filter((l) => l.length >= 2 && l.length <= 24 && !/[0-9]{3}|[0-9](\.[0-9]+)?g|kcal|当たり|原材料|栄養|賞味|保存|製造|アレルギー/i.test(l) && /[\p{L}]{2}/u.test(l)))]
     .sort((a, b) => score(b) - score(a)).slice(0, 6);
-  return { kcal, protein, fat, carbs, salt, per, contents: ing, names, barcode, text };
+  return { kcal, protein, fat, carbs, sugar, salt, per, contents: ing, names, barcode, text };
 }
 // Product names are usually short katakana words or capital English words.
 const score = (l: string) => (/^[A-Z][A-Z ]{3,}$/.test(l) ? 3 : 0) + (/[ァ-ヶー]{3,}/.test(l) ? 2 : 0) - (/[、。]/.test(l) ? 2 : 0);

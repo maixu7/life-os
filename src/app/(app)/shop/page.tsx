@@ -477,7 +477,7 @@ function PantrySheet({ item, onClose, onSave, onDelete }: {
       <div className="flex gap-2">
         {item && <button onClick={() => onDelete(item)} className="btn-ghost text-rose-400">Delete</button>}
         <button disabled={!name.trim()} className="btn-primary flex-1" onClick={() => onSave({
-          id: item?.id ?? crypto.randomUUID(), name: name.trim(), emoji: pic, qty: Number(qty) || 0, unit,
+          ...item, id: item?.id ?? crypto.randomUUID(), name: name.trim(), emoji: pic, qty: Number(qty) || 0, unit,
           last_price: item?.last_price ?? null, updated_at: new Date().toISOString(),
         })}>Save</button>
       </div>

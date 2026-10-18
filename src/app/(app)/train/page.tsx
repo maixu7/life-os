@@ -6,6 +6,8 @@ import { ImpactCard, LiftCard } from "@/components/RealMe";
 import { Sheet } from "@/components/Sheet";
 import { PoseDemo, type Prop } from "@/components/PoseDemo";
 import { howTo, variantFromName } from "@/lib/howto";
+import { canDo, dayPlan, kitOf, kitText } from "@/lib/have";
+import Link from "next/link";
 import { type Pattern } from "@/lib/exercises";
 import { moveOf, MOVES, myMove, variantOf } from "@/lib/moves";
 import type { CustomItem } from "@/lib/store";
@@ -129,13 +131,22 @@ export default function TrainPage() {
   const [q, setQ] = useState("");
   const [variant, setVariant] = useState<string | null>(null);
   const [family, setFamily] = useState<string>("");
+  const [mine, setMine] = useState(false);
+  const kit = kitOf(data.pantry);
+  const plan = dayPlan(kit);
   const vr = variantOf(move, variant ?? (ex ? variantFromName(move, ex.name) : undefined));
   const pick = (name: string, t?: string) => {
     const have = items.find((i) => i.name === name);
     if (have) setSel(have.id); else { add(name, { type: t ?? "reps" }); setSel(null); setPending(name); }
     setVariant(null);
   };
-  const library = MOVES.filter((m) => m.kind === "body" && (!family || m.pattern === family) && (!q || `${m.name} ${m.muscles?.join(" ")} ${m.pattern}`.toLowerCase().includes(q.toLowerCase())));
+  const library = MOVES.filter((m) => m.kind === "body" && (!family || m.pattern === family) && (!mine || canDo(m, kit)) && (!q || `${m.name} ${m.muscles?.join(" ")} ${m.pattern}`.toLowerCase().includes(q.toLowerCase())));
+
+  // Opened from "What I have" with an exercise to show.
+  useEffect(() => {
+    const ex = new URLSearchParams(location.search).get("ex");
+    if (ex) pick(ex, MOVES.find((m) => m.name === ex)?.type);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (rest <= 0) return;
@@ -183,11 +194,27 @@ export default function TrainPage() {
           </span>
         ))}
       </div>
+      <details className="card p-3 mb-3" open={Object.keys(kit).length > 0 || !items.length}>
+        <summary className="text-sm font-semibold cursor-pointer">📅 Today&apos;s full workout (made from what you have)</summary>
+        <p className="text-xs text-muted mt-2">{Object.keys(kit).length ? <>You have {kitText(kit)}.</> : <>No equipment yet, so this is bodyweight only. <Link href="/have" className="text-[var(--accent2)] underline">Add your dumbbells, kettlebell or pull-up bar</Link> and it changes.</>} A new plan each day.</p>
+        <table className="w-full text-xs mt-2">
+          <tbody>
+            {plan.map((r) => (
+              <tr key={r.part} className="border-t border-white/5">
+                <td className="py-1.5 pr-2 text-muted whitespace-nowrap">{r.part}</td>
+                <td className="py-1.5"><button onClick={() => pick(r.name, MOVES.find((m) => m.name === r.name)?.type)} className="underline decoration-white/20 text-left">{r.name}</button></td>
+                <td className="py-1.5 text-right whitespace-nowrap">{r.sets} × {r.reps}{r.kg ? ` @ ${r.kg} kg` : ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </details>
       <details className="card p-3 mb-3">
         <summary className="text-sm font-semibold cursor-pointer">📚 All exercises ({MOVES.filter((m) => m.kind === "body").length}) · tap one to train it</summary>
         <div className="space-y-2 mt-2">
           <input className="input" placeholder="Search (kettlebell, abs, back, dumbbell…)" value={q} onChange={(e) => setQ(e.target.value)} />
           <div className="flex flex-wrap gap-1">
+            <button onClick={() => setMine(!mine)} className={`chip !px-2 !py-0.5 text-[11px] ${mine ? "chip-on" : ""}`}>🎒 I can do</button>
             <button onClick={() => setFamily("")} className={`chip !px-2 !py-0.5 text-[11px] ${!family ? "chip-on" : ""}`}>All</button>
             {PATTERNS.map(([v, l]) => <button key={v} onClick={() => setFamily(family === v ? "" : v)} className={`chip !px-2 !py-0.5 text-[11px] ${family === v ? "chip-on" : ""}`}>{l}</button>)}
           </div>

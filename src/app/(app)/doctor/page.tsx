@@ -1,5 +1,6 @@
 "use client";
 
+import { CareCard } from "@/components/CareCard";
 import { useMemo, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { AREAS, BUY, CONDITIONS, diagnose, MEDS, PHONES, SYMPTOMS, symptom, triage, type Answers, type Area, type Condition, type Match } from "@/lib/doctor";
@@ -90,6 +91,7 @@ export default function DoctorPage() {
   return (
     <>
       <XpHeader title="App Doctor" icon="🩺" subtitle="Tell me how you feel; I'll tell you what to do" />
+      <CareCard />
       <div className="grid grid-cols-3 gap-2 mb-4">
         {([["consult", "🩺 Consult"], ["library", `📚 Illnesses (${CONDITIONS.length})`], ["history", "🗂️ History"]] as const).map(([v, l]) => (
           <button key={v} onClick={() => setTab(v)} className={`chip justify-center text-xs ${tab === v ? "chip-on" : ""}`}>{l}</button>

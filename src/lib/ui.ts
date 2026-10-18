@@ -14,6 +14,7 @@ export const ALL_TABS: Tab[] = [
   { href: "/calendar", icon: "📜", label: "Days" },
   { href: "/shop", icon: "🏪", label: "Shop" },
   { href: "/rank", icon: "🦸", label: "Hero" },
+  { href: "/have", icon: "🎒", label: "My stuff" },
   { href: "/", icon: "🏯", label: "Base" },
 ];
 // Base sits on the right; the app opens on the leftmost tab.
@@ -21,7 +22,7 @@ export const DEFAULT_TABS = ["/learn", "/food", "/doctor", "/train", "/today", "
 export const MAX_TABS = 9;
 
 export const SECTIONS: [string, string][] = [
-  ["coach", "🥷 Sensei's next tasks"], ["learn", "📖 Learning today"], ["gaps", "🔍 What you're lacking"], ["sleep", "😴 Sleep and wake"],
+  ["coach", "🥷 Sensei's next tasks"], ["learn", "📖 Learning today"], ["gaps", "🔍 What you're lacking"], ["care", "🩺 Take care of me"], ["sleep", "😴 Sleep and wake"],
   ["meals", "🍱 Food today"], ["gauges", "🎯 Today's gauges"], ["boss", "👹 Weekly boss and chest"], ["missions", "⚔ Daily missions"],
   ["potions", "🧪 Water and milk"], ["quests", "🗺 Side quests"], ["habits", "🔁 Habit quests"], ["library", "📚 Library"], ["pantry", "🎒 Inventory"],
 ];

@@ -24,6 +24,7 @@ import { logKarma } from "@/lib/karma";
 import { KIND_TOPIC, line } from "@/lib/lore";
 import { dailyMissions, streak, weeklyBoss, type Mission } from "@/lib/missions";
 import Link from "next/link";
+import { CareCard } from "@/components/CareCard";
 import { today, toDay, useApp, useCustomItems, useLogs, type CustomItem, type Log } from "@/lib/store";
 
 const shiftDay = (day: string, n: number) => {
@@ -96,11 +97,6 @@ export default function TodayPage() {
     celebrate({ kind: "mission", title: "PERFECT STAGE!", subtitle: "Every mission cleared", big: true, icon: "🎆", quote: line("perfect") });
   }, [doneCount, goals.length, day, isToday, celebrate]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   const log = (kind: string, payload: Record<string, unknown>, title: string) => {
     const row = logActivity(kind, payload, atFor(day));
@@ -135,6 +131,7 @@ export default function TodayPage() {
       {isToday && show("coach") && <CoachCard />}
       {isToday && show("learn") && <LearnToday compact />}
       {isToday && show("gaps") && <GapsCard />}
+      {isToday && show("care") && <CareCard />}
 
       {isToday && show("sleep") && <SleepCard onLogged={setToast} />}
       {isToday && show("meals") && <MealsCard />}
@@ -245,6 +242,7 @@ export default function TodayPage() {
         <div className="fixed bottom-24 left-4 right-20 z-30 card bg-[#1c1330] px-4 py-3 text-sm flex items-center gap-3 animate-sheet">
           <span className="flex-1 truncate">✓ {describe(toast).title} at {fmtTime(toast.created_at)}</span>
           <button onClick={() => { setEditing(data.logs.find((l) => l.id === toast.id) ?? toast); setToast(null); }} className="font-bold text-[var(--accent2)]">Details</button>
+          <button aria-label="Close" onClick={() => setToast(null)} className="text-muted">✕</button>
         </div>
       )}
       {editing && <EditLog log={editing} onClose={() => setEditing(null)} />}

@@ -1,12 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { WhenPicker } from "@/components/When";
-import { FoodPicker, useEaten } from "@/components/FoodPicker";
-import { LabelScan } from "@/components/LabelScan";
-import { energy } from "@/lib/body";
-import { animeStyle, loadImage, recognise, smallPhoto } from "@/lib/foodphoto";
+import { DishCard, dishesFrom, dishTotals, FoodNames, newDish, type Dish } from "@/components/Dishes";
+import { energy, type Eaten } from "@/lib/body";
+import { haveFoods, recentFoods, takeFromPantry } from "@/lib/have";
 import { toDay, useApp, type Log } from "@/lib/store";
 
 export const MEALS: [string, string][] = [["Breakfast", "🍳"], ["Lunch", "🍱"], ["Snack", "🍪"], ["Dinner", "🍛"]];
@@ -19,92 +18,61 @@ export function mealFor(d: Date) {
 
 const isMealLog = (l: Log) => l.kind === "meal" || (l.kind === "activity" && MEALS.some(([m]) => m.toLowerCase() === String(l.data.name).toLowerCase()));
 
-// What you ate, when, what was in it and how many calories, with an optional
-// photo that the app redraws in anime style and tries to recognise.
-export function MealSheet({ meal: initial, log, onClose }: { meal?: string; log?: Log; onClose: () => void }) {
-  const { logActivity, updateLog, celebrate } = useApp();
+// A meal is any number of foods. Each food has its own photo (shown in the
+// Today table) and its own label photo (read for the calories).
+export function MealSheet({ meal: initial, log, onClose, start }: { meal?: string; log?: Log; onClose: () => void; start?: string[] }) {
+  const { data, logActivity, updateLog, celebrate, update } = useApp();
   const [meal, setMeal] = useState(initial ?? (log ? String(log.data.name) : mealFor(new Date())));
   const [when, setWhen] = useState(dtLocal(log ? new Date(log.created_at) : new Date()));
-  const [foods, setFoods] = useState<Record<string, number>>(() => Object.fromEntries(((log?.data.foods as { name: string; qty: number }[]) ?? []).map((f) => [f.name, f.qty])));
+  const [dishes, setDishes] = useState<Dish[]>(() => {
+    const had = dishesFrom(log?.data.foods as Eaten[] | undefined);
+    if (had.length && log?.data.photo && !had[0].photo) had[0].photo = String(log.data.photo);
+    return had.length ? had : (start?.length ? start : [""]).map((n) => newDish(n));
+  });
   const [contents, setContents] = useState(String(log?.data.note ?? ""));
-  const [photo, setPhoto] = useState<string>(String(log?.data.photo ?? ""));
-  const [real, setReal] = useState("");
-  const [art, setArt] = useState("");
-  const [anime, setAnime] = useState(true);
-  const [msg, setMsg] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [guesses, setGuesses] = useState<string[]>([]);
-  const file = useRef<HTMLInputElement>(null);
-  const list = useEaten(foods);
-  const kcal = list.reduce((n, x) => n + x.kcal, 0);
-  const protein = Math.round(list.reduce((n, x) => n + x.protein, 0));
-
-  const [labelFiles, setLabelFiles] = useState<File[]>([]);
-  const pick = async (f: File) => {
-    setMsg(""); setGuesses([]);
-    setLabelFiles([f]); // also try to read a packet label in the photo
-    const img = await loadImage(f);
-    const art = animeStyle(img), plain = smallPhoto(img);
-    setReal(plain); setArt(art); setPhoto(anime ? art : plain);
-    // The photo's own time is when you ate.
-    if (f.lastModified && Date.now() - f.lastModified < 3 * 86_400_000) {
-      const t = new Date(f.lastModified);
-      setWhen(dtLocal(t));
-      if (!initial && !log) setMeal(mealFor(t));
-    }
-    setBusy(true); setMsg("Looking at your photo…");
-    try {
-      const r = await recognise(img);
-      setGuesses(r.foods);
-      if (r.foods.length) {
-        setFoods((prev) => (Object.keys(prev).length ? prev : { [r.foods[0]]: 1 }));
-        setMsg(`Looks like ${r.seen.slice(0, 2).join(" or ")}. Added ${r.foods[0]}; fix it below if that's wrong.`);
-      } else setMsg(`I see ${r.seen.slice(0, 2).join(" or ")}, . If it's a packet, I'm reading its label below; otherwise pick the food from the list.`);
-    } catch {
-      setMsg("Couldn't recognise it (the food detector needs internet the first time). Pick the food below.");
-    }
-    setBusy(false);
-  };
-  const toggleStyle = () => {
-    if (real && art) setPhoto(anime ? real : art);
-    setAnime(!anime);
-  };
+  const [anime, setAnime] = useState(false);
+  const set = (key: string) => (p: Partial<Dish>) => setDishes((ds) => ds.map((d) => (d.key === key ? { ...d, ...p } : d)));
+  const foods = dishes.filter((d) => d.name.trim() || Number(d.kcal)).map(dishTotals);
+  const kcal = foods.reduce((n, x) => n + x.kcal, 0);
+  const protein = Math.round(foods.reduce((n, x) => n + x.protein, 0));
+  // Quick picks: what you have at home and what you ate lately.
+  const quick = [...new Set([...haveFoods(data.pantry).map((p) => p.name), ...recentFoods(data.logs)])].filter((nm) => !dishes.some((d) => d.name === nm)).slice(0, 14);
 
   const save = () => {
-    const data = { name: meal, emoji: MEALS.find(([m]) => m === meal)?.[1] ?? "🍽️", foods: list, kcal, note: contents || undefined, photo: photo || undefined };
-    if (log) updateLog(log.id, { data, at: new Date(when) });
+    const first = foods.find((f) => f.photo)?.photo;
+    const payload = { name: meal, emoji: MEALS.find(([m]) => m === meal)?.[1] ?? "🍽️", foods, kcal, note: contents || undefined, photo: first };
+    if (log) updateLog(log.id, { data: payload, at: new Date(when) });
     else {
-      const row = logActivity("activity", data, new Date(when));
-      celebrate({ title: "ITADAKIMASU!", subtitle: `${meal}${kcal ? ` · +${kcal} kcal · ${protein} g protein` : ""}`, xp: row.xp, icon: data.emoji });
+      const row = logActivity("activity", payload, new Date(when));
+      // Eaten food comes out of "What I have".
+      update((d) => ({ ...d, pantry: takeFromPantry(d.pantry, foods) }));
+      celebrate({ title: "ITADAKIMASU!", subtitle: `${meal} · ${foods.length} food${foods.length === 1 ? "" : "s"}${kcal ? ` · ${kcal} kcal · ${protein} g protein` : ""}`, xp: row.xp, icon: payload.emoji });
     }
     onClose();
   };
 
   return (
     <Sheet title={`${MEALS.find(([m]) => m === meal)?.[1] ?? "🍽️"} ${meal}`} onClose={onClose}>
+      <FoodNames />
       <div className="grid grid-cols-4 gap-1.5">
         {MEALS.map(([m, e]) => <button key={m} onClick={() => setMeal(m)} className={`chip justify-center !px-1 text-xs ${meal === m ? "chip-on" : ""}`}>{e} {m}</button>)}
       </div>
-      <div className="flex gap-3 items-center">
-        <button onClick={() => file.current?.click()} className="relative h-28 w-28 shrink-0 rounded-2xl border border-dashed border-white/25 bg-white/[.04] grid place-items-center overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {photo ? <img src={photo} alt={meal} className="h-full w-full object-cover" /> : <span className="text-center text-xs text-muted">📷<br />Add photo</span>}
-        </button>
-        <div className="flex-1 min-w-0 space-y-1.5 text-xs">
-          <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) pick(f); e.target.value = ""; }} />
-          {photo && real && <button onClick={toggleStyle} className="chip !py-1 text-xs">{anime ? "🎨 Anime style" : "📷 Real photo"} (tap to switch)</button>}
-          {photo && <button onClick={() => { setPhoto(""); setReal(""); setGuesses([]); setMsg(""); }} className="chip !py-1 text-xs">Remove photo</button>}
-          {busy && <div className="animate-pulse text-[var(--accent2)]">🔍 Recognising…</div>}
-          {msg && !busy && <div className="text-muted">{msg}</div>}
-          {guesses.length > 1 && <div className="flex flex-wrap gap-1">{guesses.slice(1).map((g) => <button key={g} onClick={() => setFoods({ ...foods, [g]: (foods[g] ?? 0) + 1 })} className="chip !py-0.5 text-[11px]">+ {g}</button>)}</div>}
-          {!photo && <div className="text-muted">Snap your plate. The app sets the time from the photo, redraws it anime style and tries to tell what it is.</div>}
-        </div>
-      </div>
       <WhenPicker label="When did you eat" value={when} onChange={setWhen} />
-      <LabelScan files={labelFiles} compact onSaved={(n) => setFoods((p) => ({ ...p, [n]: (p[n] ?? 0) + 1 }))} />
-      <FoodPicker value={foods} onChange={setFoods} />
-      <textarea className="input min-h-14 text-sm" placeholder="What was in it? (ingredients, home made, how much oil…)" value={contents} onChange={(e) => setContents(e.target.value)} />
-      <div className="rounded-xl bg-white/5 p-3 text-sm flex justify-between"><span>Total</span><b>{kcal} kcal · {protein} g protein</b></div>
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted">Each food: 📷 its photo, 🏷️ its packet label (reads the calories).</span>
+        <button onClick={() => setAnime(!anime)} className={`chip !py-0.5 text-[11px] shrink-0 ${anime ? "chip-on" : ""}`}>🎨 Anime</button>
+      </div>
+      <div className="space-y-2">
+        {dishes.map((d) => <DishCard key={d.key} d={d} set={set(d.key)} anime={anime} remove={() => setDishes((ds) => (ds.length > 1 ? ds.filter((x) => x.key !== d.key) : [newDish()]))} />)}
+      </div>
+      <button onClick={() => setDishes([...dishes, newDish()])} className="btn-ghost w-full border border-dashed border-white/25">＋ Add another food</button>
+      {quick.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {quick.map((nm) => <button key={nm} onClick={() => setDishes((ds) => [...ds.filter((x) => x.name || x.kcal || x.photo), newDish(nm)])} className="chip !py-0.5 text-[11px]">+ {nm}</button>)}
+        </div>
+      )}
+      <textarea className="input min-h-12 text-sm" placeholder="Notes (home made, how much oil…)" value={contents} onChange={(e) => setContents(e.target.value)} />
+      <div className="rounded-xl bg-white/5 p-3 text-sm flex justify-between"><span>Total ({foods.length})</span><b>{kcal} kcal · {protein} g protein</b></div>
       <button onClick={save} className="btn-primary w-full">{log ? "Save changes" : `Log ${meal.toLowerCase()}`}</button>
     </Sheet>
   );
@@ -149,6 +117,7 @@ export function MealsCard() {
           {logs.map((l) => (
             <li key={l.id}><button onClick={() => setOpen({ log: l })} className="w-full flex gap-2 text-left">
               <span className="text-muted w-14 shrink-0">{new Date(l.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+              <FoodThumbs foods={l.data.foods as Eaten[] | undefined} />
               <span className="flex-1 truncate">{String(l.data.name)}: {((l.data.foods as { name: string }[]) ?? []).map((f) => f.name).join(", ") || String(l.data.note ?? "no foods added")}</span>
               {Number(l.data.kcal) > 0 && <b>{String(l.data.kcal)} kcal</b>}
             </button></li>
@@ -157,5 +126,17 @@ export function MealsCard() {
       )}
       {open && <MealSheet meal={open.meal} log={open.log} onClose={() => setOpen(null)} />}
     </section>
+  );
+}
+
+// Small photos of each food in a meal.
+export function FoodThumbs({ foods, size = 22 }: { foods?: Eaten[]; size?: number }) {
+  const pics = (foods ?? []).filter((f) => f.photo);
+  if (!pics.length) return null;
+  return (
+    <span className="flex -space-x-1.5 shrink-0">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {pics.slice(0, 5).map((f, i) => <img key={i} src={f.photo} alt={f.name} title={f.name} style={{ width: size, height: size }} className="rounded-md object-cover ring-1 ring-black/40" />)}
+    </span>
   );
 }

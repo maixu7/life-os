@@ -45,7 +45,7 @@ export function myFoods(items: CustomItem[]): Food[] {
 export const allFoods = (items: CustomItem[]) => [...myFoods(items), ...FOODS];
 export const guessFood = (name: string, items: CustomItem[] = []) => allFoods(items).find((x) => x.re.test(name));
 
-export type Eaten = { name: string; qty: number; kcal: number; protein: number };
+export type Eaten = { name: string; qty: number; kcal: number; protein: number; fat?: number; carbs?: number; sugar?: number; salt?: number; photo?: string; per?: string; contents?: string };
 
 // Everything eaten in a list of logs.
 export function eaten(logs: Log[], items: CustomItem[] = []): Eaten[] {

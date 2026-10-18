@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
+import { itemKind, KINDS } from "@/lib/have";
 import { AvatarArt, CLASSES } from "@/components/AvatarArt";
 import { AboutMe, AvatarEditor, BodyStats } from "@/components/HeroSheet";
 import { CharacterPanel } from "@/components/Character";
@@ -94,6 +96,14 @@ export default function RankPage() {
 
   return (
     <>
+      <Link href="/have" className="card p-3 mb-3 flex items-center gap-3">
+        <span className="text-3xl">🎒</span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-semibold">What I have</span>
+          <span className="block text-xs text-muted truncate">{data.pantry.length ? KINDS.map(([k, e]) => { const n = data.pantry.filter((p) => p.qty > 0 && itemKind(p) === k).length; return n ? `${e} ${n}` : ""; }).filter(Boolean).join("  ") : "Add your food, books and equipment"}</span>
+        </span>
+        <span className="text-[var(--accent2)]">›</span>
+      </Link>
       <section className="card frame p-5 mb-4 text-center relative overflow-hidden">
         <div className="absolute inset-0 opacity-40" style={{ background: `radial-gradient(circle at 50% 30%, ${k.color}55, transparent 60%)` }} />
         <div className="relative">
