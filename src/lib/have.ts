@@ -94,7 +94,8 @@ export function kitOf(pantry: PantryItem[]): Kit {
     if (p.qty <= 0 || itemKind(p) !== "equipment") continue;
     // Items from the equipment list carry their real gear (a foam roller isn't an ab wheel).
     const known = gearByName().get(p.name);
-    const g = known !== undefined ? (known ? GEAR.find(([x]) => x === known) : undefined) : GEAR.find(([, re]) => re.test(p.name));
+    // Your own description counts too ("stomach-height dips" → dip bars).
+    const g = (known !== undefined ? (known ? GEAR.find(([x]) => x === known) : undefined) : GEAR.find(([, re]) => re.test(p.name))) ?? (p.note ? GEAR.find(([, re]) => re.test(p.note!)) : undefined);
     if (!g) continue;
     const k = (kit[g[0]] ??= { count: 0, kg: [], label: g[2] });
     k.count += p.qty;

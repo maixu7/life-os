@@ -9,6 +9,8 @@ import { openReport } from "@/components/Summary";
 import { useRunAction, useTasks } from "@/components/Coach";
 import { atWork, fmt12, hm, hoursIn, phaseNow, sched, studyFrom } from "@/lib/schedule";
 import { useApp } from "@/lib/store";
+import { CollectionHost, openCollection } from "@/components/Collections";
+import { openHub } from "@/components/hub/registry";
 
 // The page's main purpose as big buttons at the very top (Eat / Drink on
 // Food, Start workout on Train…). Everything else sits below them.
@@ -43,6 +45,7 @@ const MAIN: Record<string, Big[]> = {
   "/food": [
     { icon: "🍽️", label: "Eat", sub: "Photo, say it or search", go: () => openSlotSheet({ kind: "meal" }) },
     { icon: "🥤", label: "Drink", sub: "Photo, say it or search", go: () => openSlotSheet({ kind: "drink" }) },
+    { icon: "📷", label: "Upload", sub: "Any photo, now or later", go: () => openHub("later") },
     { icon: "🛒", label: "Shopping", sub: "List, snap, receipt", href: "/shop" },
   ],
   "/train": [
@@ -53,6 +56,17 @@ const MAIN: Record<string, Big[]> = {
   "/learn": [
     { icon: "▶️", label: "Study now", sub: "Focus timer on your goal", href: "/focus" },
     { icon: "📖", label: "Log learning", sub: "Pages, minutes, kanji…", go: () => toBlock("today") },
+  ],
+};
+
+// A second row of big buttons: your collections.
+const MORE: Record<string, Big[]> = {
+  "/food": [
+    { icon: "🍱", label: "My food collection", sub: "What I have · what I've eaten", go: () => openCollection("food") },
+    { icon: "🥤", label: "My drink collection", sub: "What I have · what I've drunk", go: () => openCollection("drink") },
+  ],
+  "/train": [
+    { icon: "🏋️", label: "My gym collection", sub: "Photo, description, how many, kg each", go: () => openCollection("gym") },
   ],
 };
 
@@ -91,6 +105,7 @@ export function MainActions({ page }: { page: string }) {
   return (
     <>
     {equip && <EquipmentSheet onClose={() => setEquip(false)} />}
+    <CollectionHost />
     {fix && (
       <div className="card p-3 mb-3 text-sm border border-amber-400/50">
         ⏰ In About me you wrote you work <b>{fmt12(fix.start)}–{fmt12(fix.end)}</b>, but your schedule says <b>{fmt12(sc.workStart)}–{fmt12(sc.workEnd)}</b>. Tasks follow the schedule.
@@ -103,6 +118,7 @@ export function MainActions({ page }: { page: string }) {
         ? <Link key={b.label} href={b.href} className={cls}>{inner(b)}</Link>
         : <button key={b.label} onClick={b.go} className={cls}>{inner(b)}</button>)}
     </div>
+    {MORE[page] && <div className={`grid ${MORE[page].length > 1 ? "grid-cols-2" : "grid-cols-1"} gap-2 mb-4 -mt-2`}>{MORE[page].map((b) => <button key={b.label} onClick={b.go} className={cls}>{inner(b)}</button>)}</div>}
     </>
   );
 }

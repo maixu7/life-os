@@ -24,9 +24,11 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat, file
   const all = useMemo<(Drink & { photo?: string })[]>(() => [...mine, ...DRINKS], [mine]);
   const [q, setQ] = useState(() => (start && DRINKS.some((d) => `${d.name} ${d.ja ?? ""}`.toLowerCase().includes(start.toLowerCase())) ? start : ""));
   const [cat, setCat] = useState<DrinkCat | "">(startCat ?? "");
-  const first = startCat ? DRINKS.find((d) => d.cat === startCat) ?? null : null;
+  // A drink you had before (My collection, "Again") opens ready to log.
+  const again = start ? all.find((d) => d.name.toLowerCase() === start.toLowerCase()) ?? null : null;
+  const first = startCat ? DRINKS.find((d) => d.cat === startCat) ?? null : again;
   const [pick, setPick] = useState<Drink | null>(first);
-  const [ml, setMl] = useState(first ? 250 : 0);
+  const [ml, setMl] = useState(first ? (again ? again.ml : 250) : 0);
   // When you drank it (now by default), so a glass from earlier lands at the right time.
   const [time, setTime] = useState(() => { const t = when ?? new Date(); return `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`; });
   const atTime = () => { const t = new Date(when ?? Date.now()); const [h, m] = time.split(":").map(Number); if (!isNaN(h)) t.setHours(h, m || 0, 0, 0); return t; };

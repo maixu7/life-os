@@ -35,7 +35,7 @@ export const customHref = (id: string) => `/custom/${id}`;
 // The built-in blocks of each page, in their default order.
 export const PAGE_SECTIONS: Record<string, [string, string][]> = {
   "/today": [["quick", "⚡ Quick add (top icons)"], ["doing", "▶ In progress"], ["basics", "🗓️ Daily basics table"], ["mytasks", "📝 My tasks"], ["did", "✅ What you did"], ["fix", "🚨 Fix my worst habits"], ["quests", "🎯 App quests & goals"]],
-  "/food": [["quick", "⚡ Quick add"], ["meals", "🍱 Food today"], ["drink", "🥤 Log a drink"], ["next", "🍽️ What to eat next"], ["care", "🩺 Take care of me"], ["have", "🎒 Food you have"], ["packet", "🏷️ New packet food"], ["week", "📅 Last 7 days"], ["mine", "🍽️ My foods"],
+  "/food": [["quick", "⚡ Quick add"], ["meals", "🍱 Food today"], ["drinks", "🥤 Drink today"], ["drink", "🥤 Log a drink"], ["next", "🍽️ What to eat next"], ["care", "🩺 Take care of me"], ["have", "🎒 Food you have"], ["packet", "🏷️ New packet food"], ["week", "📅 Last 7 days"], ["mine", "🍽️ My foods"],
     ["usual", "⭐ One-tap meals"], ["protein", "🥚 Protein today"], ["coffee", "☕ Caffeine"], ["bottle", "🍶 Water bottle"], ["ideas", "🧑‍🍳 Recipes, konbini, eating out"], ["cost", "💴 Food cost this week"]],
   "/train": [["list", "🏋️ My exercises"], ["plan", "📅 Today's full workout"], ["library", "📚 All exercises"], ["move", "🎯 Selected exercise"], ["lift", "📈 Strength forecast"], ["rest", "⏱️ Rest timer"], ["done", "✅ Today's sets"], ["streak", "🔥 Workout streak"], ["muscles", "🗺️ Muscle map"], ["records", "🏆 Personal records"]],
   "/learn": [["plan", "🗓️ Study plan"], ["today", "📖 Learning today"], ["books", "📚 Books you have"], ["library", "📚 Library (read, listen, watch)"], ["skills", "🧠 Skills: noob to expert"],
@@ -52,7 +52,7 @@ export const PAGE_SECTIONS: Record<string, [string, string][]> = {
 export const PAGE_MAIN: Record<string, string[]> = {
   "/": ["pins", "coach", "missions", "sleep"],
   "/today": ["quick", "doing", "basics", "mytasks", "did"],
-  "/food": ["quick", "meals", "next"],
+  "/food": ["quick", "meals", "drinks", "next"],
   "/train": ["plan", "list", "move", "done"],
   "/learn": ["plan", "today"],
 };
