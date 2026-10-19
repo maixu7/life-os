@@ -69,7 +69,10 @@ const LABELS: [RegExp, string][] = [
   [/burrito|meat loaf|potpie/i, "Sandwich"], [/trifle|eggnog|custard/i, "Sweet (mithai)"], [/milk|eggnog/i, "Milk"], [/corn|ear/i, "Fruit"],
 ];
 
-type Classifier = { classify: (img: HTMLImageElement | HTMLCanvasElement, k?: number) => Promise<{ className: string; probability: number }[]> };
+type Classifier = {
+  classify: (img: HTMLImageElement | HTMLCanvasElement, k?: number) => Promise<{ className: string; probability: number }[]>;
+  infer: (img: HTMLImageElement | HTMLCanvasElement, embedding: boolean) => { data: () => Promise<Float32Array>; dispose: () => void };
+};
 declare global { interface Window { mobilenet?: { load: (o?: object) => Promise<Classifier> } } }
 let model: Promise<Classifier> | null = null;
 
@@ -82,14 +85,28 @@ const script = (src: string) => new Promise<void>((ok, bad) => {
 
 // Loads TensorFlow.js and MobileNet (about 5 MB, once) and guesses the food.
 // Needs internet the first time. Returns food names from the app's list.
-export async function recognise(img: HTMLImageElement): Promise<{ foods: string[]; seen: string[] }> {
+const loadModel = () => {
   model ??= (async () => {
     await script("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js");
     await script("https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js");
     return window.mobilenet!.load({ version: 2, alpha: 1 });
   })();
+  return Promise.race([model, new Promise<never>((_, bad) => setTimeout(() => bad(new Error("timeout")), 25_000))]);
+};
+
+/** The photo's look as 1,280 numbers (no AI service: runs on the phone). Same thing photographed again gives close numbers. */
+export async function fingerprint(img: HTMLImageElement): Promise<number[]> {
   try {
-    const m = await Promise.race([model, new Promise<never>((_, bad) => setTimeout(() => bad(new Error("timeout")), 25_000))]);
+    const t = (await loadModel()).infer(square(img, 224).c, true);
+    const v = Array.from(await t.data());
+    t.dispose();
+    return v;
+  } catch (e) { model = null; throw e; }
+}
+
+export async function recognise(img: HTMLImageElement): Promise<{ foods: string[]; seen: string[] }> {
+  try {
+    const m = await loadModel();
     const preds = await m.classify(square(img, 224).c, 5);
     const seen = preds.map((p) => p.className.split(",")[0]);
     const foods = [...new Set(preds.flatMap((p) => LABELS.find(([re]) => re.test(p.className))?.[1] ?? []))];

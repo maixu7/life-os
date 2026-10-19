@@ -2,11 +2,12 @@
 // the floating ＋ menu, pinned actions on Base Camp, the Tools tab, Quick log.
 
 export type HubId =
-  | "camera" | "sleepplan" | "urge" | "detox" | "sos" | "night" | "morning" | "dump" | "planner" | "surprise"
+  | "camera" | "later" | "sleepplan" | "urge" | "detox" | "sos" | "night" | "morning" | "dump" | "planner" | "surprise"
   | "chain" | "skills" | "map" | "freeze" | "rival" | "loot" | "events" | "buddy" | "chat" | "inbox" | "share" | "lang";
 
 export const HUB: { id: HubId; icon: string; label: string; group: "Do" | "Calm" | "Play" | "Talk" }[] = [
   { id: "camera", icon: "📸", label: "Snap anything", group: "Do" },
+  { id: "later", icon: "📥", label: "Photos to scan", group: "Do" },
   { id: "morning", icon: "🌅", label: "Morning routine", group: "Do" },
   { id: "planner", icon: "🗓️", label: "Day planner", group: "Do" },
   { id: "dump", icon: "🧠", label: "Brain dump", group: "Do" },

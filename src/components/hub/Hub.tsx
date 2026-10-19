@@ -32,6 +32,7 @@ const RivalSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.R
 const SkillTreeSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.SkillTreeSheet));
 const WorldMapSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.WorldMapSheet));
 const BuddySheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.BuddySheet));
+const LaterSheet = dynamic(() => import("@/components/Later").then((x) => x.LaterSheet));
 const CameraSheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.CameraSheet));
 const ChatSheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.ChatSheet));
 const InboxSheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.InboxSheet));
@@ -48,7 +49,7 @@ export function HubHost() {
   }, []);
   const close = () => setId(null);
   const S: Record<string, React.ComponentType<{ onClose: () => void }>> = {
-    camera: CameraSheet, sleepplan: SleepPlanSheet, urge: UrgeSheet, detox: DetoxSheet, sos: SosSheet, night: NightSheet, morning: MorningSheet,
+    camera: CameraSheet, later: LaterSheet, sleepplan: SleepPlanSheet, urge: UrgeSheet, detox: DetoxSheet, sos: SosSheet, night: NightSheet, morning: MorningSheet,
     dump: BrainDumpSheet, planner: PlannerSheet, surprise: SurpriseSheet, chain: ChainSheet, skills: SkillTreeSheet, map: WorldMapSheet,
     freeze: FreezeSheet, rival: RivalSheet, loot: LootSheet, events: EventsSheet, buddy: BuddySheet, chat: ChatSheet, inbox: InboxSheet,
     share: ShareSheet, lang: LangSheet,

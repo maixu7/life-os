@@ -11,6 +11,20 @@ export function aiPhoto(img: HTMLImageElement, max = 1024): string {
   return c.toDataURL("image/jpeg", 0.82);
 }
 
+/** Several photos of one thing (front, back, side) side by side in one picture for the AI reader. */
+export function aiPhotos(imgs: HTMLImageElement[], max = 1600): string {
+  if (imgs.length <= 1) return aiPhoto(imgs[0], 1024);
+  const h = Math.min(1024, ...imgs.map((i) => i.naturalHeight));
+  const ws = imgs.map((i) => (i.naturalWidth * h) / i.naturalHeight), total = ws.reduce((a, b) => a + b, 0);
+  const k = Math.min(1, max / total);
+  const c = document.createElement("canvas");
+  c.width = Math.round(total * k); c.height = Math.round(h * k);
+  const ctx = c.getContext("2d")!;
+  let x = 0;
+  imgs.forEach((i, n) => { ctx.drawImage(i, x, 0, ws[n] * k, h * k); x += ws[n] * k; });
+  return c.toDataURL("image/jpeg", 0.85);
+}
+
 export type MealRead = { foods: MealFood[]; note: string; ai: boolean; unknown?: string[]; error?: string };
 
 // What's in this meal and how much. Asks the AI reader (photo and/or words);

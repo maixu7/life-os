@@ -1,15 +1,15 @@
 "use client";
 
 import { StartButton } from "@/components/Doing";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { readMealText } from "@/lib/foodtext";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { WhenPicker } from "@/components/When";
 import { DishCard, dishesFrom, dishFrom, dishTotals, FoodNames, newDish, type Dish } from "@/components/Dishes";
-import { aiPhoto, readMeal } from "@/lib/foodai";
+import { aiPhotos, readMeal } from "@/lib/foodai";
 import { animeStyle, loadImage, smallPhoto } from "@/lib/foodphoto";
 import { energy, type Eaten } from "@/lib/body";
-import { SnapChoice } from "@/components/SnapChoice";
+import { SnapChoice, useRememberSnap, type LabelRead, type Pick } from "@/components/SnapChoice";
 import { foodPicks } from "@/lib/foodpicks";
 import { haveFoods, recentFoods, takeFromPantry } from "@/lib/have";
 import { DrinkSheet } from "@/components/Drinks";
@@ -32,13 +32,13 @@ export const isMealLog = (l: Log, ui?: Ui) => l.kind === "meal" || (l.kind === "
 
 // A meal is any number of foods. Each food has its own photo (shown in the
 // Today table) and its own label photo (read for the calories).
-export function MealSheet({ meal: initial, log, onClose, start }: { meal?: string; log?: Log; onClose: () => void; start?: string[] }) {
+export function MealSheet({ meal: initial, log, onClose, start, file, at }: { meal?: string; log?: Log; onClose: () => void; start?: string[]; file?: Blob[]; at?: Date }) {
   const { data, profile, logActivity, updateLog, celebrate, update } = useApp();
   const ui = profile.settings.ui;
   const slots = mealSlots(ui);
-  const [meal, setMeal] = useState(initial ?? (log ? String(log.data.name) : mealFor(new Date())));
+  const [meal, setMeal] = useState(initial ?? (log ? String(log.data.name) : mealFor(at ?? new Date())));
   const icon = iconOfMeal(meal, ui);
-  const [when, setWhen] = useState(dtLocal(log ? new Date(log.created_at) : new Date()));
+  const [when, setWhen] = useState(dtLocal(log ? new Date(log.created_at) : at ?? new Date()));
   const [dishes, setDishes] = useState<Dish[]>(() => {
     const had = dishesFrom(log?.data.foods as Eaten[] | undefined);
     if (had.length && log?.data.photo && !had[0].photo) had[0].photo = String(log.data.photo);
@@ -77,7 +77,7 @@ export function MealSheet({ meal: initial, log, onClose, start }: { meal?: strin
         <span className="text-muted">Each food: 📷 its photo, 🏷️ its packet label (reads the calories).</span>
         <button onClick={() => setAnime(!anime)} className={`chip !py-0.5 text-[11px] shrink-0 ${anime ? "chip-on" : ""}`}>🎨 Anime</button>
       </div>
-      {!log && <WholeMeal anime={anime} onFoods={(ps) => setDishes((ds) => [...ds.filter((x) => x.name.trim() || Number(x.kcal) || x.photo), ...ps.map((p) => ({ ...newDish(), ...p }))])} />}
+      {!log && <WholeMeal anime={anime} file={file} onFoods={(ps) => setDishes((ds) => [...ds.filter((x) => x.name.trim() || Number(x.kcal) || x.photo), ...ps.map((p) => ({ ...newDish(), ...p }))])} />}
       <div className="space-y-2">
         {dishes.map((d) => <DishCard key={d.key} d={d} set={set(d.key)} anime={anime} addMore={(ps) => setDishes((ds) => { const i = ds.findIndex((x) => x.key === d.key); return [...ds.slice(0, i + 1), ...ps.map((p) => ({ ...newDish(), ...p })), ...ds.slice(i + 1)]; })} remove={() => setDishes((ds) => (ds.length > 1 ? ds.filter((x) => x.key !== d.key) : [newDish()]))} />)}
       </div>
@@ -220,9 +220,9 @@ export function FoodThumbs({ foods, size = 22 }: { foods?: Eaten[]; size?: numbe
 }
 
 // Snap the whole plate or say the whole meal; every food is found with its amount.
-function WholeMeal({ anime, onFoods }: { anime: boolean; onFoods: (ds: Partial<Dish>[]) => void }) {
+function WholeMeal({ anime, file, onFoods }: { anime: boolean; file?: Blob[]; onFoods: (ds: Partial<Dish>[]) => void }) {
   const { data: d0 } = useApp();
-  type Pic = { ai: string; small: string; img: HTMLImageElement };
+  type Pic = { ai: string; small: string; imgs: HTMLImageElement[] };
   const [ask, setAsk] = useState<Pic | null>(null);
   const [offer, setOffer] = useState(false); // typed words not all in the list → Ask AI button
   // The app's own food list: your foods, everyday foods and chain-shop dishes.
@@ -233,6 +233,22 @@ function WholeMeal({ anime, onFoods }: { anime: boolean; onFoods: (ds: Partial<D
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const ref = useRef<HTMLInputElement>(null);
+  // One photo or several (the plate, the packet front and back).
+  const takePhoto = async (fs: Blob[]) => {
+    const imgs = await Promise.all(fs.map(loadImage));
+    const p = { ai: aiPhotos(imgs), small: anime ? animeStyle(imgs[0], 160) : smallPhoto(imgs[0], 160), imgs };
+    setPic(p); setAsk(p);
+  };
+  const rememberAI = useRememberSnap();
+  // From the list; the label's own numbers win when it could read them.
+  const picked = (x: Pick, l?: LabelRead) => {
+    const n = nums.get(x.name);
+    const fromLabel = l?.kcal != null ? { per: l.per ?? "1 serving", kcal: String(l.kcal), protein: l.protein != null ? String(l.protein) : "", fat: l.fat != null ? String(l.fat) : "", carbs: l.carbs != null ? String(l.carbs) : "", sugar: l.sugar != null ? String(l.sugar) : "", salt: l.salt != null ? String(l.salt) : "", contents: l.contents } : null;
+    onFoods([{ name: x.name, photo: ask?.small, auto: !fromLabel, ...(fromLabel ?? (n ? { per: n.per, kcal: String(n.kcal), protein: String(n.protein) } : {})) }]);
+    setPic(null); setMsg(`${fromLabel ? "🏷️" : "📋"} ${x.name} (${fromLabel ? "numbers from the label" : "from the list"}). Check the amount below.`);
+  };
+  // A photo saved with "Scan later" opens straight away.
+  useEffect(() => { if (file?.length) takePhoto(file); }, [file]); // eslint-disable-line react-hooks/exhaustive-deps
   // Photo → AI only from the Ask AI button. Words → the app's food tables first;
   // AI only when you tap Ask AI.
   const read = async (photo?: Pic | null, askAI = false) => {
@@ -252,6 +268,7 @@ function WholeMeal({ anime, onFoods }: { anime: boolean; onFoods: (ds: Partial<D
     const r = await readMeal(session, { photo: photo?.ai, text: say }, data.items);
     setBusy(false);
     if (r.foods.length || r.unknown?.length) {
+      if (photo && r.ai && r.foods[0]) rememberAI(r.foods.map((f) => f.name).join(" + "), "🍱");
       onFoods([...r.foods.map((f, i) => dishFrom(f, i === 0 ? photo?.small : undefined)), ...(r.unknown ?? []).map((u) => ({ name: u }))]);
       const total = r.foods.reduce((n, f) => n + f.kcal * f.qty, 0);
       setMsg(`${r.ai ? "🤖" : "📖"} ${r.foods.map((f) => f.name).join(" + ")}${total ? ` ≈ ${total} kcal` : ""}. ${r.note}${!r.ai ? ` (AI failed: ${r.error || "unknown"}. I used the list.)` : ""} Check the amounts below.`);
@@ -261,21 +278,15 @@ function WholeMeal({ anime, onFoods }: { anime: boolean; onFoods: (ds: Partial<D
   };
   return (
     <div className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 p-2.5 space-y-2">
-      <div className="text-xs font-semibold">🔍 Snap or say the whole meal</div>
+      <div className="text-xs font-semibold">🔍 Snap or say the whole meal <span className="font-normal text-muted">(several photos OK)</span></div>
       <div className="flex gap-2">
         <button onClick={() => ref.current?.click()} className="h-14 w-14 shrink-0 rounded-xl border border-dashed border-white/25 grid place-items-center overflow-hidden text-xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {pic ? <img src={pic.small} alt="Meal" className="h-full w-full object-cover" /> : "📷"}
         </button>
-        <input ref={ref} type="file" accept="image/*" className="hidden" onChange={async (e) => {
-          const f = e.target.files?.[0]; e.target.value = "";
-          if (!f) return;
-          const img = await loadImage(f);
-          const p = { ai: aiPhoto(img), small: anime ? animeStyle(img, 160) : smallPhoto(img, 160), img };
-          setPic(p); setAsk(p);
-        }} />
-        {ask && <SnapChoice photo={ask.small} img={ask.img} list={picks} what="food" onClose={() => setAsk(null)} onAI={() => read(ask)}
-          onPick={(x) => { const n = nums.get(x.name); onFoods([{ name: x.name, photo: ask.small, auto: true, ...(n ? { per: n.per, kcal: String(n.kcal), protein: String(n.protein) } : {}) }]); setPic(null); setMsg(`📋 ${x.name} (from the list). Check the amount below.`); }} />}
+        <input ref={ref} type="file" accept="image/*" className="hidden" multiple onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ""; if (f.length) takePhoto(f); }} />
+        {ask && <SnapChoice photo={ask.small} img={ask.imgs} list={picks} what="food" kind="food" onClose={() => setAsk(null)} onAI={() => read(ask)}
+          onPick={picked} />}
         <textarea className="input flex-1 min-h-14 text-sm" placeholder="big bowl of rice and instant ramen, 2 eggs…" value={say} onChange={(e) => { setSay(e.target.value); setOffer(false); }} />
       </div>
       <button disabled={busy || (!say.trim() && !pic)} onClick={() => read()} className="btn-primary w-full !py-1.5 text-sm disabled:opacity-40">{busy ? "Reading…" : say.trim() || !pic ? "Find in the list" : "📋 Pick the photo from the list"}</button>
