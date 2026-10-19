@@ -15,6 +15,8 @@ import { wokeRecently } from "@/lib/schedule";
 import { DAY_LABEL, fmt12, isQuiet, PHASE_LINES, phaseNow, sched, sleepTimes, type Now } from "@/lib/schedule";
 import { pick, SLEEP_WHY, WISDOM, type Wisdom } from "@/lib/wisdom";
 import { pushInbox } from "@/lib/inbox";
+import { allFacts } from "@/lib/review";
+import { toDay } from "@/lib/store";
 
 // Runs what the Sensei asked for. Simple things are logged right away;
 // things that need details open the right sheet on Base Camp.
@@ -84,7 +86,17 @@ export function CoachCard() {
     </button>
   );
   const sheet = plan && <ScheduleSheet onClose={() => setPlan(false)} />;
-  if (!t) return <><section className="card p-3 mb-4">{now}</section>{sheet}</>;
+  // What the Sensei read before choosing: today's numbers from every part of the app.
+  const read = useMemo(() => {
+    const day = toDay(new Date());
+    const f = allFacts(data).days.get(day);
+    const logs = data.logs.filter((l) => l.day === day);
+    const drinks = logs.filter((l) => l.kind === "drink" || l.kind === "milk").length;
+    const buy = data.shopping.filter((i) => i.status === "to_buy").length;
+    return [`📖 ${f?.studyMin ?? 0} min`, `🏋️ ${f?.sets ?? 0} sets`, `🍱 ${f?.kcal ?? 0} kcal`, `💧 ${f?.water ?? 0} ml`, `🥤 ${drinks}`, `🛒 ${buy} to buy`].join(" · ");
+  }, [data]);
+  const readLine = <p className="mt-2 text-[10px] text-muted">Sensei read today: {read}</p>;
+  if (!t) return <><section className="card p-3 mb-4">{now}{readLine}</section>{sheet}</>;
   return (
     <>{sheet}
     <section className="card frame p-4 mb-4 border-[var(--accent2)]/40 animate-pulse-glow">
@@ -99,6 +111,7 @@ export function CoachCard() {
         <button onClick={() => { snooze(t.id); force((n) => n + 1); }} className="btn-ghost text-sm">Later</button>
         {tasks.length > 1 && <button onClick={() => setI(i + 1)} className="btn-ghost text-sm">Next</button>}
       </div>
+      {readLine}
     </section>
     </>
   );

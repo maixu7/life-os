@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { atWork, fmt12, hm, phaseNow, sched, studyFrom } from "@/lib/schedule";
 import { useMemo, useState } from "react";
 import { useApp } from "@/lib/store";
 import { eatNext, riskLevel, studyGate, worst } from "@/lib/worst";
@@ -59,6 +60,8 @@ export function StudyLock() {
   const { data } = useApp();
   const g = studyGate(data);
   if (!g.locked) return null;
+  const sc = sched(data.profile.settings.schedule);
+  if (atWork(phaseNow(sc))) return <p className="mt-3 rounded-xl bg-white/5 p-3 text-xs">💼 You&apos;re at work now. Study {g.left || ""} min after work, from {fmt12(hm(studyFrom(sc)))}.</p>;
   const href = `/focus?start=1${g.next ? `&subject=${encodeURIComponent(g.next.subject)}` : ""}`;
   return (
     <div className="mt-3 rounded-xl bg-violet-500/15 border border-violet-300/30 p-3 text-xs">

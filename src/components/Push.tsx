@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { sched, type Schedule } from "@/lib/schedule";
+import { hm, sched, studyFrom, type Schedule } from "@/lib/schedule";
 import { studyGate } from "@/lib/worst";
 import { toDay } from "@/lib/store";
 import { useApp, useCustomItems, type CustomItem } from "@/lib/store";
@@ -29,11 +29,18 @@ export function buildPlan(s: Schedule, reminders: CustomItem[], studying: boolea
   t(s.lunch, "🍱 Lunch time. Protein + veg, and snap it.");
   t(s.dinner, "🍛 Dinner time. Snap your meal so Sensei can count it.");
   if (studying) {
-    t(s.studyStart, "📚 Study first, fun later. Start your focus session now.");
     // Study nags every 20 minutes until bedtime, stopped for the day once study is done.
+    // On work days they start only after work (and the commute) is over.
     const NAGS = ["📚 Still no study today. Open Life OS and start a focus session.", "😈 Manga and anime can wait. Your exam can't. Study now.", "⏳ Every minute you wait makes tonight harder. 25 minutes, start now.", "⚔️ Sensei is watching. Study before anything else."];
-    const [a, b] = [s.studyStart, add(s.sleep, -(s.windDown || 30))].map((x) => { const [h, m] = x.split(":").map(Number); return h * 60 + m; });
-    for (let m = a + 20, i = 0; m < (b > a ? b : a + 300); m += 20, i++) p.push({ at: add("00:00", m), body: NAGS[i % NAGS.length], until: "study" });
+    const end = (() => { const [h, m] = add(s.sleep, -(s.windDown || 30)).split(":").map(Number); return h * 60 + m; })();
+    const work = s.workType === "none" ? [] : s.workDays;
+    const off = [0, 1, 2, 3, 4, 5, 6].filter((x) => !work.includes(x));
+    const monday = new Date(2026, 0, 5); // a Monday, to ask when study starts on a work day
+    for (const [days, a] of [[work, studyFrom(s, monday)], [off, studyFrom({ ...s, workType: "none" })]] as [number[], number][]) {
+      if (!days.length || Number.isNaN(a)) continue;
+      p.push({ at: hm(a), body: "📚 Study first, fun later. Start your focus session now.", days });
+      for (let m = a + 20, i = 0; m < (end > a ? end : a + 300); m += 20, i++) p.push({ at: add("00:00", m), body: NAGS[i % NAGS.length], until: "study", days });
+    }
   }
   t(s.exercise, "💪 Training time. Even 15 minutes counts.");
   t(add(s.sleep, -(s.windDown || 30)), "🌙 Wind down: screens away, plan tomorrow.", weekdays);

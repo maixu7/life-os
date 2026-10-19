@@ -1,6 +1,7 @@
 "use client";
 
 import { MainActions } from "@/components/MainActions";
+import { GuideCard } from "@/components/Guide";
 import { DoingCard } from "@/components/Doing";
 import { EditLog } from "@/components/EditLog";
 import { WhenPicker } from "@/components/When";
@@ -138,6 +139,7 @@ export default function TodayPage() {
       </div>
 
       {isToday && <MainActions page="/" />}
+      {isToday && <GuideCard />}
       {isToday && <DoingCard />}
       {isToday && <Nudges />}
       <DayScoreChip day={day} />

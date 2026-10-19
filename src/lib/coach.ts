@@ -7,6 +7,7 @@ import { isOffDay, phaseNow, sched, toMin, wokeRecently } from "@/lib/schedule";
 import { pick, SLEEP_WHY } from "@/lib/wisdom";
 import type { CustomItem, Data, Log } from "@/lib/store";
 import { toDay } from "@/lib/store";
+import { kitOf, kitText } from "@/lib/have";
 
 // The Sensei looks at the clock and your records and picks what you should do next,
 // with the benefit ("why do it") and the trigger ("why I picked this").
@@ -61,8 +62,8 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
       because: `Bedtime is in ${ph.minsLeft} minutes.`, why: "Screens off, brush, plan tomorrow. A calm last half hour means faster, deeper sleep." });
   }
   if (ph.phase === "work") {
-    add({ id: "work", icon: "💼", title: `Stay focused at ${place}`, priority: 68, action: { type: "href", href: "/focus" },
-      because: `It's ${place} hours for ${Math.floor((ph.minsLeft ?? 0) / 60)}h ${(ph.minsLeft ?? 0) % 60}m more, so I'm holding fun and habit tasks for your free time.`,
+    add({ id: "work", icon: "💼", title: `Stay focused at ${place}`, priority: 68, action: { type: "activity", name: "Work" },
+      because: `It's ${place} hours for ${Math.floor((ph.minsLeft ?? 0) / 60)}h ${(ph.minsLeft ?? 0) % 60}m more (your schedule says ${sc.workStart}–${sc.workEnd}), so study, training and habit tasks wait until after work.`,
       why: "Doing work in work time is what makes free time truly free." });
   }
   if (ph.phase === "break") {
@@ -145,8 +146,10 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
   }
   const ex = sc.exercise ? at(sc.exercise) : 16;
   if (h >= ex - 0.5 && h < Math.max(ex + 2.5, 20.5) && !busy && !logs.some((l) => l.kind === "workout") && !actNamed(logs, /exercise|walk|run|gym|yoga|sport/i)) {
-    add({ id: "move", icon: "🏃", title: "Move for 15 minutes", priority: 40, action: { type: "activity", name: "Walk" },
-      because: sc.exercise ? `Your exercise time is ${sc.exercise} and you have not moved yet today.` : "You have not moved your body yet today.", why: "A short walk or workout clears stress and makes sleep deeper tonight." });
+    const kit = kitOf(d.pantry);
+    const gear = Object.keys(kit).length ? kitText(kit) : "";
+    add({ id: "move", icon: "🏋️", title: gear ? "Do today's workout" : "Move for 15 minutes", priority: 40, action: gear ? { type: "href", href: "/train" } : { type: "activity", name: "Walk" },
+      because: `${sc.exercise ? `Your exercise time is ${sc.exercise} and` : "You have"} no workout logged today.${gear ? ` Today's plan is made for what you own: ${gear}.` : ""}`, why: "A short walk or workout clears stress and makes sleep deeper tonight." });
   }
   if (h >= at(sc.sleep) - 2 && (h < at(sc.sleep) || ph.phase === "sleep") && !actNamed(logs, /brush/i)) {
     add({ id: "brush-night", icon: "🪥", title: "Brush before bed", priority: 58, action: { type: "activity", name: "Brush teeth" },
@@ -166,6 +169,27 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
     add({ id: `gap:${g.id}`, icon: g.icon, title: g.task.title, priority: Math.round(52 + g.severity * 30), action: g.task.action,
       because: `${g.label} is lacking ${when}: ${g.have} (you need ${g.need}).`, why: g.task.why });
   }
+
+  // Drinks: sugar and caffeine from what you drank today.
+  const drinks = logs.filter((l) => l.kind === "drink");
+  const sugar = drinks.reduce((n, l) => n + (Number(l.data.sugar) || 0), 0);
+  const caffeine = drinks.reduce((n, l) => n + (Number(l.data.caffeine) || 0), 0);
+  if (sugar > 25) add({ id: "sugar", icon: "🥤", title: "No more sweet drinks today: water or tea", priority: 63, action: { type: "water" },
+    because: `Your drinks today had ${Math.round(sugar)} g of sugar (${drinks.filter((l) => Number(l.data.sugar) >= 5).map((l) => l.data.name).slice(0, 3).join(", ")}). The WHO ideal is under 25 g for the whole day.`,
+    why: "Sugar in drinks hits fastest and fills you least. Water keeps energy steady." });
+  if (caffeine > 300 || (caffeine > 100 && h >= 15)) add({ id: "caffeine", icon: "☕", title: "No more coffee or energy drinks today", priority: 61, action: { type: "water" },
+    because: `You've had about ${caffeine} mg of caffeine today${h >= 15 ? " and it's afternoon" : ""}.`, why: "Caffeine stays in your body 5–6 hours. Late caffeine means lighter, shorter sleep." });
+
+  // Food at home: eat what expires soon; restock what ran out.
+  const soon = d.pantry.filter((p) => p.qty > 0 && p.expiry && (new Date(`${p.expiry}T23:59`).getTime() - now.getTime()) / 86_400_000 < 2);
+  if (soon.length && !busy) add({ id: "expiry", icon: "⏳", title: `Eat ${soon[0].name} before it goes bad`, priority: 57, action: { type: "activity", name: h < 11 ? "Breakfast" : h < 16 ? "Lunch" : "Dinner" },
+    because: `${soon.map((p) => `${p.name} (best before ${p.expiry})`).slice(0, 3).join(", ")} in What I have.`, why: "Using food before it expires saves money and stops waste." });
+  const toBuy = d.shopping.filter((i) => i.status === "to_buy");
+  const usedUp = d.pantry.filter((p) => p.qty <= 0 && ["food", "fruit", "veg", "drink"].includes(String(p.kind ?? "food")) && !toBuy.some((i) => i.name.toLowerCase() === p.name.toLowerCase()));
+  if (usedUp.length && !busy) add({ id: "restock", icon: "🛒", title: `Add ${usedUp.slice(0, 2).map((p) => p.name).join(" and ")} to your shopping list`, priority: 35, action: { type: "href", href: "/shop" },
+    because: `You ran out of ${usedUp.slice(0, 4).map((p) => p.name).join(", ")} (What I have shows 0).`, why: "A list made at home stops forgotten items and impulse buys." });
+  if (toBuy.length >= 3 && !busy && (off || ph.phase === "free")) add({ id: "shop", icon: "🛒", title: `Go shopping: ${toBuy.length} items on your list`, priority: 33, action: { type: "href", href: "/shop" },
+    because: `Your shopping list has ${toBuy.slice(0, 4).map((i) => i.name).join(", ")}${toBuy.length > 4 ? "…" : ""}, and you're free now.`, why: "One planned trip is cheaper and faster than many small ones." });
 
   if (!out.length && !busy) {
     add({ id: "read", icon: "📚", title: "Read 10 pages of a good book", priority: 5, action: { type: "library" },
