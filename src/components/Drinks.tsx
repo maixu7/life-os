@@ -3,8 +3,8 @@
 import { StartButton } from "@/components/Doing";
 import { useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/Sheet";
-import { DRINK_CATS, DRINKS, drinkOf, type Drink, type DrinkCat } from "@/lib/drinks";
-import { aiPhoto, readMeal } from "@/lib/foodai";
+import { DRINK_CATS, DRINKS, drinkCatOf, drinkMatch, drinkOf, type Drink, type DrinkCat } from "@/lib/drinks";
+import { aiPhoto, readMeal, readProduct } from "@/lib/foodai";
 import { loadImage, smallPhoto } from "@/lib/foodphoto";
 import { useApp } from "@/lib/store";
 import { drinkGoodness, scoreColor } from "@/lib/goodness";
@@ -116,13 +116,30 @@ function DrinkSnap({ photo, setPhoto, onDrink }: { photo: string; setPhoto: (p: 
     // Typed a drink the list knows ("mango lassi 300 ml"): no need to ask the AI.
     const local = !ai ? drinkOf(say.replace(/\d+\s*ml|\b(a|one|big|small|glass|cup|bottle|can|of)\b/gi, " ").trim()) : undefined;
     if (local) { const ml = Number(/(\d+)\s*ml/i.exec(say)?.[1]) || local.ml; onDrink(local, ml); setMsg(`📖 ${local.name}, ${ml} ml. Check the amount below.`); setSay(""); return; }
-    setBusy(true); setMsg(ai ? "Looking at your drink and how much…" : "Reading…");
+    setBusy(true); setMsg(ai ? "Reading the label…" : "Reading…");
+    // A photo: read the bottle's label first (name, size, nutrition), like a shop item.
+    if (ai) {
+      const { product: p } = await readProduct(session, ai, `A drink${say.trim() ? `: ${say.trim()}` : ""}`);
+      if (p?.found && (p.kind === "drink" || p.grams > 0)) {
+        setBusy(false); setSay("");
+        const known = drinkMatch(p.name_ja, `${p.brand} ${p.name}`, p.name);
+        const ml = Math.round(p.grams) || known?.ml || 500;
+        if (known) { onDrink(known, ml); setMsg(`🤖 ${known.name}${known.ja ? ` (${known.ja})` : ""}, ${ml} ml. Check the amount below.`); return; }
+        // Not in the list: use the label. Its numbers are per 100 ml or for the serving in "per".
+        const base = /100\s*(ml|g|ｍｌ)/i.test(p.per) ? 100 : Number(/(\d+)\s*(ml|g)/i.exec(p.per)?.[1]) || ml;
+        const per = (x: number) => Math.round((x / base) * 1000) / 10;
+        const name = [p.brand, p.name].filter(Boolean).join(" ").trim() || "Drink";
+        onDrink({ name, ja: p.name_ja || undefined, cat: drinkCatOf(`${name} ${p.name_ja}`), emoji: p.emoji || "🥤", ml, kcal100: per(p.kcal), sugar100: per(p.carbs), protein100: per(p.protein), water: 0.9 }, ml);
+        setMsg(`🤖 ${name}${p.name_ja ? ` (${p.name_ja})` : ""}, ${ml} ml, ${Math.round(per(p.kcal) * ml / 100)} kcal from the label. Check below; it's saved to My drinks when you log it.`);
+        return;
+      }
+    }
     const r = await readMeal(session, { photo: ai, text: `A drink${say.trim() ? `: ${say.trim()}` : ""}` }, data.items);
     setBusy(false);
     const f = r.foods[0];
     if (!f) { setMsg(ai && !r.ai ? `Photo reading failed (${r.error || "unknown"}). Type what it is, then tap Read.` : "I couldn't tell. Search for it below or type it."); return; }
     const ml = Math.round(f.grams ?? 0) || 250;
-    const known = drinkOf(f.name);
+    const known = drinkMatch(f.name);
     if (known && r.ai) { onDrink(known, ml); setMsg(`${r.ai ? "🤖" : "📖"} ${known.name}, about ${ml} ml. Check the amount below.`); }
     else {
       const per = (x: number) => Math.round((x / ml) * 1000) / 10;

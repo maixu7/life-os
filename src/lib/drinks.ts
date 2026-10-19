@@ -3,6 +3,7 @@
 // `water` is the share that counts toward hydration; `alcohol` is % ABV.
 // DRINKS = these hand-written ones, then the recipe-built variants from drinkmix.ts.
 
+import { JP } from "@/lib/drinkjp";
 import { MIXED } from "@/lib/drinkmix";
 
 export type DrinkCat = "water" | "tea" | "coffee" | "milk" | "plant milk" | "soda" | "sports" | "energy" | "juice" | "smoothie" | "yogurt drink" | "protein" | "soup" | "alcohol" | "other";
@@ -629,10 +630,11 @@ const BASE: Drink[] = [
 ];
 
 const baseNames = new Set(BASE.map((x) => x.name.toLowerCase()));
-export const DRINKS: Drink[] = [...BASE, ...MIXED.filter((x) => !baseNames.has(x.name.toLowerCase()))];
+const jpNames = new Set(JP.map((x) => x.name.toLowerCase()));
+export const DRINKS: Drink[] = [...BASE, ...JP.filter((x) => !baseNames.has(x.name.toLowerCase())), ...MIXED.filter((x) => !baseNames.has(x.name.toLowerCase()) && !jpNames.has(x.name.toLowerCase()))];
 const EXTRA = DRINKS.slice(BASE.length);
 
-const norm = (s: string) => s.toLowerCase().replace(/[\s.・·\-'’()&!,/]/g, "");
+const norm = (s: string) => s.normalize("NFKC").toLowerCase().replace(/[\s.・·\-'’()&!,/＆]/g, "");
 
 /** Find a drink: exact name (or Japanese name), then the longest drink name inside the query, then the shortest name containing the query.
  *  The two fuzzy passes look at the hand-written drinks first, so bare words like "milk" or "chai" keep landing on the plain item. */
@@ -659,4 +661,43 @@ export function drinkOf(name: string): Drink | undefined {
     if (short) return short;
   }
   return undefined;
+}
+
+/** Strict match for a name read off a label: exact, or a drink whose name covers most of what was read
+ *  (so "Suntory Tennensui Kiritto Kajitsu" is not taken for plain Suntory Tennensui water). */
+export function drinkMatch(...texts: string[]): Drink | undefined {
+  let best: Drink | undefined, score = 0;
+  for (const t of texts) {
+    const q = norm(t);
+    if (q.length < 3) continue;
+    for (const x of DRINKS) {
+      for (const n of [norm(x.name), x.ja ? norm(x.ja) : ""]) {
+        if (!n) continue;
+        if (n === q) return x;
+        const r = q.includes(n) || n.includes(q) ? Math.min(n.length, q.length) / Math.max(n.length, q.length) : 0;
+        if (r > score) { score = r; best = x; }
+      }
+    }
+  }
+  return score >= 0.75 ? best : undefined;
+}
+
+/** A best guess at the kind of drink from its name, for drinks not in the list. */
+export function drinkCatOf(name: string): DrinkCat {
+  const n = name.toLowerCase();
+  const hit: [RegExp, DrinkCat][] = [
+    [/beer|ビール|chuhai|チューハイ|サワー|sour|highball|ハイボール|sake|酒|wine|ワイン|whisky|strong zero|氷結|ほろよい/i, "alcohol"],
+    [/coffee|コーヒー|珈琲|latte|ラテ|boss|georgia|wonda|fire/i, "coffee"],
+    [/tea|茶|ティー|紅茶|oolong|matcha/i, "tea"],
+    [/energy|エナジー|monster|red ?bull|zone|リポビタン|オロナミン/i, "energy"],
+    [/pocari|ポカリ|aquarius|アクエリアス|sports|スポーツ|green da ?ka ?ra|グリーンダカラ/i, "sports"],
+    [/protein|プロテイン|savas|ザバス/i, "protein"],
+    [/soy|豆乳|oat|almond|アーモンド/i, "plant milk"],
+    [/yogh?urt|ヨーグルト|yakult|ヤクルト|calpis|カルピス/i, "yogurt drink"],
+    [/milk|牛乳|ミルク/i, "milk"],
+    [/juice|ジュース|果汁|果実|フルーツ|野菜|smoothie|スムージー/i, "juice"],
+    [/cola|コーラ|soda|ソーダ|cider|サイダー|fanta|ファンタ|炭酸|sparkling/i, "soda"],
+    [/water|水/i, "water"],
+  ];
+  return hit.find(([re]) => re.test(n))?.[1] ?? "other";
 }
