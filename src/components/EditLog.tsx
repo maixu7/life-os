@@ -19,6 +19,9 @@ export function EditLog({ log, onClose }: { log: Log; onClose: () => void }) {
   );
   const [sleepEnd, setSleepEnd] = useState(d.end ? dtLocal(new Date(String(d.end))) : "");
   const [sleepStart, setSleepStart] = useState(d.start ? dtLocal(new Date(String(d.start))) : "");
+  // Things with a start and an end (work, study, training…): both can be changed.
+  const timed = ["activity", "focus", "coding", "reading", "listening", "workout"].includes(log.kind);
+  const [ends, setEnds] = useState(timed && d.end ? dtLocal(new Date(String(d.end))) : "");
   const desc = describe(log);
   // Tags like #exam #gym, for filtering in Search.
   const [tags, setTags] = useState(() => (Array.isArray(d.hashtags) ? (d.hashtags as string[]) : []).map((t) => `#${t}`).join(" "));
@@ -43,6 +46,10 @@ export function EditLog({ log, onClose }: { log: Log; onClose: () => void }) {
       patch.start = sleepStart ? new Date(sleepStart).toISOString() : d.start;
       patch.end = sleepEnd ? new Date(sleepEnd).toISOString() : null;
     }
+    if (timed && ends) {
+      const a = new Date(when), b = new Date(ends);
+      if (b > a) Object.assign(patch, { start: a.toISOString(), end: b.toISOString(), minutes: Math.round((b.getTime() - a.getTime()) / 60_000) });
+    } else if (timed && d.end) patch.end = null;
     const at = log.kind === "sleep" && sleepStart ? new Date(sleepStart) : new Date(when);
     updateLog(log.id, { data: patch, at });
     onClose();
@@ -72,7 +79,11 @@ export function EditLog({ log, onClose }: { log: Log; onClose: () => void }) {
           {sleepStart && sleepEnd && <p className="text-sm text-[var(--accent2)]">Slept {fmtDuration(new Date(sleepEnd).getTime() - new Date(sleepStart).getTime())}</p>}
         </div>
       ) : (
-        <WhenPicker label="Date and time" value={when} onChange={setWhen} />
+        <>
+          <WhenPicker label={timed ? "Started" : "Date and time"} value={when} onChange={setWhen} />
+          {timed && <WhenPicker label="Ended (optional)" value={ends} onChange={setEnds} />}
+          {timed && ends && new Date(ends) > new Date(when) && <p className="text-sm text-[var(--accent2)]">{fmtDuration(new Date(ends).getTime() - new Date(when).getTime())}</p>}
+        </>
       )}
       <div className="grid grid-cols-2 gap-2">
         {(log.kind === "water" || log.kind === "milk") && field("ml", "Amount (ml)")}
