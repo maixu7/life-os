@@ -5,7 +5,7 @@ import { Sheet } from "@/components/Sheet";
 import { Pic } from "@/components/Pic";
 import { emojiFor } from "@/lib/emoji";
 import { aiPhoto, readReceipt, type ReceiptLine } from "@/lib/foodai";
-import { loadImage } from "@/lib/foodphoto";
+import { loadImage, smallPhoto } from "@/lib/foodphoto";
 import { autoList, toShopItem } from "@/lib/grocery";
 import { CATS, catIcon, jarPace, jars, monthKey, nextCharge, paidThisMonth, paydayDue, paydayPlan, perMonth, spendByCat, subOf, subsMonthly, worth, type Jar } from "@/lib/money";
 import { toDay, UNITS, useApp, useCustomItems, type Data, type PantryItem, type ShopItem } from "@/lib/store";
@@ -323,16 +323,23 @@ export function ReceiptSheet({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLInputElement>(null);
   const sum = rows.reduce((n, r) => n + (Number(r.price) || 0), 0);
   const set = (key: string, p: Partial<Row>) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...p } : r)));
+  // The photo waits for you: AI reads it only when you tap Ask AI.
+  const [shot, setShot] = useState<{ img: HTMLImageElement; small: string } | null>(null);
   const scan = async (f: File) => {
-    setBusy(true); setMsg("Reading every line of the receipt…");
     const img = await loadImage(f);
+    setShot({ img, small: smallPhoto(img, 160) });
+    setMsg("Tap 🤖 Ask AI to read every line, or type the lines below.");
+    if (!rows.length) setRows([blank()]);
+  };
+  const askAI = async (img: HTMLImageElement) => {
+    setBusy(true); setMsg("🤖 AI is reading every line of the receipt…");
     const r = await readReceipt(session, aiPhoto(img, 1600));
     setBusy(false);
     if (r.receipt?.found && r.receipt.items.length) {
       const x = r.receipt;
       setRows(x.items.map((i) => ({ ...blank(), ...i, emoji: i.emoji || emojiFor(i.name, "🛒"), pantry: EATS.includes(i.kind) })));
       setStore(x.store); if (/^\d{4}-\d\d-\d\d$/.test(x.date)) setDate(x.date); setTotal(x.total || null);
-      setMsg(`🤖 ${x.items.length} items found.${x.note ? ` ${x.note}` : ""} Check them, then save.`);
+      setMsg(`🤖 ${x.items.length} items found.${x.note ? ` ${x.note}` : ""} Check them, then save.`); setShot(null);
     } else {
       setMsg(`${r.error ? `Couldn't read it (${r.error}).` : "No receipt lines found."} Type the lines below instead.`);
       if (!rows.length) setRows([blank()]);
@@ -367,6 +374,13 @@ export function ReceiptSheet({ onClose }: { onClose: () => void }) {
     <Sheet title="🧾 Scan a receipt" onClose={onClose}>
       <button disabled={busy} onClick={() => ref.current?.click()} className="btn-primary w-full">{busy ? "Reading…" : rows.length ? "📷 Scan another photo" : "📷 Snap the receipt"}</button>
       <input ref={ref} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) scan(f); }} />
+      {shot && !busy && (
+        <div className="flex items-center gap-2 rounded-xl bg-white/5 p-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={shot.small} alt="Receipt" className="h-14 w-14 rounded-lg object-cover" />
+          <button onClick={() => askAI(shot.img)} className="btn-ghost flex-1 !py-2 text-sm ring-1 ring-[var(--accent)]">🤖 Ask AI to read it</button>
+        </div>
+      )}
       {!rows.length && <button onClick={() => setRows([blank()])} className="btn-ghost w-full border border-white/15 text-sm">✍️ Type it in instead</button>}
       {msg && <p className={`text-xs ${busy ? "animate-pulse text-[var(--accent2)]" : "text-muted"}`}>{msg}</p>}
       {rows.length > 0 && (

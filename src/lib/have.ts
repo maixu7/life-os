@@ -150,37 +150,66 @@ export function setsText(sets: number, reps: string) {
   if (sets <= 1) return secs ? `1 round of ${what}` : `1 set of ${what}`;
   return `${sets} sets of ${what}`;
 }
-export function dayPlan(kit: Kit, day = new Date()): PlanRow[] {
-  const seed = Math.floor(day.getTime() / 86_400_000);
-  const pick = <T,>(xs: T[], i = 0) => xs[(seed + i) % Math.max(1, xs.length)];
+// A random number source that gives the same numbers all day, so the plan
+// stays put when you reopen the app, and a new plan tomorrow.
+const dayRng = (day: Date, salt = 0) => {
+  let a = (Math.floor((day.getTime() - day.getTimezoneOffset() * 60_000) / 86_400_000) * 2654435761 + salt) >>> 0;
+  return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t ^= t + Math.imul(t ^ (t >>> 7), 61 | t); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+};
+
+/** The tools for today: one or two of what you have, a different mix each day. */
+export function todayKit(kit: Kit, day = new Date()): Kit {
+  const keys = (Object.keys(kit) as Gear[]).filter((g) => g !== "gym");
+  if (keys.length <= 1) return kit;
+  const rnd = dayRng(day, 7);
+  const order = keys.map((g) => [g, rnd()] as const).sort((x, y) => x[1] - y[1]).map(([g]) => g);
+  const n = keys.length >= 4 && rnd() < 0.5 ? 3 : 2;
+  return Object.fromEntries(order.slice(0, n).map((g) => [g, kit[g]])) as Kit;
+}
+
+/** Today's workout: bodyweight moves plus some of your tools (not all at once).
+ *  `hard` (holidays and days off) adds a set to each move, more reps and extra moves. */
+export function dayPlan(kit: Kit, day = new Date(), hard = false): PlanRow[] {
+  const rnd = dayRng(day);
+  const pick = <T,>(xs: T[]) => xs[Math.floor(rnd() * xs.length)];
+  const tools = todayKit(kit, day);
   // Sports, breathing and rest poses are great, but not plan moves.
-  const all = doable(kit).filter((m) => !/badminton|tennis|basketball|football|cricket|kata|gardening|meditation|breathing|corpse|legs up the wall|mountain pose|swimming|aqua|hill sprint|stair sprint|sled|foam roll|intervals/i.test(m.name));
-  const weighted = (m: Move) => needs(m).some((g) => g === "dumbbell" || g === "kettlebell" || g === "barbell");
+  const all = doable(tools).filter((m) => !/badminton|tennis|basketball|football|cricket|kata|gardening|meditation|breathing|corpse|legs up the wall|mountain pose|swimming|aqua|hill sprint|stair sprint|sled|foam roll|intervals/i.test(m.name));
+  const weighted = (m: Move) => needs(m).length > 0;
   // Elite skills and holds don't belong in an everyday plan.
   const HARD = /handstand|planche|one-arm|human flag|muscle-up|front lever|back lever|dragon flag|pistol|shrimp|nordic|skin the cat|l-sit|crow|wheel pose|double unders|typewriter|archer|deficit|behind-the-neck|z press|clap/i;
   const NOT_PLAN = /zumba|trampoline|^sports$|pinch|pilates|hula|wood ?chop|belt squat|hack squat|yoga|tai chi|dancing|hiking|skating|climbing|kayak|gardening|spin bike|treadmill|elliptical|wrist|seated calf|stretch|pose|kick|band|rope|cable|machine|walk|reach|shadow|boxing|jab|uppercut|hold|carry|circles|swing intervals|leg swings|flow|salutation|breathing/i;
   const strong = (ms: Move[]) => ms.filter((m) => m.type !== "time");
-  const by = (pats: string[], pref = true, extra?: RegExp) => {
+  // Each row flips a coin: a move with today's tools, or a bodyweight one.
+  const by = (pats: string[], extra?: RegExp) => {
     const hits = all.filter((m) => pats.includes(m.pattern ?? "") && !HARD.test(m.name) && !NOT_PLAN.test(m.name) && (!extra || extra.test(`${m.name} ${m.muscles?.join(" ")}`)));
-    const w = hits.filter(weighted);
-    return pref && w.length ? w : hits;
+    const w = hits.filter(weighted), bw = hits.filter((m) => !weighted(m));
+    return w.length && (rnd() < 0.55 || !bw.length) ? w : bw.length ? bw : hits;
   };
-  const light = (g?: Gear) => (g && kit[g]?.kg.length ? Math.min(...kit[g]!.kg) : undefined);
-  const kgFor = (m: Move) => { const g = needs(m).find((x) => kit[x]) ?? (needs(m).includes("dumbbell") ? "kettlebell" : needs(m).includes("kettlebell") ? "dumbbell" : undefined); return light(g as Gear | undefined); };
-  const row = (part: string, ms: Move[], sets: number, reps: string, i: number): PlanRow | null => {
-    const m = pick(ms, i);
-    return m ? { part, name: m.name, sets, reps: m.type === "time" ? "30 s" : reps, kg: weighted(m) ? kgFor(m) : undefined } : null;
+  const light = (g?: Gear) => (g && tools[g]?.kg.length ? Math.min(...tools[g]!.kg) : undefined);
+  // A dumbbell move can be done with the kettlebell and the other way round.
+  const kgFor = (m: Move) => { const n = needs(m); return light(n.find((x) => tools[x]) ?? (n.includes("dumbbell") ? "kettlebell" : n.includes("kettlebell") ? "dumbbell" : undefined)); };
+  const up = (reps: string) => (hard ? reps.replace(/(\d+)-(\d+)/, (_, a, b) => `${Math.round(+a * 1.25)}-${Math.round(+b * 1.25)}`).replace(/^(\d+) s$/, (_, a) => `${Math.round(+a * 1.5)} s`) : reps);
+  const used = new Set<string>();
+  const row = (part: string, ms: Move[], sets: number, reps: string): PlanRow | null => {
+    const left = ms.filter((m) => !used.has(m.name));
+    const m = left.length ? pick(left) : undefined;
+    if (!m) return null;
+    used.add(m.name);
+    return { part, name: m.name, sets: sets + (hard ? 1 : 0), reps: up(m.type === "time" ? "30 s" : reps), kg: weighted(m) ? kgFor(m) : undefined };
   };
   const stretches = all.filter((m) => m.pattern === "stretch" && m.type === "time" && !HARD.test(m.name));
   return [
-    { part: "Warm-up", name: pick(["Jumping jacks", "Marching in place", "Arm circles", "Butt kicks", "High knees"], 0), sets: 1, reps: "60 s" },
-    row("Legs", strong(by(["squat", "lunge"])), 3, "10-12", 1),
-    row("Push", strong(by(["push", "press", "dip"], true, /chest|shoulder|tricep/i)), 3, "8-12", 2),
-    row("Pull", strong(by(["pull", "row"])), 3, "8-12", 3),
-    row("Hips", strong(by(["hinge", "bridge"])), 3, "10-15", 4),
-    row("Arms", strong(by(["curl", "dip"], true, /bicep|tricep|forearm/i)), 2, "10-12", 5),
-    row("Core", by(["plank", "crunch", "raise", "twist"], false), 3, "12-15", 6),
-    row("Finisher", by(["jump", "run"], false), 2, "30 s", 7),
-    stretches.length ? { part: "Cool-down", name: pick(stretches, 8).name, sets: 1, reps: "60 s" } : { part: "Cool-down", name: "Hamstring stretch", sets: 1, reps: "60 s" },
+    { part: "Warm-up", name: pick(["Jumping jacks", "Marching in place", "Arm circles", "Butt kicks", "High knees"]), sets: 1, reps: hard ? "90 s" : "60 s" },
+    row("Legs", strong(by(["squat", "lunge"])), 3, "10-12"),
+    row("Push", strong(by(["push", "press", "dip"], /chest|shoulder|tricep/i)), 3, "8-12"),
+    row("Pull", strong(by(["pull", "row"])), 3, "8-12"),
+    row("Hips", strong(by(["hinge", "bridge"])), 3, "10-15"),
+    row("Arms", strong(by(["curl", "dip"], /bicep|tricep|forearm/i)), 2, "10-12"),
+    row("Core", by(["plank", "crunch", "raise", "twist"]), 3, "12-15"),
+    hard ? row("Legs 2", strong(by(["squat", "lunge", "hinge"])), 3, "10-12") : null,
+    hard ? row("Core 2", by(["plank", "crunch", "raise", "twist"]), 3, "12-15") : null,
+    row("Finisher", by(["jump", "run"]), 2, "30 s"),
+    stretches.length ? { part: "Cool-down", name: pick(stretches).name, sets: 1, reps: "60 s" } : { part: "Cool-down", name: "Hamstring stretch", sets: 1, reps: "60 s" },
   ].filter((x): x is PlanRow => !!x);
 }

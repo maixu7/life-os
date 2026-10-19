@@ -136,8 +136,8 @@ const DEFS: Def[] = [
   D("Gymnastic rings", "吊り輪", "rings", "⭕", "Bodyweight", /gymnastic(s)?\s*rings?|\brings?\b|吊り輪|リング/i, { v: ["(wood)", "(plastic)"] }),
   D("Suspension trainer", "サスペンショントレーナー", null, "🪢", "Bodyweight", /suspension|\btrx\b|サスペンション/i),
   D("Nordic curl strap", "ノルディックハムストリング", null, "🦵", "Bodyweight", /nordic\s*(curl|hamstring)/i),
-  D("Ab crunch machine", "腹筋マシン", null, "🦵", "Ab wheels", /ab(dominal)?\s*(crunch(er)?|coaster|machine|trainer|glider)|crunch\s*machine|lower\s*body\s*(exercise|trainer|tool|machine)|leg\s*(and|n|&)\s*lower\s*body|腹筋マシン|アブコースター|アブマシン/i),
-  D("Ab wheel", "腹筋ローラー", "wheel", "🛞", "Ab wheels", /ab(dominal)?\s*(wheel|roller|carver)|exercise\s*(wheel|roller)|wheel\s*roller|^\s*roller\b|腹筋ローラー|アブローラー/i, { v: ["(single)", "(double)", "(wide)", "with knee pad", "(auto-rebound)"] }),
+  D("Ab crunch machine", "腹筋マシン", null, "🦵", "Ab wheels", /ab(dominal)?\s*(crunch(er)?|coaster|machine|trainer|glider)|crunch\s*machine|ワンダーコア|lower\s*body\s*(exercise|trainer|tool|machine)|leg\s*(and|n|&)\s*lower\s*body|腹筋マシン|アブコースター|アブマシン/i),
+  D("Ab wheel", "腹筋ローラー", "wheel", "🛞", "Ab wheels", /ab(dominal)?\s*(wheel|roller|carver)|exercise\s*(wheel|roller)|wheel\s*roller|^\s*roller\b|腹筋ローラー|アブローラー/i, { v: ["(single)", "(double)", "(wide)", "with knee pad", "(auto-rebound)", "(4-wheel)", "with elbow support"] }),
   D("Sit-up assist strap", "腹筋サポーター", null, "🤸", "Bodyweight", /sit[\s-]*up\s*(bar|assist)|腹筋サポート/i),
 
   // Benches
@@ -177,7 +177,7 @@ const DEFS: Def[] = [
   D("Exercise bike", "エアロバイク", "bike", "🚴", "Cardio", BIKE),
   D("Rowing machine", "ローイングマシン", null, "🚣", "Cardio", ROW, { v: ["(air)", "(magnetic)", "(water)", "(hydraulic)"] }),
   D("Elliptical cross trainer", "クロストレーナー", null, "🏃", "Cardio", /elliptical|cross\s*trainer|クロストレーナー|エリプティカル/i),
-  D("Mini stepper", "ステッパー", null, "🪜", "Cardio", /stepper|ステッパー/i, { v: ["(twist)", "(side)", "with arm cords"] }),
+  D("Mini stepper", "ステッパー", null, "🪜", "Cardio", /stepper|ステッパー/i, { v: ["(twist)", "(side)", "with arm cords", "(with handlebar)"] }),
   D("Stair climber", "ステアクライマー", null, "🪜", "Cardio", /stair\s*(climber|master|mill)|ステアクライマー/i),
   D("Ski ergometer", "スキーエルゴ", null, "⛷️", "Cardio", /ski\s*erg|skierg|ski\s*trainer/i),
   D("Vibration platform machine", "振動マシン", null, "📳", "Cardio", /vibration|whole[\s-]*body\s*vibr|振動/i),
@@ -208,9 +208,9 @@ const DEFS: Def[] = [
   D("Rubber floor tile", "ゴムマット", null, "⬛", "Mats", /rubber\s*(floor|flooring|tile)|horse\s*stall|ゴムマット/i, { v: ["15 mm", "20 mm", "30 mm"] }),
 
   // Balls
-  D("Medicine ball", "メディシンボール", null, "🏐", "Balls", /medicine\s*ball|med\s*ball|メディシンボール/i, { kg: range(1, 10, 1) }),
-  D("Slam ball", "スラムボール", null, "🏐", "Balls", /slam\s*ball|スラムボール/i, { kg: [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30] }),
-  D("Wall ball", "ウォールボール", null, "🏐", "Balls", /wall\s*ball|ウォールボール/i, { kg: [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14] }),
+  D("Medicine ball", "メディシンボール", null, "🏐", "Balls", /medicine\s*ball|med\s*ball|メディシンボール/i, { kg: range(1, 10, 1), lb: [2, 4, 6, 8, 10, 12, 14, 16, 20] }),
+  D("Slam ball", "スラムボール", null, "🏐", "Balls", /slam\s*ball|スラムボール/i, { kg: [3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30], lb: [10, 15, 20, 25, 30, 40, 50] }),
+  D("Wall ball", "ウォールボール", null, "🏐", "Balls", /wall\s*ball|ウォールボール/i, { kg: [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14], lb: [6, 8, 10, 12, 14, 16, 20] }),
   D("Stability ball", "バランスボール", null, "🔵", "Balls", /stability\s*ball|swiss\s*ball|gym\s*ball|exercise\s*ball|yoga\s*ball|fit\s*ball|balance\s*ball|バランスボール|ジムボール/i, { v: ["45 cm", "55 cm", "65 cm", "75 cm", "85 cm"] }),
   D("Mini pilates ball", "ピラティスボール", null, "🔵", "Balls", /pilates\s*ball|mini\s*ball|soft\s*ball|ピラティスボール/i, { v: ["20 cm", "25 cm"] }),
   D("BOSU balance trainer", "バランスドーム", null, "🔵", "Balls", /bosu|balance\s*(trainer|dome)|half\s*ball|バランスドーム/i),
@@ -219,10 +219,10 @@ const DEFS: Def[] = [
   D("Massage ball", "マッサージボール", null, "⚪", "Recovery", /massage\s*ball|lacrosse\s*ball|peanut\s*ball|spiky\s*ball|trigger\s*point\s*ball|マッサージボール/i, { v: ["(single)", "(peanut)", "(spiky)"] }),
 
   // Wearable weights
-  D("Weight vest", "ウェイトベスト", null, "🦺", "Wearable weights", /weight(ed)?\s*vest|plate\s*carrier|ウェイトベスト|加重ベスト/i, { kg: [2.5, 5, 7.5, 10, 15, 20, 25, 30] }),
-  D("Ankle weights", "アンクルウェイト", null, "🦶", "Wearable weights", /ankle\s*weights?|leg\s*weights?|アンクルウェイト|リストウェイト/i, { kg: [0.5, 1, 1.5, 2, 2.5, 3, 4, 5] }),
+  D("Weight vest", "ウェイトベスト", null, "🦺", "Wearable weights", /weight(ed)?\s*vest|plate\s*carrier|ウェイトベスト|加重ベスト/i, { kg: [2.5, 5, 7.5, 10, 15, 20, 25, 30], lb: [10, 20, 30, 40, 50] }),
+  D("Ankle weights", "アンクルウェイト", null, "🦶", "Wearable weights", /ankle\s*weights?|leg\s*weights?|アンクルウェイト|リストウェイト/i, { kg: [0.5, 1, 1.5, 2, 2.5, 3, 4, 5], lb: [1, 2, 3, 5, 10] }),
   D("Wrist weights", "リストウェイト", null, "✊", "Wearable weights", /wrist\s*weights?|hand\s*weights?\s*strap|リストウェイト/i, { kg: [0.25, 0.5, 1, 1.5, 2] }),
-  D("Chain weight belt", "ディップベルト", null, "⛓️", "Wearable weights", /dip(ping)?\s*belt|chain\s*belt|weight\s*belt\s*with\s*chain|ディップベルト/i),
+  D("Chain weight belt", "ディップベルト", null, "⛓️", "Wearable weights", /dip(ping)?\s*belt|chain\s*(weight\s*)?belt|weight\s*belt\s*with\s*chain|ディップベルト/i),
   D("Weighted hula hoop", "フラフープ", null, "⭕", "Wearable weights", /hula\s*hoop|フラフープ/i, { kg: [0.5, 1, 1.2, 1.5, 2] }),
 
   // Grip and forearms
@@ -311,6 +311,194 @@ const DEFS: Def[] = [
   D("Smart watch", "スマートウォッチ", null, "⌚", "Trackers", /smart\s*watch|sports\s*watch|gps\s*watch|running\s*watch|watch|スマートウォッチ|ウォッチ/i),
   D("Fitness tracker", "活動量計", null, "⌚", "Trackers", /fitness\s*(tracker|band)|activity\s*tracker|smart\s*band|活動量計|スマートバンド/i),
   D("Body composition scale", "体組成計", null, "⚖️", "Trackers", /body\s*(composition|fat)\s*scale|smart\s*scale|体組成計|体重計/i),
+
+  // ---------- More types: home gym, calisthenics, rehab, recovery, Japanese home-fitness gadgets ----------
+  // Free weights
+  D("Water-filled dumbbell", "ウォーターダンベル", "dumbbell", "🏋️", "Dumbbells", DB, { q: /water[\s-]*fill|fillable|ウォーターダンベル|水を入れる/i, w: true }),
+  D("Aqua foam dumbbell", "アクアダンベル", null, "🏊", "Dumbbells", /aqua(tic)?\s*(foam\s*)?dumb+e?l+s?|(water\s*aerobics?|pool|foam)\s*dumb+e?l+s?|アクアダンベル|水中ダンベル/i),
+  D("Dumbbell rack", "ダンベルスタンド", null, "🗄️", "Lifting accessories", /dumb+e?l+s?\s*(rack|stand|tree|holder)|kettlebell\s*(rack|stand)|ダンベル(スタンド|ホルダー)/i, { v: ["(A-frame)", "(2-tier)", "(3-tier)"] }),
+  D("Kettlebell handle (plate-loaded)", "ケトルベルハンドル", "kettlebell", "🔔", "Kettlebells", KB, { q: /handle|plate[\s-]*load|loadable|ハンドル|プレート/i, w: true }),
+  D("Body bar (weighted fitness bar)", "ボディバー", "barbell", "🏋️", "Barbells", /body\s*bar|weighted\s*(workout\s*|fitness\s*|exercise\s*|aerobic\s*)?bar\b|fitness\s*bar\b|aerobic\s*bar|ボディバー|ウェイトバー/i, { kg: [1, 2, 3, 4, 5, 6, 8, 10] }),
+  D("Technique barbell", "テクニックバー", "barbell", "🏋️", "Barbells", /technique\s*bar(bell)?|alumin(i)?um\s*(training\s*)?bar(bell)?|テクニックバー/i, { kg: [5, 7, 10] }),
+  D("Axle bar (fat bar)", "アクスルバー", "barbell", "🏋️", "Barbells", /axle\s*bar(bell)?|fat\s*bar(bell)?|thick\s*bar(bell)?|アクスルバー/i),
+  D("Cambered squat bar", "キャンバードバー", "barbell", "🏋️", "Barbells", /cambered\s*(squat\s*)?bar(bell)?|キャンバードバー/i),
+  D("T-bar row landmine handle", "Tバーロー", "barbell", "🏋️", "Barbells", /t[\s-]*bar\s*row|landmine\s*(row\s*)?handle|Tバーロー/i),
+  D("Barbell jack", "バーベルジャッキ", null, "🔧", "Lifting accessories", /barbell\s*jack|deadlift\s*jack|bar\s*jack|バーベルジャッキ|デッドリフトジャッキ/i),
+  D("Calibrated powerlifting plate", "キャリブレーテッドプレート", "barbell", "💿", "Plates", PLATE, { q: /calibrated\s*power|powerlifting|\bipf\b|キャリブレーテッド|パワーリフティング/i, kg: [0.25, 0.5, 1.25, 2.5, 5, 10, 15, 20, 25] }),
+
+  // Strongman
+  D("Log bar", "ログバー", "barbell", "🪵", "Strongman", /log\s*bar|strongman\s*log|ログバー/i),
+  D("Atlas stone", "アトラスストーン", null, "🪨", "Strongman", /atlas\s*stones?|strongman\s*stones?|アトラスストーン/i, { v: ["(12 in)", "(14 in)", "(16 in)", "(18 in)", "(20 in)"] }),
+  D("Yoke", "ヨーク", null, "🏗️", "Strongman", /\byoke\b|strongman\s*yoke|ヨーク/i),
+  D("Strongman keg", "ケグ", null, "🛢️", "Strongman", /strongman\s*kegs?|\bkegs?\b|ケグ/i),
+
+  // Bands and cable attachments
+  D("Resistance band bar", "バンドバー", "band", "➰", "Bands", /(resistance\s*)?bands?\s*bar|bow\s*bar|rip\s*trainer|バンドバー/i),
+  D("Bench press slingshot", "スリングショット", null, "🎽", "Lifting accessories", /sling\s*shot|bench\s*press\s*(band|sleeve)|push[\s-]*up\s*sleeve|スリングショット/i),
+  D("Tricep rope attachment", "トライセップスロープ", null, "🪢", "Cable attachments", /tricep(s)?\s*(pushdown\s*)?rope|pushdown\s*rope|cable\s*rope|トライセ(ッ)?プスロープ/i),
+  D("Lat pulldown bar attachment", "ラットバー", null, "🏗️", "Cable attachments", /\blat\s*(pull[\s-]*down\s*)?bar\b|pull[\s-]*down\s*bar\b|ラットバー/i),
+  D("V-bar row handle", "Vバー", null, "🏗️", "Cable attachments", /\bv[\s-]*bar\b|close[\s-]*grip\s*(row\s*)?(handle|bar)|row\s*handle|ローイングハンドル|Vバー/i),
+  D("Cable D-handle", "シングルハンドル", null, "🏗️", "Cable attachments", /\bd[\s-]*handles?|stirrup\s*handles?|cable\s*handles?|single\s*grip\s*handle|シングルハンドル/i),
+  D("Ankle cuff (cable)", "アンクルストラップ", null, "🦶", "Cable attachments", /ankle\s*(strap|cuff)s?|アンクルストラップ|アンクルカフ/i),
+  D("DIY cable pulley system", "ケーブルプーリー", null, "🏗️", "Machines", /pulley\s*(system|cable|attachment)|cable\s*pulley|loading\s*pin|lat\s*and\s*lift|ケーブルプーリー|プーリー/i),
+
+  // Racks and bars
+  D("J-hooks", "Jフック", null, "🪝", "Bars & racks", /\bj[\s-]*(hooks?|cups?)\b|バーベルフック|Jフック/i),
+  D("Safety spotter arms", "セーフティバー", null, "🛡️", "Bars & racks", /spotter\s*(arms?|bars?)|safety\s*(arms|bars|straps|spotters?)|セーフティー?バー/i),
+  D("Indoor horizontal bar (tetsubo)", "室内鉄棒", "bar", "🤸", "Bars & racks", /室内鉄棒|鉄棒|horizontal\s*bar|kids?\s*(pull[\s-]*up|chin[\s-]*up|gym)\s*bar/i),
+  D("Pegboard", "ペグボード", null, "🧗", "Bars & racks", /peg\s*board|ペグボード/i),
+  D("Gym climbing rope", "クライミングロープ", null, "🪢", "Ropes", /climbing\s*rope|rope\s*climb|gym\s*rope|クライミングロープ|登り綱|綱登り/i),
+
+  // Bodyweight and abs
+  D("Hanging ab straps", "アブストラップ", null, "🤸", "Bodyweight", /\bab(dominal)?\s*straps?|hanging\s*(ab|leg[\s-]*raise)\s*straps?|アブストラップ/i),
+  D("Calf raise block", "カーフレイズ台", null, "🦶", "Bodyweight", /calf\s*(raise\s*)?(block|platform|step)|カーフレイズ台|カーフブロック/i),
+  D("Ab rocker", "アブロッカー", null, "🦵", "Ab wheels", /\bab\s*rocker|アブロッカー/i),
+  D("Twist board (waist twister)", "ツイストボード", null, "🌀", "Home fitness gadgets", /twist(ing)?\s*(board|disc|disk|plate)|waist\s*twist(er|ing)?(\s*(disc|disk|board))?|ツイストボード|ツイストディスク|ツイスター/i),
+
+  // Benches and machines
+  D("Hip thrust bench", "ヒップスラスト台", "bench", "🪑", "Benches", /hip\s*thrust\s*(bench|machine|box|station)|glute\s*bridge\s*(bench|machine|box)|ヒップスラスト(台|ベンチ|マシン)/i),
+  D("Meditation bench (seiza bench)", "正座椅子", null, "🧘", "Yoga & mobility", /meditation\s*bench|seiza\s*(bench|stool)|kneeling\s*bench|正座椅子|正座ベンチ/i),
+  D("Reverse hyperextension machine", "リバースハイパー", null, "🏗️", "Machines", /reverse\s*hyper(\s*extension|extension)?|リバースハイパー/i),
+  D("Chest press machine", "チェストプレス", "gym", "🏗️", "Machines", /chest\s*press\s*machine|seated\s*chest\s*press|チェストプレス/i),
+  D("Shoulder press machine", "ショルダープレスマシン", "gym", "🏗️", "Machines", /shoulder\s*press\s*machine|ショルダープレスマシン/i),
+  D("Seated row machine", "シーテッドロー", "gym", "🏗️", "Machines", /seated\s*(cable\s*)?row(ing)?\s*machine|cable\s*row\s*machine|シーテッドロー/i),
+  D("Hip abductor and adductor machine", "アダクターマシン", "gym", "🏗️", "Machines", /abductor|adductor|hip\s*(abduction|adduction)\s*machine|アダクター|アブダクター|内転筋マシン/i),
+  D("Calf raise machine", "カーフレイズマシン", "gym", "🏗️", "Machines", /calf\s*raise\s*machine|seated\s*calf\s*(raise\s*)?machine|standing\s*calf\s*machine|カーフレイズマシン/i),
+  D("Glute kickback machine", "グルートマシン", "gym", "🏗️", "Machines", /glute\s*(kick[\s-]*back|machine|drive)|kick[\s-]*back\s*machine|グルートマシン/i),
+  D("Assisted pull-up machine", "アシストチンニング", "gym", "🏗️", "Machines", /assisted\s*(pull[\s-]*up|chin[\s-]*up|dip)|gravitron|アシスト(チンニング|ディップ)/i),
+  D("Arm curl machine", "アームカールマシン", "gym", "🏗️", "Machines", /(bicep|biceps|arm)\s*curl\s*machine|preacher\s*curl\s*machine|アームカールマシン/i),
+  D("Squat assist machine", "スクワットマシン", null, "🦵", "Home fitness gadgets", /squat\s*(assist|magic|trainer)|スクワットマシン|スクワットマジック/i),
+
+  // Cardio
+  D("Under-desk elliptical", "ミニエリプティカル", null, "🏃", "Cardio", /(under[\s-]*desk|seated|mini)\s*elliptical|ミニエリプティカル/i),
+  D("Vertical climber", "クライミングマシン", null, "🧗", "Cardio", /vertical\s*climb(er|ing\s*machine)|climb(er|ing)\s*machine|versa\s*climber|バーティカルクライマー|クライミングマシン/i),
+  D("Jacob's ladder climber", "ジェイコブスラダー", null, "🪜", "Cardio", /jacob'?s?\s*ladder|ジェイコブスラダー/i),
+  D("Slide board", "スライドボード", null, "⛸️", "Cardio", /slide\s*board|lateral\s*slide|スライドボード/i),
+  D("Nordic walking poles", "ウォーキングポール", null, "🥢", "Cardio", /nordic\s*walking|walking\s*poles?|trekking\s*poles?|ウォーキングポール|ノルディックウォーキング/i),
+
+  // Ropes and mats
+  D("Double dutch long rope", "長縄", null, "🪢", "Ropes", /double\s*dutch|long\s*(jump|skipping)\s*rope|長縄|大縄|長なわ/i, { v: ["5 m", "7 m", "10 m"] }),
+  D("Battle rope anchor", "ロープアンカー", null, "⚓", "Ropes", /battle\s*rope\s*(anchor|strap)|rope\s*anchor|ロープアンカー/i),
+  D("Yoga towel", "ヨガラグ", null, "🧘", "Mats", /yoga\s*(towel|rug)|ヨガラグ|ヨガタオル/i),
+  D("Deadlift platform", "デッドリフトマット", null, "⬛", "Mats", /deadlift\s*(platform|mat|pad)|lifting\s*platform|weightlifting\s*platform|drop\s*pads?|デッドリフト(マット|プラットフォーム)/i),
+  D("Ab mat", "アブマット", null, "🟦", "Mats", /\bab\s*mat\b|abmat|アブマット/i),
+  D("Gym turf", "人工芝", null, "🟩", "Mats", /gym\s*turf|artificial\s*turf|sled\s*track|turf\s*(roll|track)|人工芝/i),
+
+  // Balls
+  D("Soft weighted toning ball", "ソフトウェイトボール", null, "🏐", "Balls", /toning\s*ball|soft\s*weight(ed)?\s*ball|weighted\s*(exercise\s*)?ball\b|ソフトメディシンボール|ウェイトボール/i, { kg: [0.5, 1, 1.5, 2, 3] }),
+  D("Medicine ball with handles", "ハンドル付きメディシンボール", null, "🏐", "Balls", /medicine\s*ball\s*with\s*handles?|(handled|dual[\s-]*grip|handle)\s*medicine\s*ball|ハンドル付きメディシンボール/i, { kg: [2, 3, 4, 5, 6, 8, 10] }),
+  D("Balance pods", "バランスストーン", null, "🔵", "Balls", /balance\s*(pods|stones|hedgehogs?)|stepping\s*stones|バランスストーン/i),
+  D("Reaction ball", "リアクションボール", null, "🎲", "Balls", /reaction\s*ball|リアクションボール/i),
+  D("Balance ball chair", "バランスボールチェア", null, "🪑", "Balls", /ball\s*chair|バランスボールチェア/i),
+
+  // Grip
+  D("Hand exercise ball", "握力ボール", null, "✊", "Grip", /stress\s*ball|squeeze\s*ball|hand\s*(therapy|exercise|grip)\s*ball|grip\s*strength\s*ball|握力ボール|リハビリボール/i, { v: ["(soft)", "(medium)", "(firm)"] }),
+  D("Grip ring", "グリップリング", null, "✊", "Grip", /grip\s*rings?|hand\s*grip\s*ring|finger\s*ring\s*exerciser|握力リング|グリップリング/i, { v: ["(light)", "(medium)", "(heavy)"] }),
+  D("Hand therapy putty", "リハビリパテ", null, "✊", "Grip", /therapy\s*putty|hand\s*putty|theraputty|exercise\s*putty|リハビリ(用)?パテ|セラプラスト/i, { v: ["(extra soft)", "(soft)", "(medium)", "(firm)", "(extra firm)"] }),
+  D("Finger resistance web", "ハンドエクササイザー", null, "✊", "Grip", /(hand|finger)\s*(exerciser\s*)?web|resistance\s*web|hand\s*exerciser\s*net/i),
+  D("Wrist exerciser", "リストトレーナー", null, "✊", "Grip", /(wrist|forearm)\s*(exerciser|strengthener|trainer|blaster)|リストトレーナー|前腕トレーナー/i),
+  D("Fat grips", "ファットグリップ", null, "✊", "Grip", /fat\s*gripz?|thick\s*grips?|grip\s*adapters?|axle\s*grips?|ファットグリップ|太グリップ/i),
+  D("Pinch block", "ピンチブロック", null, "✊", "Grip", /pinch\s*(block|grip(per)?|trainer)|ピンチブロック/i),
+  D("Hangboard (fingerboard)", "ハングボード", null, "🧗", "Grip", /hang\s*board|finger\s*board|climbing\s*board|フィンガーボード|ハングボード/i),
+  D("Pull-up grips (cannonball)", "懸垂グリップ", null, "🧗", "Grip", /pull[\s-]*up\s*(grips?|balls?|holds?)|cannon\s*ball\s*grips?|climbing\s*(holds?|grips?)|懸垂グリップ|クライミングホールド/i),
+
+  // Lifting accessories and wearables
+  D("Power grips (lifting grip pads)", "パワーグリップ", null, "🎽", "Lifting accessories", /power\s*grips?|lifting\s*(grips?|hooks?)|grip\s*pads?|gym\s*grips?|パワーグリップ/i),
+  D("Gymnastics hand grips", "体操用グリップ", null, "🎽", "Lifting accessories", /gymnastics?\s*(hand\s*)?grips?|hand\s*guards?|crossfit\s*grips?|palm\s*(guards?|protectors?)|体操用グリップ/i),
+  D("Chalk bag", "チョークバッグ", null, "🧂", "Lifting accessories", /chalk\s*(bag|bowl|bucket|pouch)|チョークバッグ/i),
+  D("Weighted bangles", "ウェイトバングル", null, "✊", "Wearable weights", /bangles?|ウェイトバングル/i, { lb: [1, 2] }),
+  D("Smart hula hoop", "スマートフラフープ", null, "⭕", "Wearable weights", /smart\s*hula|auto[\s-]*spin(ning)?\s*hula|hula\s*hoop\s*with\s*(ball|weight)|weighted\s*ball\s*hula|スマートフラフープ/i),
+  D("Sauna suit", "サウナスーツ", null, "🥵", "Wearables", /sauna\s*suit|sweat\s*suit|サウナスーツ/i),
+  D("Waist trimmer belt", "サウナベルト", null, "🥵", "Wearables", /waist\s*trimmer|sweat\s*(belt|band)|slimming\s*belt|サウナベルト|発汗ベルト/i),
+  D("Training mask", "トレーニングマスク", null, "😷", "Wearables", /training\s*mask|altitude\s*(training\s*)?mask|elevation\s*mask|高地トレーニングマスク|トレーニングマスク/i),
+
+  // Functional
+  D("Aqua bag", "アクアバッグ", null, "🎒", "Functional", /aqua\s*(training\s*)?bag|water\s*bag|slosh\s*(pipe|tube)|アクアバッグ/i),
+  D("Sled harness", "牽引ハーネス", null, "🎽", "Functional", /sled\s*(harness|strap|belt)|running\s*harness|resistance\s*harness|tow\s*harness|牽引ハーネス/i),
+  D("Agility poles", "スラロームポール", null, "🚩", "Functional", /agility\s*poles?|slalom\s*poles?|coaching\s*sticks?|スラロームポール|コーチングポール/i),
+  D("Agility rings", "スピードリング", null, "⭕", "Functional", /agility\s*rings?|speed\s*rings?|ladder\s*rings?|ケンケンパ|スピードリング/i),
+  D("Reaction light trainer", "リアクションライト", null, "💡", "Functional", /reaction\s*(training\s*)?lights?|light\s*pods?|blaze\s*pod|リアクションライト/i),
+  D("Shake weight", "シェイクウェイト", null, "💪", "Functional", /shake\s*weight|シェイクウェイト/i),
+  D("Neck trainer", "ネックトレーナー", null, "🦒", "Functional", /neck\s*(exerciser|trainer|strengthener|machine)|iron\s*neck|首トレ|ネックトレーナー/i),
+  D("Balance beam", "平均台", null, "🤸", "Functional", /balance\s*beam|平均台/i),
+
+  // Combat
+  D("Shin guards", "レガース", null, "🥊", "Combat", /shin\s*(guards?|pads?|protectors?)|shin\s*(and\s*)?instep|レガース|すね当て|脛当て/i),
+  D("Groin guard", "ファウルカップ", null, "🥊", "Combat", /groin\s*(guard|protector|cup)|athletic\s*cup|ファウルカップ|ファールカップ/i),
+  D("Boxing reflex ball", "リフレックスボール", null, "🥊", "Combat", /reflex\s*ball|fight\s*ball|boxing\s*ball\s*(head\s*band|headband)|head\s*band\s*(boxing\s*)?ball|リフレックスボール|ボクシングボール/i),
+  D("Kick target paddle", "キックターゲット", null, "🥋", "Combat", /kick\s*(target|paddle)|paddle\s*target|taekwondo\s*(paddle|target)|ターゲットミット|キックターゲット/i),
+  D("Punching bag stand", "サンドバッグスタンド", null, "🥊", "Combat", /(punch(ing)?|heavy|boxing)\s*bag\s*(stand|hanger|mount|bracket)|bag\s*(stand|hanger)|サンドバッグ(スタンド|吊り)/i),
+  D("Wall-mounted punching pad", "壁掛けミット", null, "🥊", "Combat", /wall[\s-]*(mounted\s*)?(punch(ing)?\s*)?(pad|target|bag)\b|uppercut\s*bag|壁掛け(サンドバッグ|ミット)/i),
+  D("Grappling dummy", "打ち込み人形", null, "🥋", "Combat", /grappling\s*dummy|throwing\s*dummy|bjj\s*dummy|submission\s*dummy|wrestling\s*dummy|打ち込み人形/i),
+  D("Wooden dummy (Wing Chun)", "木人椿", null, "🥋", "Combat", /wooden\s*dummy|wing\s*chun\s*dummy|mook\s*jong|木人椿|木人/i),
+  D("Makiwara", "巻藁", null, "🥋", "Combat", /makiwara|巻き?藁/i),
+
+  // Yoga and pilates
+  D("Aerial yoga hammock", "エアリアルヨガハンモック", null, "🧘", "Yoga & mobility", /aerial\s*(yoga\s*)?(hammock|swing|silks?)|yoga\s*(hammock|swing|trapeze)|anti[\s-]*gravity\s*yoga|空中ヨガ|エアリアルヨガ/i),
+  D("Yoga chair", "ヨガチェア", null, "🪑", "Yoga & mobility", /yoga\s*chair|ヨガチェア/i),
+  D("Yoga blanket", "ヨガブランケット", null, "🧘", "Yoga & mobility", /yoga\s*blanket|ヨガブランケット/i),
+  D("Yoga knee pad", "ヨガ膝パッド", null, "🧘", "Yoga & mobility", /yoga\s*knee\s*(pad|cushion)|ヨガ(用)?(膝|ひざ)パッド/i),
+  D("Portable pilates bar", "ピラティスバー", null, "🧘", "Yoga & mobility", /pilates\s*(bar|stick)|portable\s*pilates|ピラティス(バー|スティック)/i),
+  D("Pilates arc", "ピラティスアーク", null, "🧘", "Yoga & mobility", /pilates\s*arc|spine\s*corrector|ピラティスアーク|スパインコレクター/i),
+  D("Pilates chair (Wunda chair)", "ピラティスチェア", null, "🧘", "Yoga & mobility", /wunda\s*chair|pilates\s*chair|ピラティスチェア/i),
+  D("Pilates Cadillac", "キャデラック", null, "🧘", "Yoga & mobility", /cadillac|trapeze\s*table|キャデラック/i),
+  D("Pilates ladder barrel", "ラダーバレル", null, "🧘", "Yoga & mobility", /ladder\s*barrel|pilates\s*barrel|ラダーバレル/i),
+  D("Leg stretcher machine", "開脚ストレッチャー", null, "🧘", "Yoga & mobility", /leg\s*stretch(er|ing\s*machine)|split\s*(machine|stretcher)|開脚(マシン|ストレッチャー|ストレッチ器)/i),
+  D("Squat wedge", "スクワットウェッジ", null, "🦶", "Yoga & mobility", /squat\s*wedges?|slant\s*blocks?|heel\s*wedges?|スクワットウェッジ/i),
+  D("Foot rocker", "フットロッカー", null, "🦶", "Rehab & physio", /foot\s*rocker|ankle\s*rocker|pro[\s-]*stretch|フットロッカー/i),
+  D("Mobility dowel", "ストレッチ棒", null, "🧘", "Yoga & mobility", /\bdowel\b|pvc\s*(pipe|stick|dowel)|mobility\s*stick|stretch(ing)?\s*stick|ストレッチ(棒|スティック)/i),
+  D("Slant board (calf stretcher)", "ストレッチボード", null, "🦶", "Yoga & mobility", /slant\s*board|incline\s*(squat\s*)?board|calf\s*stretch(er|ing\s*board)|stretch(ing)?\s*board|ストレッチ(ング)?ボード|足首ストレッチ/i),
+
+  // Massage and recovery
+  D("Neck and shoulder massager", "ネックマッサージャー", null, "💆", "Massage", /neck\s*(and\s*shoulder\s*)?massager|shoulder\s*massager|shiatsu\s*(neck\s*)?massager|ネックマッサージャー|肩マッサージャー|ネックリフレ/i),
+  D("Foot massager", "フットマッサージャー", null, "🦶", "Massage", /(foot|leg|calf)\s*(and\s*calf\s*)?massager|フットマッサージャー|足マッサージ(器|機)|レッグリフレ/i),
+  D("Massage chair", "マッサージチェア", null, "💺", "Massage", /massage\s*chair|マッサージチェア/i),
+  D("Massage cushion", "マッサージクッション", null, "💆", "Massage", /massage\s*(cushion|seat|pillow)|マッサージ(クッション|シート|ピロー)/i),
+  D("Gua sha muscle scraper", "かっさ", null, "🪨", "Massage", /gua\s*sha|iastm|muscle\s*scraper|scraping\s*(massage\s*)?tool|かっさ|カッサ/i),
+  D("Back hook massager", "ツボ押し棒", null, "🦯", "Massage", /thera\s*cane|back\s*(hook|cane)\s*massager|massage\s*(hook|cane)|ツボ押し(棒|器|グッズ)?/i),
+  D("Foot roller", "足裏ローラー", null, "🦶", "Massage", /foot\s*(massage\s*)?roller|plantar\s*(fasciitis\s*)?roller|足裏(ローラー|マッサージ)|フットローラー/i),
+  D("Bamboo foot stepper", "青竹踏み", null, "🎋", "Massage", /bamboo\s*foot|foot\s*massage\s*(board|step)|青竹踏み|竹踏み/i),
+  D("Acupressure mat", "指圧マット", null, "🟥", "Massage", /acupressure\s*mat|spike\s*mat|shakti\s*mat|nail\s*mat|指圧マット|ツボ押しマット/i),
+  D("Sauna blanket", "サウナブランケット", null, "🥵", "Recovery", /sauna\s*blanket|サウナブランケット/i),
+  D("Ice bath", "アイスバス", null, "🧊", "Recovery", /ice\s*bath|cold\s*plunge|plunge\s*tub|アイスバス/i),
+  D("Ice bag", "氷のう", null, "🧊", "Recovery", /ice\s*(bag|pack)|cold\s*pack|氷のう|氷嚢|アイシングバッグ/i),
+  D("Compression sleeves", "着圧スリーブ", null, "🦵", "Recovery", /compression\s*(sleeves?|socks?|tights|calf)|calf\s*sleeves?|着圧(ソックス|スリーブ|タイツ)|ふくらはぎサポーター/i),
+
+  // Rehab and physio
+  D("Kinesiology tape", "キネシオテープ", null, "🩹", "Rehab & physio", /kinesiology|kinesio|\bk[\s-]*tape|\bkt\s*tape|キネシオ|テーピングテープ/i, { v: ["2.5 cm × 5 m", "3.75 cm × 5 m", "5 cm × 5 m", "7.5 cm × 5 m"] }),
+  D("Athletic tape", "ホワイトテープ", null, "🩹", "Rehab & physio", /athletic\s*tape|sports\s*tape|zinc\s*oxide\s*tape|ホワイトテープ|非伸縮テープ/i, { v: ["19 mm", "25 mm", "38 mm", "50 mm"] }),
+  D("TENS unit", "低周波治療器", null, "⚡", "Rehab & physio", /\btens\b|low[\s-]*frequency\s*(therapy|treatment|massager|device)|低周波(治療器)?/i),
+  D("Knee brace", "膝サポーター", null, "🦵", "Rehab & physio", /knee\s*(brace|support|strap)|patella\s*(strap|band)|(膝|ひざ|ニー)サポーター/i),
+  D("Ankle brace", "足首サポーター", null, "🦶", "Rehab & physio", /ankle\s*(brace|support|stabili[sz]er)|(足首|アンクル)サポーター/i),
+  D("Wrist brace", "手首サポーター", null, "✋", "Rehab & physio", /wrist\s*(brace|guard|splint)|(手首|リスト)サポーター/i),
+  D("Tennis elbow strap", "肘サポーター", null, "💪", "Rehab & physio", /tennis\s*elbow|golfer'?s\s*elbow|elbow\s*(brace|strap|support|band)|エルボーバンド|(肘|ひじ)サポーター/i),
+  D("Back support belt", "腰サポーター", null, "🎽", "Rehab & physio", /back\s*(brace|support\s*belt)|lumbar\s*(support|brace|belt)|lower\s*back\s*(brace|belt)|腰(痛)?(ベルト|サポーター)/i),
+  D("Pelvic support belt", "骨盤ベルト", null, "🎽", "Rehab & physio", /pelvic\s*(belt|support)|sacroiliac\s*belt|骨盤ベルト|骨盤サポーター/i),
+  D("Posture corrector", "姿勢矯正ベルト", null, "🧍", "Rehab & physio", /posture\s*(corrector|brace|support|trainer)|姿勢矯正|猫背(矯正)?/i),
+  D("Shoulder pulley", "肩プーリー", null, "🔄", "Rehab & physio", /shoulder\s*pulley|over[\s-]*(the[\s-]*)?door\s*pulley|肩の?(滑車|プーリー)/i),
+  D("Arm ergometer", "上肢エルゴメーター", null, "💪", "Rehab & physio", /arm\s*(ergometer|erg|cycle|crank|bike)|upper\s*body\s*ergometer|hand\s*(cycle|bike)|\bube\b|上肢エルゴ/i),
+  D("Inversion table", "逆さぶら下がり健康器", null, "🙃", "Rehab & physio", /逆さぶら下がり健康器|inversion\s*(table|chair|therapy|boots)|gravity\s*boots|逆さ(吊り|づり)?|インバージョン/i),
+  D("Back stretcher", "背筋ストレッチャー", null, "🧘", "Rehab & physio", /(back|lumbar|spine|spinal)\s*stretch(er|ing\s*device)|背筋?ストレッチャー|ストレッチャー|背伸ばし/i),
+  D("Neck traction stretcher", "首ストレッチャー", null, "🧘", "Rehab & physio", /neck\s*(stretcher|traction|cloud|relaxer)|cervical\s*(traction|stretcher|pillow)|首の?ストレッチャー|頚椎/i),
+  D("Breathing trainer", "呼吸筋トレーナー", null, "🫁", "Rehab & physio", /breathing\s*(trainer|exerciser)|(respiratory|inspiratory)\s*(muscle\s*)?trainer|lung\s*trainer|power\s*breathe|airofit|呼吸筋?トレーナー|パワーブリーズ/i),
+
+  // Japanese home-fitness gadgets
+  D("Horse riding machine", "乗馬マシン", null, "🐎", "Home fitness gadgets", /horse\s*rid(ing|er)|riding\s*(exercise\s*|fitness\s*)?machine|乗馬(マシン|フィットネス|運動)|ロデオボーイ|ジョーバ/i),
+  D("Chi swing machine", "スイングマシーン", null, "🐟", "Home fitness gadgets", /chi\s*machine|swing\s*machine|金魚運動|スイングマシ[ンー]+/i),
+  D("Thigh toner", "太ももトレーナー", null, "🦵", "Home fitness gadgets", /thigh\s*(master|toner|trainer|exerciser)|inner\s*thigh\s*(trainer|exerciser|toner)|leg\s*toner|kegel\s*exerciser|pelvic\s*floor\s*trainer|太もも(エクササイズ|トレーナー)|内もも|骨盤底筋/i),
+  D("Leg slider trainer", "レッグマジック", null, "🦵", "Home fitness gadgets", /leg\s*magic|leg\s*slider|lateral\s*leg\s*(trainer|machine)|レッグマジック|レッグスライダー/i),
+  D("Fitness ring controller (Ring-Con)", "リングコン", null, "🎮", "Home fitness gadgets", /fitness\s*ring\s*controller|ring[\s-]*fit|ring[\s-]*con\b|リングフィット|リングコン/i),
+  D("Facial exerciser", "表情筋トレーニング器", null, "🙂", "Home fitness gadgets", /fac(e|ial)\s*(exerciser|fitness|trainer)|jaw\s*(exerciser|trainer)|表情筋|フェイシャルフィットネス/i),
+
+  // Shoes and trackers
+  D("Barefoot shoes", "ベアフットシューズ", null, "👟", "Shoes", SHOE, { q: /barefoot|minimalist|zero[\s-]*drop|ベアフット|裸足/i }),
+  D("Indoor cycling shoes", "サイクリングシューズ", null, "👟", "Shoes", SHOE, { q: /cycling|spin|clip[\s-]*in|\bspd\b|delta\s*cleat|サイクリング|ビンディング/i }),
+  D("Aerobics shoes", "フィットネスシューズ", null, "👟", "Shoes", SHOE, { q: /aerobics?|dance|studio|エアロビ|フィットネス|ダンス/i }),
+  D("Pedometer", "歩数計", null, "👣", "Trackers", /pedometer|step\s*counter|歩数計|万歩計/i),
+  D("Grip dynamometer", "握力計", null, "📏", "Trackers", /dynamometer|grip\s*strength\s*(meter|tester|gauge)|grip\s*meter|握力計|握力測定/i),
+  D("Body fat caliper", "体脂肪キャリパー", null, "📏", "Trackers", /calipers?|skin[\s-]*fold|キャリパー/i),
+  D("Smart ring", "スマートリング", null, "💍", "Trackers", /smart\s*ring|oura\s*ring|galaxy\s*ring|スマートリング/i),
+  D("Interval timer", "インターバルタイマー", null, "⏱️", "Trackers", /interval\s*timer|gym\s*timer|tabata\s*timer|stop\s*watch|インターバルタイマー|ストップウォッチ/i),
 ];
 
 // ---------- Brands ----------
@@ -442,6 +630,72 @@ brand("Coros", ["global", "JP"], /coros/i);
 brand("Suunto", ["global", "JP"], /suunto|スント/i);
 brand("Wahoo", ["global", "JP"], /wahoo/i);
 brand("Whoop", ["global"], /whoop/i);
+// More: Japan market
+brand("Aptonia", ["IN", "global"], /aptonia|decathlon/i);
+brand("PROIRON", ["JP", "global"], /pro\s*iron|プロアイロン/i, "プロアイロン");
+brand("GronG", ["JP"], /\bgrong\b|グロング/i, "グロング");
+brand("BARWING", ["JP"], /barwing|バーウィング/i, "バーウィング");
+brand("Soomloom", ["JP"], /soomloom|スームルーム/i, "スームルーム");
+brand("Gold's Gym", ["JP", "global"], /gold'?s\s*gym|ゴールドジム/i, "ゴールドジム");
+brand("Shop Japan", ["JP"], /shop\s*japan|ショップジャパン/i, "ショップジャパン");
+brand("Panasonic", ["JP", "global"], /panasonic|パナソニック/i, "パナソニック");
+brand("Omron", ["JP", "global", "IN"], /omron|オムロン/i, "オムロン");
+brand("Nintendo", ["JP", "global"], /nintendo|任天堂/i, "任天堂");
+brand("Atex", ["JP"], /\batex\b|アテックス/i, "アテックス");
+brand("Fujiiryoki", ["JP"], /fuji\s*iryoki|フジ医療器/i, "フジ医療器");
+brand("Family Inada", ["JP", "global"], /family\s*inada|ファミリーイナダ/i, "ファミリーイナダ");
+brand("Dr.Air", ["JP"], /dr\.?\s*air\b|ドクターエア/i, "ドクターエア");
+brand("Toei Light", ["JP"], /toei\s*light|トーエイライト/i, "トーエイライト");
+brand("Nishi Sports", ["JP"], /nishi\s*sports?|ニシ・?スポーツ/i, "ニシ・スポーツ");
+brand("Nichiban", ["JP"], /nichiban|ニチバン|battle\s*win|バトルウィン/i, "ニチバン");
+brand("Zamst", ["JP", "global"], /zamst|ザムスト/i, "ザムスト");
+brand("McDavid", ["JP", "global"], /mc\s*david|マクダビッド/i, "マクダビッド");
+brand("Yogaworks", ["JP"], /yoga\s*works|ヨガワークス/i, "ヨガワークス");
+brand("Suria", ["JP"], /\bsuria\b|スリア/i, "スリア");
+// More: global
+brand("Iron Gym", ["global"], /iron\s*gym/i);
+brand("Perfect Fitness", ["global"], /perfect\s*fitness|perfect\s*pushup|ab\s*carver/i);
+brand("Yes4All", ["global"], /yes\s*4\s*all/i);
+brand("CAP Barbell", ["global"], /cap\s*barbell/i);
+brand("Sunny Health & Fitness", ["global"], /sunny\s*(health|fitness)/i);
+brand("Merach", ["global", "JP"], /merach/i);
+brand("Sole Fitness", ["global"], /sole\s*fitness/i);
+brand("Horizon Fitness", ["global", "JP"], /horizon\s*fitness/i);
+brand("ProForm", ["global"], /proform/i);
+brand("Nautilus", ["global"], /nautilus/i);
+brand("Teeter", ["global"], /teeter/i);
+brand("Bala", ["global"], /\bbala\b/i);
+brand("Valslide", ["global"], /valslide/i);
+brand("Compex", ["global", "JP"], /compex|コンペックス/i);
+brand("PowerDot", ["global"], /power\s*dot/i);
+brand("POWERbreathe", ["global", "JP"], /power\s*breathe|パワーブリーズ/i, "パワーブリーズ");
+brand("Airofit", ["global"], /airofit/i);
+brand("Oura", ["global", "JP"], /\boura\b/i);
+brand("Ultrahuman", ["global", "IN"], /ultrahuman/i);
+brand("BlazePod", ["global"], /blaze\s*pod/i);
+brand("Fat Gripz", ["global"], /fat\s*gripz/i);
+brand("Iron Neck", ["global"], /iron\s*neck/i);
+brand("Vivobarefoot", ["global", "JP"], /vivo\s*barefoot/i);
+brand("Xero Shoes", ["global"], /xero\s*shoes?/i);
+brand("Merrell", ["global", "JP"], /merrell|メレル/i, "メレル");
+brand("Bellicon", ["global", "JP"], /bellicon|ベリコン/i);
+brand("JumpSport", ["global"], /jump\s*sport/i);
+brand("Indo Board", ["global"], /indo\s*board/i);
+brand("Renpho", ["global", "JP"], /renpho/i);
+brand("Thera Cane", ["global"], /thera\s*cane/i);
+brand("Schiek", ["global"], /schiek/i);
+brand("Valeo", ["global"], /\bvaleo\b/i);
+brand("Lebert", ["global"], /lebert|equalizer/i);
+brand("Bodylastics", ["global"], /bodylastics/i);
+brand("WODFitters", ["global"], /wod\s*fitters/i);
+brand("Bells of Steel", ["global"], /bells\s*of\s*steel/i);
+brand("Fringe Sport", ["global"], /fringe\s*sport/i);
+brand("Tacx", ["global", "JP"], /tacx/i);
+brand("UREVO", ["global", "JP"], /urevo/i);
+brand("LifeSpan", ["global"], /life\s*span/i);
+brand("Yesoul", ["global"], /yesoul/i);
+brand("Xterra", ["global"], /xterra/i);
+brand("Alo Yoga", ["global"], /\balo\s*yoga/i);
 
 // ---------- Brand lines ----------
 // [brand, type, options]. `kg`/`lb`/`v` list the sizes or variants sold;
@@ -929,6 +1183,396 @@ M("Suunto", "Smart watch", [["Suunto Race smart watch", "Race"], ["Suunto Race S
 M("Wahoo", "Heart-rate chest strap", [["Wahoo TICKR heart-rate chest strap", "TICKR"], ["Wahoo TICKR X heart-rate chest strap", "TICKR X"]]);
 M("Wahoo", "Indoor bike trainer", [["Wahoo KICKR smart bike trainer", "KICKR"], ["Wahoo KICKR Core smart bike trainer", "KICKR Core"]]);
 M("Whoop", "Fitness tracker", [["Whoop 4.0 fitness tracker", "4.0"]]);
+
+// ---------- More brand lines ----------
+const L5 = [1, 2, 3, 4, 5];
+const BOX_OZ = [10, 12, 14, 16].map((x) => `${x} oz`);
+// --- Decathlon
+L("Corength", "Dip station");
+L("Corength", "Rubber-coated plate", { kg: [0.5, 1.25, 2.5, 5, 10, 15, 20], note: TYPICAL });
+L("Corength", "Weight collars");
+L("Corength", "Lifting belt");
+L("Corength", "Lifting gloves");
+L("Corength", "Wrist wraps");
+L("Corength", "Lifting chalk");
+L("Corength", "Slam ball", { kg: [4, 6, 8, 10], note: TYPICAL });
+L("Corength", "Wall ball", { kg: [3, 6, 9], note: TYPICAL });
+L("Corength", "Plyo box");
+L("Corength", "Gymnastic rings", { v: ["(wood)"] });
+L("Corength", "Long loop power band");
+L("Corength", "Battle rope");
+L("Corength", "Weight vest", { kg: [5, 10], note: TYPICAL });
+L("Domyos", "Core sliders");
+L("Domyos", "Pilates circle (magic circle)");
+L("Domyos", "Mini pilates ball");
+L("Domyos", "Balance board");
+L("Domyos", "Balance pad");
+L("Domyos", "Mini trampoline rebounder");
+L("Domyos", "Wrist weights", { kg: [0.5, 1], note: TYPICAL });
+L("Domyos", "Speed jump rope");
+L("Domyos", "Hand gripper");
+L("Domyos", "Yoga mat");
+L("Domyos", "Spin bike");
+L("Kimjaly", "Yoga bolster");
+L("Kimjaly", "Meditation cushion");
+L("Kimjaly", "Yoga wheel");
+L("Kimjaly", "Yoga towel");
+L("Kimjaly", "Yoga blanket");
+L("Outshock", "Boxing headgear");
+L("Outshock", "MMA gloves");
+L("Outshock", "Bag gloves");
+L("Outshock", "Shin guards");
+L("Outshock", "Mouthguard");
+L("Outshock", "Thai pads");
+L("Outshock", "Groin guard");
+L("Outshock", "Free-standing punching bag");
+L("Kiprun", "Trail running shoes");
+L("Aptonia", "Massage ball");
+L("Aptonia", "Foam roller");
+L("Aptonia", "Kinesiology tape");
+// --- Japan
+L("PROIRON", "Neoprene dumbbell", { kg: [0.5, 1, 1.5, 2, 3, 4, 5], note: TYPICAL });
+L("PROIRON", "Hex dumbbell", { kg: [2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25], note: TYPICAL });
+L("PROIRON", "Kettlebell", { kg: [4, 6, 8, 10, 12, 16, 20, 24], note: TYPICAL });
+L("PROIRON", "Adjustable dumbbell");
+L("PROIRON", "Yoga mat", { v: ["TPE 6 mm", "NBR 10 mm", "NBR 15 mm"], note: TYPICAL });
+L("PROIRON", "Exercise mat");
+L("PROIRON", "Ab wheel", { v: ["with knee pad"] });
+L("PROIRON", "Push-up handles");
+L("PROIRON", "Resistance band set");
+L("PROIRON", "Long loop power band");
+L("PROIRON", "Mini loop band");
+L("PROIRON", "Ankle weights", { kg: [0.5, 1, 1.5, 2, 2.5], note: TYPICAL });
+L("PROIRON", "Skipping rope");
+L("PROIRON", "Speed jump rope");
+L("PROIRON", "Foam roller");
+L("PROIRON", "Stability ball", { v: ["55 cm", "65 cm", "75 cm"] });
+L("Fighting Road", "Hex dumbbell", { kg: range(2.5, 30, 2.5), note: TYPICAL });
+L("Fighting Road", "Rubber dumbbell", { kg: range(2.5, 40, 2.5), note: TYPICAL });
+L("Fighting Road", "Cast iron kettlebell", { kg: [4, 8, 12, 16, 20, 24, 32], note: TYPICAL });
+L("Fighting Road", "Rubber-coated plate", { kg: [1.25, 2.5, 5, 10, 15, 20], note: TYPICAL });
+L("Fighting Road", "Olympic iron plate", { kg: [1.25, 2.5, 5, 10, 15, 20], note: TYPICAL });
+L("Fighting Road", "EZ curl barbell");
+L("Fighting Road", "Standard barbell rod");
+L("Fighting Road", "Weight collars");
+L("Fighting Road", "Lifting belt");
+L("Fighting Road", "Decline sit-up bench");
+L("Fighting Road", "Squat stand");
+L("IROTEC", "EZ curl barbell");
+L("IROTEC", "Standard barbell rod");
+L("IROTEC", "Weight collars");
+L("IROTEC", "Lifting belt");
+L("IROTEC", "Standard plate 1-inch", { kg: [1.25, 2.5, 5, 10, 15, 20], note: TYPICAL });
+L("La-VIE", "Yoga block");
+L("La-VIE", "Yoga strap");
+L("La-VIE", "Pilates circle (magic circle)");
+L("La-VIE", "Mini loop band");
+L("La-VIE", "Balance pad");
+L("La-VIE", "Massage ball");
+L("La-VIE", "Wrist weights");
+L("La-VIE", "Mini pilates ball");
+L("STEADY", "Mini stepper");
+L("STEADY", "Yoga mat");
+L("STEADY", "Exercise mat");
+L("STEADY", "Mini trampoline rebounder");
+L("STEADY", "Push-up handles");
+L("BARWING", "Adjustable dumbbell");
+L("BARWING", "Adjustable bench");
+L("BARWING", "Chin-up stand with pull-up bar");
+L("BARWING", "Ab wheel");
+L("Soomloom", "Chin-up stand with pull-up bar");
+L("Soomloom", "Ab wheel");
+L("Soomloom", "Adjustable bench");
+L("Soomloom", "Adjustable dumbbell");
+L("GronG", "Yoga mat");
+L("GronG", "Exercise mat");
+L("GronG", "Ab wheel");
+L("GronG", "Push-up handles");
+L("GronG", "Foam roller");
+L("GronG", "Stability ball", { v: ["55 cm", "65 cm", "75 cm"] });
+L("GronG", "Resistance tube band with handles");
+L("GronG", "Mini loop band");
+L("GronG", "Adjustable dumbbell");
+L("GronG", "Adjustable bench");
+L("GronG", "Lifting belt");
+L("GronG", "Power grips (lifting grip pads)");
+L("GronG", "Wrist wraps");
+L("GronG", "Hand gripper");
+L("Gold's Gym", "Power grips (lifting grip pads)");
+L("Gold's Gym", "Lifting belt");
+L("Gold's Gym", "Wrist wraps");
+L("Gold's Gym", "Lifting straps");
+L("Gold's Gym", "Knee wraps");
+L("Gold's Gym", "Elbow sleeves");
+L("Gold's Gym", "Lifting gloves");
+L("Gold's Gym", "Chain weight belt");
+L("Alinco", "Elliptical cross trainer");
+L("Alinco", "Recumbent bike");
+L("Alinco", "Equipment floor mat");
+L("Alinco", "Power tower pull-up and dip station");
+L("Nitori", "Puzzle floor mat");
+L("Daiso", "Ab wheel");
+L("Daiso", "Yoga block");
+L("Daiso", "Foam roller");
+L("Daiso", "Bamboo foot stepper");
+L("Daiso", "Back hook massager");
+L("Daiso", "Kinesiology tape");
+L("Daiso", "Pedometer");
+L("Amazon Basics", "Yoga block");
+L("Amazon Basics", "Puzzle floor mat");
+L("Amazon Basics", "Ankle weights", { lb: [1, 2.5, 5], note: TYPICAL });
+L("Amazon Basics", "Dumbbell rack");
+L("Amazon Basics", "Skipping rope");
+M("Shop Japan", "Ab crunch machine", [["Shop Japan Wonder Core 2 ab crunch machine", "Wonder Core 2"], ["Shop Japan Wonder Core Smart ab crunch machine", "Wonder Core Smart"]]);
+M("Shop Japan", "Leg slider trainer", [["Shop Japan Leg Magic leg slider trainer", "Leg Magic"]]);
+M("Shop Japan", "Squat assist machine", [["Shop Japan Squat Magic squat assist machine", "Squat Magic"]]);
+M("Shop Japan", "Mini stepper", [["Shop Japan Nice Day stepper", "Nice Day"]]);
+M("Panasonic", "Horse riding machine", [["Panasonic Joba horse riding machine", "Joba"]]);
+L("Panasonic", "Massage chair");
+L("Panasonic", "Foot massager");
+L("Panasonic", "Neck and shoulder massager");
+L("Omron", "TENS unit");
+L("Omron", "Pedometer");
+L("Omron", "Body composition scale");
+L("Tanita", "Pedometer");
+L("Tanita", "Grip dynamometer");
+M("Nintendo", "Fitness ring controller (Ring-Con)", [["Nintendo Ring Fit Adventure Ring-Con", "Ring Fit Adventure"]]);
+L("Atex", "Massage cushion");
+L("Atex", "Foot massager");
+L("Atex", "Neck and shoulder massager");
+L("Fujiiryoki", "Massage chair");
+L("Family Inada", "Massage chair");
+L("Dr.Air", "Massage gun");
+L("Dr.Air", "Foam roller", { line: "vibrating" });
+L("Dr.Air", "Vibration platform machine");
+M("SIXPAD", "EMS trainer", [["SIXPAD Abs Belt EMS trainer", "Abs Belt"], ["SIXPAD Foot Fit 2 EMS trainer", "Foot Fit 2"], ["SIXPAD Foot Fit Plus EMS trainer", "Foot Fit Plus"]]);
+M("SIXPAD", "Massage gun", [["SIXPAD Power Gun massage gun", "Power Gun"]]);
+L("Toei Light", "Balance beam");
+L("Toei Light", "Folding gymnastics mat");
+L("Toei Light", "Medicine ball", { kg: L5, note: TYPICAL });
+L("Toei Light", "Skipping rope");
+L("Toei Light", "Double dutch long rope");
+L("Toei Light", "Speed hurdles");
+L("Toei Light", "Training cones");
+L("Toei Light", "Agility ladder");
+L("Nishi Sports", "Medicine ball", { kg: L5, note: TYPICAL });
+L("Nishi Sports", "Speed hurdles");
+L("Nishi Sports", "Agility ladder");
+L("Nishi Sports", "Training cones");
+L("Nichiban", "Kinesiology tape");
+L("Nichiban", "Athletic tape");
+for (const t of ["Knee brace", "Ankle brace", "Wrist brace", "Tennis elbow strap", "Back support belt", "Compression sleeves"]) L("Zamst", t);
+for (const t of ["Knee brace", "Ankle brace", "Wrist brace", "Compression sleeves"]) L("McDavid", t);
+L("Yogaworks", "Yoga mat");
+L("Yogaworks", "Yoga block");
+L("Yogaworks", "Yoga strap");
+L("Suria", "Yoga mat");
+// --- Brands already listed, more categories
+L("Reebok", "Neoprene dumbbell", { kg: L5, note: TYPICAL });
+L("Reebok", "Ankle weights", { kg: [0.5, 1, 1.5, 2], note: TYPICAL });
+L("Reebok", "Wrist weights");
+L("Reebok", "Ab wheel");
+L("Reebok", "Push-up handles");
+L("Reebok", "Stability ball", { v: ["55 cm", "65 cm", "75 cm"] });
+L("Reebok", "Medicine ball", { kg: L5, note: TYPICAL });
+L("Reebok", "Mini loop band");
+L("Reebok", "Core sliders");
+L("Reebok", "Balance board");
+L("Reebok", "Yoga block");
+L("Reebok", "Skipping rope");
+L("Reebok", "Speed jump rope");
+L("Reebok", "Weight vest");
+L("Reebok", "Boxing gloves", { v: BOX_OZ, note: TYPICAL });
+L("Reebok", "Spin bike");
+L("Reebok", "Rowing machine");
+L("Reebok", "Elliptical cross trainer");
+L("Adidas", "Ab wheel");
+L("Adidas", "Push-up handles");
+L("Adidas", "Resistance tube band with handles");
+L("Adidas", "Stability ball", { v: ["55 cm", "65 cm", "75 cm"] });
+L("Adidas", "Medicine ball", { kg: L5, note: TYPICAL });
+L("Adidas", "Core sliders");
+L("Adidas", "Weight vest");
+L("Adidas", "Wrist weights");
+L("Adidas", "Yoga block");
+L("Adidas", "Balance board");
+L("Adidas", "Aerobic step platform");
+L("Adidas", "Spin bike");
+L("Adidas", "Upright exercise bike");
+L("Adidas", "Motorised treadmill");
+L("Adidas", "Punching bag");
+L("Adidas", "Hand wraps");
+L("Adidas", "Focus mitts");
+L("Adidas", "Boxing headgear");
+M("Adidas", "Boxing shoes", [["Adidas Box Hog 4 boxing shoes", "Box Hog 4"], ["Adidas Speedex Ultra boxing shoes", "Speedex Ultra"]]);
+L("Nike", "Resistance band");
+L("Nike", "Mini loop band");
+L("Nike", "Foam roller");
+L("Nike", "Massage ball");
+L("Nike", "Ankle weights");
+L("Nike", "Exercise mat");
+M("Nike", "Boxing shoes", [["Nike Machomai 2 boxing shoes", "Machomai 2"], ["Nike HyperKO 2 boxing shoes", "HyperKO 2"]]);
+M("Bowflex", "Adjustable dumbbell", [["Bowflex SelectTech 560 adjustable dumbbell (up to 27 kg)", "SelectTech 560", 27]]);
+M("Bowflex", "Motorised treadmill", [["Bowflex T10 treadmill", "T10"], ["Bowflex T22 treadmill", "T22"]]);
+M("Bowflex", "Spin bike", [["Bowflex C7 spin bike", "C7"]]);
+M("Bowflex", "Elliptical cross trainer", [["Bowflex Max Trainer M8 elliptical cross trainer", "Max Trainer M8"]]);
+M("Bowflex", "Multi-station home gym", [["Bowflex PR1000 home gym", "PR1000"], ["Bowflex Revolution home gym", "Revolution"], ["Bowflex Blaze home gym", "Blaze"]]);
+M("Bowflex", "Barbell set", [["Bowflex SelectTech 2080 barbell set with curl bar", "SelectTech 2080"]]);
+M("Bowflex", "Adjustable bench", [["Bowflex SelectTech 4.1S adjustable bench", "4.1S"]]);
+M("Rogue", "Safety squat barbell", [["Rogue SB-1 safety squat barbell", "SB-1"]]);
+M("Rogue", "Swiss multi-grip barbell", [["Rogue MG-3 multi-grip barbell", "MG-3"]]);
+M("Rogue", "Glute ham developer bench", [["Rogue Abram GHD bench", "Abram"]]);
+M("Rogue", "Weight sled", [["Rogue Dog Sled weight sled", "Dog Sled"]]);
+for (const t of ["Axle bar (fat bar)", "Cambered squat bar", "Log bar", "Yoke", "Atlas stone", "Farmer's walk handles", "Sandbag", "Plyo box", "Reverse hyperextension machine",
+  "Gym climbing rope", "Pegboard", "Parallettes (mini dip bars)", "Weight collars", "Lifting chalk", "Lifting straps", "J-hooks", "Safety spotter arms", "Landmine barbell attachment", "Dip station", "Wrist wraps"]) L("Rogue", t);
+L("Eleiko", "Technique bumper plate", { kg: [2.5, 5], note: TYPICAL });
+L("Eleiko", "Calibrated powerlifting plate", { kg: [0.25, 0.5, 1.25, 2.5, 5, 10, 15, 20, 25] });
+L("Eleiko", "Weight collars");
+L("Eleiko", "Lifting belt");
+L("Eleiko", "Power rack with pull-up bar");
+L("Eleiko", "Adjustable bench");
+L("Eleiko", "Flat bench");
+M("TRX", "Resistance band bar", [["TRX Rip Trainer resistance band bar", "Rip Trainer"]]);
+L("TRX", "Kettlebell");
+L("TRX", "Slam ball");
+L("TRX", "Door anchor (for tubes)");
+L("Theraband", "Hand therapy putty");
+L("Theraband", "Hand exercise ball");
+L("Theraband", "Stability ball", { v: ["45 cm", "55 cm", "65 cm", "75 cm", "85 cm"] });
+L("Theraband", "Balance pad");
+L("Theraband", "Foam roller");
+L("Theraband", "Kinesiology tape");
+L("Theraband", "Balance board");
+L("Gaiam", "Stability ball");
+M("Gaiam", "Balance ball chair", [["Gaiam Classic Balance Ball Chair", "Classic"]]);
+L("Gaiam", "Yoga wheel");
+L("Gaiam", "Soft weighted toning ball", { lb: [2, 3, 4, 5, 6] });
+L("Gaiam", "Meditation cushion");
+L("Gaiam", "Yoga towel");
+L("Manduka", "Yoga towel");
+L("Manduka", "Yoga strap");
+L("Manduka", "Yoga bolster");
+L("Manduka", "Yoga blanket");
+L("Lululemon", "Yoga block");
+M("Hyperice", "Massage ball", [["Hyperice Hypersphere vibrating massage ball", "Hypersphere"], ["Hyperice Hypersphere Go vibrating massage ball", "Hypersphere Go"]]);
+M("Therabody", "Compression boots", [["Therabody RecoveryAir JetBoots compression boots", "RecoveryAir JetBoots"]]);
+M("Therabody", "Foam roller", [["Therabody Wave Roller vibrating foam roller", "Wave Roller"]]);
+M("Therabody", "Massage ball", [["Therabody Wave Solo vibrating massage ball", "Wave Solo"]]);
+M("Samsung", "Smart ring", [["Samsung Galaxy Ring smart ring", "Galaxy Ring"]]);
+L("Everlast", "Punching bag stand");
+L("Everlast", "Speed bag");
+L("Everlast", "Free-standing punching bag");
+L("Everlast", "Focus mitts");
+L("Everlast", "Boxing headgear");
+L("Everlast", "MMA gloves");
+L("Everlast", "Skipping rope");
+L("Hayabusa", "Hand wraps");
+L("Hayabusa", "MMA gloves");
+L("Hayabusa", "Shin guards");
+L("Title Boxing", "Speed bag");
+L("Title Boxing", "Boxing headgear");
+L("Title Boxing", "Focus mitts");
+for (const t of ["MMA gloves", "Shin guards", "Focus mitts", "Hand wraps", "Boxing headgear"]) L("RDX", t);
+for (const t of ["Shin guards", "Boxing headgear", "Mouthguard", "Focus mitts"]) L("Venum", t);
+L("Twins Special", "Shin guards");
+L("Twins Special", "Boxing headgear");
+L("Fairtex", "Shin guards");
+L("Fairtex", "Boxing headgear");
+L("Fairtex", "MMA gloves");
+L("ISAMI", "Shin guards");
+L("ISAMI", "Boxing headgear");
+L("ISAMI", "Hand wraps");
+L("ISAMI", "Mouthguard");
+L("Winning", "Bag gloves");
+// --- Global, new brands
+M("Iron Gym", "Doorway pull-up bar", [["Iron Gym Total Upper Body doorway pull-up bar", "Total Upper Body"]]);
+L("Iron Gym", "Push-up handles");
+M("Perfect Fitness", "Push-up handles", [["Perfect Fitness Perfect Pushup Elite push-up handles", "Perfect Pushup Elite"]]);
+M("Perfect Fitness", "Ab wheel", [["Perfect Fitness Ab Carver Pro ab wheel", "Ab Carver Pro"]]);
+M("Perfect Fitness", "Doorway pull-up bar", [["Perfect Fitness Multi-Gym doorway pull-up bar", "Multi-Gym"]]);
+L("Yes4All", "Cast iron kettlebell", { lb: range(5, 60, 5), note: TYPICAL });
+L("Yes4All", "Vinyl kettlebell", { lb: range(5, 25, 5), note: TYPICAL });
+L("Yes4All", "Slam ball", { lb: [10, 15, 20, 25, 30, 40, 50], note: TYPICAL });
+L("Yes4All", "Wall ball", { lb: [6, 8, 10, 12, 14, 16, 20], note: TYPICAL });
+L("Yes4All", "Medicine ball", { lb: [4, 6, 8, 10, 12, 15, 20], note: TYPICAL });
+L("Yes4All", "Plyo box", { v: ["(soft foam)"] });
+L("Yes4All", "Foam roller");
+L("Yes4All", "Ab wheel");
+L("Yes4All", "Balance board");
+L("Yes4All", "Sandbag");
+L("Yes4All", "Olympic iron plate", { lb: [2.5, 5, 10, 25, 35, 45], note: TYPICAL });
+L("CAP Barbell", "Hex dumbbell", { lb: range(5, 50, 5), note: TYPICAL });
+L("CAP Barbell", "Neoprene dumbbell", { lb: [1, 2, 3, 5, 8, 10, 12, 15], note: TYPICAL });
+L("CAP Barbell", "Cast iron kettlebell", { lb: range(5, 50, 5), note: TYPICAL });
+L("CAP Barbell", "Olympic iron plate", { lb: [2.5, 5, 10, 25, 35, 45] });
+L("CAP Barbell", "Standard plate 1-inch", { lb: [2.5, 5, 10, 25], note: TYPICAL });
+L("CAP Barbell", "Olympic barbell");
+L("CAP Barbell", "EZ curl barbell");
+L("CAP Barbell", "Flat bench");
+L("CAP Barbell", "Adjustable bench");
+L("CAP Barbell", "Power rack with pull-up bar");
+L("CAP Barbell", "Dumbbell rack");
+for (const t of ["Motorised treadmill", "Manual treadmill", "Spin bike", "Upright exercise bike", "Recumbent bike", "Rowing machine", "Elliptical cross trainer",
+  "Mini stepper", "Under-desk elliptical", "Mini pedal exerciser cycle", "Air walker", "Power tower pull-up and dip station", "Vertical climber"]) L("Sunny Health & Fitness", t);
+for (const t of ["Spin bike", "Rowing machine", "Walking pad", "Upright exercise bike", "Mini stepper"]) L("Merach", t);
+M("Sole Fitness", "Motorised treadmill", [["Sole Fitness F63 treadmill", "F63"], ["Sole Fitness F80 treadmill", "F80"], ["Sole Fitness F85 treadmill", "F85"]]);
+M("Sole Fitness", "Elliptical cross trainer", [["Sole Fitness E25 elliptical cross trainer", "E25"], ["Sole Fitness E35 elliptical cross trainer", "E35"]]);
+M("Horizon Fitness", "Motorised treadmill", [["Horizon Fitness 7.0 AT treadmill", "7.0 AT"], ["Horizon Fitness T101 treadmill", "T101"]]);
+L("Horizon Fitness", "Elliptical cross trainer");
+M("ProForm", "Motorised treadmill", [["ProForm Pro 2000 treadmill", "Pro 2000"], ["ProForm Carbon TLX treadmill", "Carbon TLX"]]);
+M("ProForm", "Spin bike", [["ProForm Studio Bike Pro 22 spin bike", "Studio Bike Pro 22"]]);
+M("Nautilus", "Recumbent bike", [["Nautilus R618 recumbent bike", "R618"]]);
+M("Nautilus", "Upright exercise bike", [["Nautilus U618 upright exercise bike", "U618"]]);
+M("Nautilus", "Elliptical cross trainer", [["Nautilus E618 elliptical cross trainer", "E618"]]);
+M("Nautilus", "Motorised treadmill", [["Nautilus T618 treadmill", "T618"]]);
+M("Teeter", "Inversion table", [["Teeter FitSpine X3 inversion table", "FitSpine X3"], ["Teeter FitSpine LX9 inversion table", "FitSpine LX9"]]);
+L("Bala", "Weighted bangles", { lb: [1, 2] });
+L("Bala", "Body bar (weighted fitness bar)");
+L("Valslide", "Core sliders");
+L("Compex", "EMS trainer");
+L("PowerDot", "EMS trainer");
+M("POWERbreathe", "Breathing trainer", [["POWERbreathe Plus breathing trainer", "Plus"], ["POWERbreathe K3 breathing trainer", "K3"]]);
+M("Airofit", "Breathing trainer", [["Airofit PRO breathing trainer", "PRO"]]);
+M("Oura", "Smart ring", [["Oura Ring Gen3 smart ring", "Gen3"], ["Oura Ring 4 smart ring", "Ring 4"]]);
+M("Ultrahuman", "Smart ring", [["Ultrahuman Ring Air smart ring", "Ring Air"]]);
+L("BlazePod", "Reaction light trainer");
+M("Fat Gripz", "Fat grips", [["Fat Gripz Original fat grips", "Original"], ["Fat Gripz Extreme fat grips", "Extreme"]]);
+L("Iron Neck", "Neck trainer");
+M("Vivobarefoot", "Barefoot shoes", [["Vivobarefoot Primus Lite barefoot shoes", "Primus Lite"], ["Vivobarefoot Motus Strength barefoot shoes", "Motus Strength"], ["Vivobarefoot Primus Trail barefoot shoes", "Primus Trail"]]);
+M("Xero Shoes", "Barefoot shoes", [["Xero Shoes HFS barefoot shoes", "HFS"], ["Xero Shoes Prio barefoot shoes", "Prio"]]);
+M("Merrell", "Barefoot shoes", [["Merrell Vapor Glove 6 barefoot shoes", "Vapor Glove 6"]]);
+L("Bellicon", "Mini trampoline rebounder");
+L("JumpSport", "Mini trampoline rebounder");
+L("Indo Board", "Balance board");
+L("Renpho", "Body composition scale");
+L("Renpho", "Massage gun");
+L("Renpho", "Foot massager");
+L("Renpho", "Neck and shoulder massager");
+L("Thera Cane", "Back hook massager");
+for (const t of ["Lifting belt", "Lifting straps", "Lifting gloves", "Wrist wraps"]) L("Schiek", t);
+L("Valeo", "Lifting belt");
+L("Valeo", "Lifting gloves");
+M("Lebert", "Parallettes (mini dip bars)", [["Lebert Equalizer parallettes", "Equalizer"]]);
+L("Bodylastics", "Resistance tube band with handles");
+L("Bodylastics", "Resistance band set");
+L("WODFitters", "Long loop power band");
+for (const t of ["Power rack with pull-up bar", "Olympic barbell", "Bumper plate", "Adjustable bench", "Belt squat machine (home gym)", "Safety squat barbell"]) L("Bells of Steel", t);
+L("Fringe Sport", "Bumper plate", { lb: [10, 15, 25, 35, 45], note: TYPICAL });
+L("Fringe Sport", "Olympic barbell");
+M("Tacx", "Indoor bike trainer", [["Tacx NEO 2T smart bike trainer", "NEO 2T"], ["Tacx Flux S smart bike trainer", "Flux S"]]);
+L("UREVO", "Walking pad");
+L("LifeSpan", "Walking pad");
+L("Yesoul", "Spin bike");
+L("Xterra", "Motorised treadmill");
+L("Xterra", "Folding X-bike");
+L("Alo Yoga", "Yoga mat");
+L("Alo Yoga", "Yoga block");
+// Sizes for lines listed bare above
+for (const b of ["ISAMI", "Title Boxing", "USI Universal", "Vector X", "Cosco", "BODYMAKER"]) L(b, "Boxing gloves", { v: BOX_OZ, note: TYPICAL });
+L("Titan Fitness", "Hex dumbbell", { lb: range(5, 50, 5), note: TYPICAL });
+L("Titan Fitness", "Cast iron kettlebell", { lb: range(10, 50, 5), note: TYPICAL });
+L("Titan Fitness", "Olympic iron plate", { lb: [2.5, 5, 10, 25, 35, 45] });
+L("York Barbell", "Olympic iron plate", { lb: [2.5, 5, 10, 25, 35, 45] });
 
 // ---------- Build ----------
 const DEF = new Map(DEFS.map((d) => [d.t, d]));

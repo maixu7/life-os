@@ -8,6 +8,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { nextTasks, snooze, type Action, type Task } from "@/lib/coach";
 import { useApp, useCustomItems } from "@/lib/store";
 import { ScheduleSheet } from "@/components/ScheduleSheet";
+import { MyTaskSheet } from "@/components/MyTasks";
 import { SpeakButton } from "@/components/Safety";
 import { speak } from "@/lib/safety";
 import { gaps, handledToday } from "@/lib/gaps";
@@ -85,7 +86,8 @@ export function CoachCard() {
       <span className="text-muted">Schedule ›</span>
     </button>
   );
-  const sheet = plan && <ScheduleSheet onClose={() => setPlan(false)} />;
+  const [mine, setMine] = useState(false);
+  const sheet = <>{plan && <ScheduleSheet onClose={() => setPlan(false)} />}{mine && <MyTaskSheet onClose={() => setMine(false)} />}</>;
   // What the Sensei read before choosing: today's numbers from every part of the app.
   const read = useMemo(() => {
     const day = toDay(new Date());
@@ -103,7 +105,10 @@ export function CoachCard() {
       {now}
       <div className="flex items-center justify-between mb-2">
         <h2 className="section-title">🎯 Sensei&apos;s order</h2>
-        {tasks.length > 1 && <span className="text-[10px] text-muted">{(i % tasks.length) + 1} of {tasks.length}</span>}
+        <span className="flex items-center gap-2">
+          {tasks.length > 1 && <span className="text-[10px] text-muted">{(i % tasks.length) + 1} of {tasks.length}</span>}
+          <button onClick={() => setMine(true)} className="chip !py-0.5 text-[11px]">＋ My task</button>
+        </span>
       </div>
       <TaskBody t={t} />
       <div className="mt-3 flex gap-2">

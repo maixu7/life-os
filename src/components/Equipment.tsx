@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { Pic } from "@/components/Pic";
-import { EQUIP_TYPES, equipOf, parseGear } from "@/lib/equipment";
+import { EQUIP_TYPES, EQUIPMENT, equipOf, parseGear } from "@/lib/equipment";
+import { SnapChoice, type Pick } from "@/components/SnapChoice";
 import { aiPhoto, readProduct } from "@/lib/foodai";
 import { loadImage, smallPhoto } from "@/lib/foodphoto";
 import { gearOf, itemKind, kitOf, kitText, withGear } from "@/lib/have";
@@ -19,6 +20,18 @@ export function EquipmentSheet({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const [say, setSay] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
+  // Photos waiting for "AI or my list?", one at a time.
+  const [queue, setQueue] = useState<{ file: File; small: string; img: HTMLImageElement }[]>([]);
+  const guess = useCallback((text: string, seen: string[]) => { const e = equipOf(`${text} ${seen.join(" ")}`); return e ? [e.name] : []; }, []);
+  const picks = useMemo<Pick[]>(() => [
+    ...data.pantry.filter((p) => itemKind(p) === "equipment").map((p) => ({ name: p.name, emoji: p.emoji, sub: p.kg ? `${p.kg} kg` : undefined, mine: true })),
+    ...EQUIPMENT.map((e) => ({ name: e.name, emoji: e.emoji, ja: e.ja, sub: e.brand })),
+  ], [data.pantry]);
+  const choose = async (files: File[]) => {
+    const out: { file: File; small: string; img: HTMLImageElement }[] = [];
+    for (const file of files) { const img = await loadImage(file); out.push({ file, img, small: smallPhoto(img, 160) }); }
+    setQueue(out);
+  };
   const ref = useRef<HTMLInputElement>(null);
   const mine = data.pantry.filter((p) => itemKind(p) === "equipment");
   const kit = kitOf(data.pantry);
@@ -75,7 +88,9 @@ export function EquipmentSheet({ onClose }: { onClose: () => void }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {photos.length ? <img src={photos[photos.length - 1]} alt="Equipment" className="h-full w-full object-cover" /> : "📷"}
           </button>
-          <input ref={ref} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ""; if (f.length) snap(f); }} />
+          <input ref={ref} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ""; if (f.length) choose(f); }} />
+          {queue[0] && <SnapChoice key={queue.length} photo={queue[0].small} img={queue[0].img} guess={guess} list={picks} what="equipment" more={queue.length > 1 ? `${queue.length - 1} more after this` : undefined} onClose={() => setQueue((q) => q.slice(1))}
+            onAI={() => snap([queue[0].file])} onPick={(p) => { setPhotos((ps) => [...ps, queue[0].small]); save([{ name: p.name, extra: { photo: queue[0].small } }]); }} />}
           <textarea className="input flex-1 min-h-14 text-sm" placeholder={"or type it, one per line:\ndumbbell 10 kg ×2\nkettlebell 20 kg\nab wheel"} value={say} onChange={(e) => setSay(e.target.value)} />
         </div>
         <button disabled={busy || !say.trim()} onClick={typed} className="btn-primary w-full !py-1.5 text-sm disabled:opacity-40">{busy ? "Reading…" : "Read & add"}</button>

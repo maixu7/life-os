@@ -7,7 +7,7 @@ import { aiPhoto, readBook } from "@/lib/foodai";
 import { loadImage, smallPhoto } from "@/lib/foodphoto";
 import { useApp, useCustomItems } from "@/lib/store";
 
-// Snap a book cover: the AI reads title, author and pages, and the book joins
+// Snap a book cover; type it, or tap Ask AI to read title, author and pages, and the book joins
 // your reading list (and My stuff, if you own it). Typing works too, offline.
 
 export function BookScanSheet({ onClose, onRead }: { onClose: () => void; onRead: (title: string) => void }) {
@@ -23,11 +23,18 @@ export function BookScanSheet({ onClose, onRead }: { onClose: () => void; onRead
   const [saved, setSaved] = useState("");
   const file = useRef<HTMLInputElement>(null);
 
+  // The photo becomes the cover; type the title, or tap Ask AI to read it.
+  const [shot, setShot] = useState<HTMLImageElement | null>(null);
   const scan = async (f: File) => {
-    setBusy(true); setMsg("");
     try {
       const img = await loadImage(f);
-      setCover(smallPhoto(img, 96));
+      setCover(smallPhoto(img, 96)); setShot(img);
+      setMsg("Type the title and pages, or tap 🤖 Ask AI to read the cover.");
+    } catch { setMsg("Couldn't open that photo. Type the title instead."); }
+  };
+  const askAI = async (img: HTMLImageElement) => {
+    setBusy(true); setMsg("🤖 AI is reading the cover…");
+    try {
       const r = await readBook(session, aiPhoto(img), title);
       if (r.book?.found) {
         setTitle(r.book.title); setAuthor(r.book.author); if (r.book.pages > 0) setPages(String(Math.round(r.book.pages)));
@@ -68,6 +75,7 @@ export function BookScanSheet({ onClose, onRead }: { onClose: () => void; onRead
             {cover && <img src={cover} alt="" className="h-8 w-8 rounded object-cover" />}{busy ? "Reading the cover…" : "📷 Snap the cover"}
           </button>
           {msg && <p className="text-xs text-muted">{msg}</p>}
+          {shot && !busy && <button onClick={() => askAI(shot)} className="btn-ghost w-full !py-2 text-sm ring-1 ring-[var(--accent)]">🤖 Ask AI to read the cover</button>}
           <input className="input" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
           <div className="grid grid-cols-[1fr_96px] gap-2">
             <input className="input" placeholder="Author" value={author} onChange={(e) => setAuthor(e.target.value)} />

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useRunAction } from "@/components/Coach";
 import { logKarma } from "@/lib/karma";
 import { moveOf } from "@/lib/moves";
-import { sched } from "@/lib/schedule";
+import { goalsOn, sched } from "@/lib/schedule";
 import { toDay, useApp, type Log } from "@/lib/store";
 
 // Learning comes first in Life OS: every day should make you a "Day 1" smarter.
@@ -41,7 +41,7 @@ const QUICK: [string, string, Parameters<ReturnType<typeof useRunAction>>[0]][] 
 export function LearnToday({ compact = false }: { compact?: boolean }) {
   const { data } = useApp();
   const run = useRunAction();
-  const goal = sched(data.profile.settings.schedule).learnGoal;
+  const goal = goalsOn(sched(data.profile.settings.schedule)).learnGoal;
   const day = toDay(new Date());
   const t = useMemo(() => learnedOn(data.logs, day), [data.logs, day]);
   const week = useMemo(() => {

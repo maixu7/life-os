@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { hm, sched, studyFrom, type Schedule } from "@/lib/schedule";
 import { studyGate } from "@/lib/worst";
+import { AREAS, taskOf } from "@/lib/mytasks";
 import { toDay } from "@/lib/store";
 import { useApp, useCustomItems, type CustomItem } from "@/lib/store";
 
@@ -14,7 +15,7 @@ const ON = "lifeos-push-on";
 const add = (t: string, mins: number) => { const [h, m] = t.split(":").map(Number); const x = (h * 60 + m + mins + 1440) % 1440; return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`; };
 const weekdays = [1, 2, 3, 4, 5], weekend = [0, 6];
 
-export function buildPlan(s: Schedule, reminders: CustomItem[], studying: boolean): Plan[] {
+export function buildPlan(s: Schedule, reminders: CustomItem[], studying: boolean, tasks: CustomItem[] = []): Plan[] {
   // Reports: every day at 8 PM, every Saturday at 8 AM, and the month's on its first Saturday.
   const p: Plan[] = [
     { at: "20:00", body: "📊 Your day report is ready: what went well and what you lacked.", url: "/?report=day" },
@@ -23,6 +24,8 @@ export function buildPlan(s: Schedule, reminders: CustomItem[], studying: boolea
   ];
   p.push(...reminders.filter((r) => /^\d\d:\d\d$/.test(String(r.config.time))).map((r) => ({ at: String(r.config.time), body: `⏰ ${r.name}` })));
   const t = (at: string, body: string, days?: number[]) => { if (/^\d\d:\d\d$/.test(at)) p.push({ at, body, days }); };
+  // Your own weekly tasks ring like Sensei's (one-date tasks show in the app).
+  for (const k of tasks) { const m = taskOf(k); if (!m.date && m.days.length) t(m.time, `${AREAS[m.area].icon} ${k.name}`, m.days); }
   t(s.wake, "☀️ Good morning, hero! Drink a glass of water and open today's missions.", weekdays);
   t(s.weekendWake, "☀️ Good morning! Water first, then today's missions.", weekend);
   t(s.breakfast, "🍳 Breakfast time. Log it with a photo for the real calories.");
@@ -56,9 +59,10 @@ const call = (body: object) => fetch("/api/push", { method: "POST", headers: { "
 function usePlan() {
   const { profile } = useApp();
   const { items } = useCustomItems("reminder");
+  const { items: tasks } = useCustomItems("task");
   const s = sched(profile.settings.schedule);
   const studying = !!profile.settings.study_plan?.length;
-  return useMemo(() => buildPlan(s, items, studying), [s, items, studying]);
+  return useMemo(() => buildPlan(s, items, studying, tasks), [s, items, studying, tasks]);
 }
 
 export function PushCard() {

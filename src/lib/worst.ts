@@ -2,7 +2,7 @@ import { bodyOf, eaten, type Eaten } from "@/lib/body";
 import { groupsOf, type Group } from "@/lib/care";
 import { haveFoods } from "@/lib/have";
 import { logKarma, mediaTypeOf } from "@/lib/karma";
-import { sched } from "@/lib/schedule";
+import { goalsOn, sched } from "@/lib/schedule";
 import { toDay, type Data, type Log, type StudyItem } from "@/lib/store";
 
 // Your worst habits, ranked by how much they put you at risk, each with one
@@ -29,7 +29,9 @@ export type StudyDone = { item: StudyItem; mins: number; pages: number; done: bo
 export type StudyDay = { items: StudyDone[]; mins: number; goal: number; left: number; done: boolean; fun: number; next?: StudyItem };
 
 export function studyDay(d: Data, day = toDay(new Date())): StudyDay {
-  const plan = d.profile.settings.study_plan ?? [];
+  // Days off are free time: every subject asks for more (goalsOn).
+  const g = goalsOn(sched(d.profile.settings.schedule), new Date(`${day}T12:00:00`));
+  const plan = (d.profile.settings.study_plan ?? []).map((x) => ({ ...x, mins: Math.round(x.mins * g.k), pages: x.pages ? Math.round(x.pages * g.k) : x.pages }));
   const logs = d.logs.filter((l) => l.day === day);
   const study = logs.filter(isStudy);
   const used = new Set<string>();
@@ -42,7 +44,7 @@ export function studyDay(d: Data, day = toDay(new Date())): StudyDay {
   let free = study.filter((l) => !used.has(l.id)).reduce((n, l) => n + MIN(l, 25), 0);
   for (const x of items) { const take = Math.min(free, Math.max(0, x.item.mins - x.mins)); x.mins += take; free -= take; }
   for (const x of items) x.done = x.mins >= x.item.mins && (!x.item.pages || x.pages >= x.item.pages || x.mins >= x.item.mins * 1.5);
-  const goal = plan.reduce((n, x) => n + x.mins, 0) || (d.profile.settings.exam_date ? sched(d.profile.settings.schedule).learnGoal : 0);
+  const goal = plan.reduce((n, x) => n + x.mins, 0) || (d.profile.settings.exam_date ? g.learnGoal : 0);
   const mins = study.reduce((n, l) => n + MIN(l, 25), 0);
   const fun = logs.filter((l) => (l.kind === "media" || l.kind === "activity") && logKarma(l) < 0).reduce((n, l) => n + MIN(l), 0);
   const done = plan.length ? items.every((x) => x.done) : mins >= goal;
