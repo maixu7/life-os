@@ -135,6 +135,7 @@ export function ScheduleSheet({ onClose }: { onClose: () => void }) {
           <Num label="Learn each day (all study)" value={s.learnGoal} onChange={set("learnGoal")} unit="min" />
           <Num label="Read each day" value={s.readGoal} onChange={set("readGoal")} unit="pages" />
           <Num label="Code each day" value={s.codeGoal} onChange={set("codeGoal")} unit="min" />
+          <Num label="Days off: harder by" value={s.offBoost ?? 50} onChange={set("offBoost")} unit="%" />
           <Num label="Focus session" value={s.focusLength} onChange={set("focusLength")} unit="min" />
           <Num label="Fun screen limit" value={s.screenLimit} onChange={set("screenLimit")} unit="min/day" />
         </div>

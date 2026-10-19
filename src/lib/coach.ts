@@ -3,11 +3,12 @@ import { habitStats, judged, tplOf } from "@/lib/habits";
 import { sumMl } from "@/lib/goals";
 import { logKarma } from "@/lib/karma";
 import { studyGate, worst } from "@/lib/worst";
-import { isOffDay, phaseNow, sched, toMin, wokeRecently } from "@/lib/schedule";
+import { goalsOn, isOffDay, phaseNow, sched, toMin, wokeRecently } from "@/lib/schedule";
 import { pick, SLEEP_WHY } from "@/lib/wisdom";
 import type { CustomItem, Data, Log } from "@/lib/store";
 import { toDay } from "@/lib/store";
-import { kitOf, kitText } from "@/lib/have";
+import { kitOf, kitText, todayKit } from "@/lib/have";
+import { myTasks } from "@/lib/mytasks";
 
 // The Sensei looks at the clock and your records and picks what you should do next,
 // with the benefit ("why do it") and the trigger ("why I picked this").
@@ -78,12 +79,13 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
   }
   if (off && ph.phase === "free" && h >= 8 && h < at(sc.sleep) - 1) {
     const pages = logs.filter((l) => l.kind === "media" && l.data.mode !== "watch").reduce((n, l) => n + (Number(l.data.pages) || 0), 0);
-    if (pages < sc.readGoal) add({ id: "free-read", icon: "📚", title: `Read ${sc.readGoal - pages} pages`, priority: 64, action: { type: "library" },
-      because: `It's a ${ph.day === "free" ? "free day" : ph.day} with no work, so this is the best time for your reading goal (${pages}/${sc.readGoal} pages).`,
+    const gl = goalsOn(sc, now);
+    if (pages < gl.readGoal) add({ id: "free-read", icon: "📚", title: `Read ${gl.readGoal - pages} pages`, priority: 64, action: { type: "library" },
+      because: `It's a ${ph.day === "free" ? "free day" : ph.day} with no work, so it's hard mode: the best time for your bigger reading goal (${pages}/${gl.readGoal} pages).`,
       why: "Free days decide who you become. Spend part of yours growing." });
     const code = logs.filter((l) => l.kind === "coding").reduce((n, l) => n + (Number(l.data.minutes) || 0), 0);
-    if (sc.codeGoal && code < sc.codeGoal) add({ id: "free-code", icon: "💻", title: `Code for ${sc.codeGoal - code} minutes`, priority: 61, action: { type: "activity", name: "Coding" },
-      because: `No work today, and your coding goal is ${code}/${sc.codeGoal} min.`, why: "Skills compound. A free day is a bonus training day." });
+    if (gl.codeGoal && code < gl.codeGoal) add({ id: "free-code", icon: "💻", title: `Code for ${gl.codeGoal - code} minutes`, priority: 61, action: { type: "activity", name: "Coding" },
+      because: `No work today, so it's hard mode: your coding goal is ${code}/${gl.codeGoal} min.`, why: "Skills compound. A free day is a bonus training day." });
   }
 
   // Exam study comes before any fun, and the worst habits get a fix every day.
@@ -146,10 +148,11 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
   }
   const ex = sc.exercise ? at(sc.exercise) : 16;
   if (h >= ex - 0.5 && h < Math.max(ex + 2.5, 20.5) && !busy && !logs.some((l) => l.kind === "workout") && !actNamed(logs, /exercise|walk|run|gym|yoga|sport/i)) {
-    const kit = kitOf(d.pantry);
+    const kit = todayKit(kitOf(d.pantry), now);
     const gear = Object.keys(kit).length ? kitText(kit) : "";
-    add({ id: "move", icon: "🏋️", title: gear ? "Do today's workout" : "Move for 15 minutes", priority: 40, action: gear ? { type: "href", href: "/train" } : { type: "activity", name: "Walk" },
-      because: `${sc.exercise ? `Your exercise time is ${sc.exercise} and` : "You have"} no workout logged today.${gear ? ` Today's plan is made for what you own: ${gear}.` : ""}`, why: "A short walk or workout clears stress and makes sleep deeper tonight." });
+    const hard = off;
+    add({ id: "move", icon: "🏋️", title: `${gear ? "Do today's workout" : "Move for 15 minutes"}${hard ? " (day off: hard mode)" : ""}`, priority: 40, action: gear ? { type: "href", href: "/train" } : { type: "activity", name: "Walk" },
+      because: `${sc.exercise ? `Your exercise time is ${sc.exercise} and` : "You have"} no workout logged today.${gear ? ` Today's plan uses ${gear} plus bodyweight moves.` : ""}`, why: "A short walk or workout clears stress and makes sleep deeper tonight." });
   }
   if (h >= at(sc.sleep) - 2 && (h < at(sc.sleep) || ph.phase === "sleep") && !actNamed(logs, /brush/i)) {
     add({ id: "brush-night", icon: "🪥", title: "Brush before bed", priority: 58, action: { type: "activity", name: "Brush teeth" },
@@ -190,6 +193,9 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
     because: `You ran out of ${usedUp.slice(0, 4).map((p) => p.name).join(", ")} (What I have shows 0).`, why: "A list made at home stops forgotten items and impulse buys." });
   if (toBuy.length >= 3 && !busy && (off || ph.phase === "free")) add({ id: "shop", icon: "🛒", title: `Go shopping: ${toBuy.length} items on your list`, priority: 33, action: { type: "href", href: "/shop" },
     because: `Your shopping list has ${toBuy.slice(0, 4).map((i) => i.name).join(", ")}${toBuy.length > 4 ? "…" : ""}, and you're free now.`, why: "One planned trip is cheaper and faster than many small ones." });
+
+  // Tasks you made yourself, in with the rest.
+  for (const t of myTasks(d, now)) add(t);
 
   if (!out.length && !busy) {
     add({ id: "read", icon: "📚", title: "Read 10 pages of a good book", priority: 5, action: { type: "library" },

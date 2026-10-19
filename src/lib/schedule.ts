@@ -15,7 +15,7 @@ export type Schedule = {
   studyStart: string; studyEnd: string; exercise: string; prayer: string;
   napAllowed: boolean; napStart: string; napEnd: string;
   windDown: number; phoneFreeMorning: number; quietStart: string; quietEnd: string;
-  screenLimit: number; focusLength: number; waterEvery: number; readGoal: number; codeGoal: number; learnGoal: number;
+  screenLimit: number; focusLength: number; waterEvery: number; readGoal: number; codeGoal: number; learnGoal: number; offBoost: number;
   popups: "off" | "low" | "normal" | "high";
 };
 
@@ -28,7 +28,7 @@ export const DEFAULT_SCHEDULE: Schedule = {
   studyStart: "18:00", studyEnd: "20:00", exercise: "18:00", prayer: "",
   napAllowed: true, napStart: "14:30", napEnd: "15:30",
   windDown: 30, phoneFreeMorning: 30, quietStart: "", quietEnd: "",
-  screenLimit: 60, focusLength: 25, waterEvery: 120, readGoal: 10, codeGoal: 30, learnGoal: 90,
+  screenLimit: 60, focusLength: 25, waterEvery: 120, readGoal: 10, codeGoal: 30, learnGoal: 90, offBoost: 50,
   popups: "normal",
 };
 
@@ -56,6 +56,14 @@ export function dayType(s: Schedule, d = new Date()): DayType {
   return s.workDays.includes(d.getDay()) ? "work" : "free";
 }
 export const isOffDay = (t: DayType) => t !== "work" && t !== "half";
+
+/** The day's learning, reading and coding goals. Holidays and days off are
+ *  free time, so the goals go up by `offBoost` percent (50% unless changed). */
+export function goalsOn(s: Schedule, d = new Date()) {
+  const off = isOffDay(dayType(s, d));
+  const k = off ? 1 + (s.offBoost ?? 50) / 100 : 1;
+  return { off, k, learnGoal: Math.round(s.learnGoal * k), readGoal: Math.round(s.readGoal * k), codeGoal: Math.round(s.codeGoal * k) };
+}
 
 // Bed and wake times for the night that contains `d` (weekend times on free days).
 export function sleepTimes(s: Schedule, d = new Date()) {

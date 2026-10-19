@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { Pic } from "@/components/Pic";
 import { Sheet } from "@/components/Sheet";
@@ -13,7 +13,9 @@ import { emojiFor } from "@/lib/emoji";
 import { loadImage, recognise, smallPhoto } from "@/lib/foodphoto";
 import { aiPhoto, readProduct } from "@/lib/foodai";
 import { GoodsSuggest } from "@/components/GoodsSuggest";
-import type { Good } from "@/lib/goods";
+import { goods, type Good } from "@/lib/goods";
+import { SnapChoice, type Pick } from "@/components/SnapChoice";
+import { EQUIPMENT } from "@/lib/equipment";
 import { fromPhoto, gearOf, itemKind, kindOf, KINDS, kitOf, kitText, whenToEat, withGear, type Kind } from "@/lib/have";
 import { UNITS, useApp, type PantryItem } from "@/lib/store";
 
@@ -104,11 +106,28 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
   const k: Kind = kind || kindOf(name);
   const kit = kitOf(data.pantry);
 
+  // A photo: first the app's own list (on the phone, no AI); AI only from its button.
+  const [shot, setShot] = useState<HTMLImageElement | null>(null);
+  const picks = useMemo<Pick[]>(() => [
+    ...data.pantry.map((p) => ({ name: p.name, emoji: p.emoji, ja: p.ja, sub: "in What I have", mine: true })),
+    ...goods().map((g) => ({ name: g.name, emoji: g.emoji, ja: g.ja || undefined, sub: g.kcal ? `${g.kcal} kcal per ${g.per}` : g.cat })),
+    ...EQUIPMENT.map((e) => ({ name: e.name, emoji: e.emoji, ja: e.ja, sub: e.brand })),
+  ], [data.pantry]);
   const snap = async (f: File) => {
     const img = await loadImage(f);
     setPhoto(smallPhoto(img, 160));
+    setShot(img);
+  };
+  const pickListed = (p: Pick) => {
+    const g = goods().find((x) => x.name === p.name);
+    if (g) { pickGood(g); return; }
+    const had = data.pantry.find((x) => x.name === p.name);
+    setName(p.name); setJa(p.ja ?? ""); setKind(had ? itemKind(had) : kindOf(p.name));
+    setMsg(`📋 ${p.emoji} ${p.name} (from the list).`);
+  };
+  const askAI = async (img: HTMLImageElement) => {
     setBusy(true);
-    setMsg("Reading the packet (English and 日本語)…");
+    setMsg("🤖 AI is reading the packet (English and 日本語)…");
     // 1) The AI reader reads the packet: name, amount, calories, best-before date.
     const r0 = await readProduct(session, aiPhoto(img), name);
     setBusy(false);
@@ -167,6 +186,7 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
           {photo ? <img src={photo} alt={name} className="h-full w-full object-cover" /> : <span className="text-xs text-muted text-center">📷<br />Photo</span>}
         </button>
         <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) snap(f); e.target.value = ""; }} />
+        {shot && <SnapChoice photo={photo} img={shot} list={picks} what="thing" onClose={() => setShot(null)} onAI={() => askAI(shot)} onPick={pickListed} />}
         <div className="flex-1 min-w-0 space-y-2">
           <input className="input" placeholder="Name or 日本語 (ウインナー, Apple, Dumbbell 10 kg…)" value={name} onChange={(e) => { setName(e.target.value); setNut(null); }} />
           {!nut && <GoodsSuggest q={name} onPick={pickGood} max={5} />}

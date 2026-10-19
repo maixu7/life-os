@@ -10,6 +10,9 @@ import { decodeCard, duel, myCard, shareText, type BuddyCard } from "@/lib/buddy
 import { emojiFor } from "@/lib/emoji";
 import { aiPhoto, readMeal, readProduct, type ProductRead } from "@/lib/foodai";
 import { loadImage, smallPhoto } from "@/lib/foodphoto";
+import { SnapChoice, type Pick } from "@/components/SnapChoice";
+import { foodPicks } from "@/lib/foodpicks";
+import { goods } from "@/lib/goods";
 import type { MealFood } from "@/lib/foodtext";
 import { ruleAnswer, summaryText, todayWins, weekSummary } from "@/lib/hub";
 import { LANGS } from "@/lib/i18n";
@@ -19,7 +22,7 @@ import { UNITS, useApp, useCustomItems, type PantryItem } from "@/lib/store";
 import { progress } from "@/lib/xp";
 
 // ---------- 89 Chat with Sensei ----------
-type Msg = { who: "me" | "sensei"; text: string; ai?: boolean };
+type Msg = { who: "me" | "sensei"; text: string; ai?: boolean; q?: string };
 const CHAT_KEY = "lifeos-chat";
 export function ChatSheet({ onClose }: { onClose: () => void }) {
   const { data, session } = useApp();
@@ -28,19 +31,23 @@ export function ChatSheet({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => { try { localStorage.setItem(CHAT_KEY, JSON.stringify(msgs.slice(-20))); } catch {} end.current?.scrollIntoView({ block: "end" }); }, [msgs]);
-  const ask = async (text: string) => {
+  // Sensei answers from your data with its own rules (no AI). AI only when you tap Ask AI.
+  const ask = (text: string) => {
     if (!text.trim() || busy) return;
-    setQ(""); setBusy(true);
-    setMsgs((m) => [...m, { who: "me", text }]);
-    const w = weekSummary(data);
-    let answer = "", ai = false;
+    setQ("");
+    setMsgs((m) => [...m, { who: "me", text }, { who: "sensei", text: ruleAnswer(text, weekSummary(data)), q: text }]);
+  };
+  const askAI = async (text: string) => {
+    if (busy) return;
+    setBusy(true);
+    let answer = "";
     try {
-      const r = await fetch("/api/food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: session.user, auth: session.auth, mode: "chat", text, summary: summaryText(w) }) });
+      const r = await fetch("/api/food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: session.user, auth: session.auth, mode: "chat", text, summary: summaryText(weekSummary(data)) }) });
       const j = await r.json().catch(() => ({}));
-      if (r.ok && typeof j.answer === "string" && j.answer.trim()) { answer = j.answer.trim(); ai = true; }
-    } catch {}
-    if (!answer) answer = ruleAnswer(text, w);
-    setMsgs((m) => [...m, { who: "sensei", text: answer, ai }]);
+      if (r.ok && typeof j.answer === "string" && j.answer.trim()) answer = j.answer.trim();
+      else answer = `AI couldn't answer${j.error ? ` (${j.error})` : ""}.`;
+    } catch { answer = "AI couldn't answer (offline)."; }
+    setMsgs((m) => [...m, { who: "sensei", text: answer, ai: true }]);
     setBusy(false);
   };
   return (
@@ -52,11 +59,12 @@ export function ChatSheet({ onClose }: { onClose: () => void }) {
           <div key={i} className={`flex ${m.who === "me" ? "justify-end" : ""}`}>
             <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${m.who === "me" ? "bg-[var(--accent2)]/25" : "bg-white/5"}`}>
               {m.who === "sensei" && <span className="mr-1">🥷</span>}{m.text}
-              {m.who === "sensei" && !m.ai && <span className="block text-[9px] text-muted mt-0.5">offline Sensei</span>}
+              {m.who === "sensei" && m.ai && <span className="block text-[9px] text-muted mt-0.5">🤖 AI</span>}
+              {m.q && <button onClick={() => askAI(m.q!)} disabled={busy} className="block text-[11px] text-[var(--accent2)] mt-1">🤖 Ask AI instead</button>}
             </div>
           </div>
         ))}
-        {busy && <div className="text-sm text-muted">🥷 thinking…</div>}
+        {busy && <div className="text-sm text-muted">🤖 AI is thinking…</div>}
         <div ref={end} />
       </div>
       <div className="flex flex-wrap gap-1.5">
@@ -275,32 +283,40 @@ export function CameraSheet({ onClose }: { onClose: () => void }) {
   const [prod, setProd] = useState<ProductRead | null>(null);
   const [err, setErr] = useState("");
   useEffect(() => { file.current?.click(); }, []);
+  // You say what it is; then the app's own list first (no AI). AI only from the Ask AI button.
+  const [choose, setChoose] = useState<"meal" | "packet" | null>(null);
+  const food = useMemo(() => foodPicks(data), [data]);
+  const packets = useMemo<Pick[]>(() => [
+    ...data.pantry.map((p) => ({ name: p.name, emoji: p.emoji, ja: p.ja, sub: "in My stuff", mine: true })),
+    ...goods().map((g) => ({ name: g.name, emoji: g.emoji, ja: g.ja || undefined, sub: g.kcal ? `${g.kcal} kcal per ${g.per}` : g.cat })),
+  ], [data.pantry]);
   const snap = async (f: File) => {
     const im = await loadImage(f);
-    setImg(im); setThumb(smallPhoto(im, 160)); setGuess(null); setMeal(null); setProd(null); setErr("");
-    setBusy("Looking at it…");
-    try {
-      const r = await fetch("/api/food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: session.user, auth: session.auth, mode: "guess", image: aiPhoto(im, 640) }) });
-      const j = await r.json().catch(() => ({}));
-      if (r.ok && GUESS.some(([g]) => g === j.kind)) { setBusy(""); go(j.kind as Guess, im); return; }
-      setErr(j.error ? `${j.error} Pick what it is:` : "Pick what it is:");
-    } catch { setErr("Offline. Pick what it is:"); }
-    setBusy("");
+    setImg(im); setThumb(smallPhoto(im, 160)); setGuess(null); setMeal(null); setProd(null); setErr("Pick what it is:");
   };
-  const go = async (g: Guess, im = img) => {
-    setGuess(g);
-    if (!im) return;
-    if (g === "receipt") { setBusy(""); return; }
-    if (g === "book") return;
+  const go = (g: Guess) => {
+    setGuess(g); setErr("");
+    if (img && (g === "meal" || g === "packet")) setChoose(g);
+  };
+  const pickMeal = (p: Pick) => {
+    const n = food.nums.get(p.name);
+    setMeal({ foods: [{ name: p.name, qty: 1, per: n?.per ?? "1 serving", kcal: n?.kcal ?? 0, protein: n?.protein ?? 0 }], note: "📋 From the list." });
+  };
+  const pickPacket = (p: Pick) => {
+    const g = goods().find((x) => x.name === p.name), had = data.pantry.find((x) => x.name === p.name);
+    setProd({ found: true, name: p.name, name_ja: p.ja ?? "", brand: had?.brand ?? "", kind: had?.kind ?? (g?.kind === "utensil" ? "other" : g?.kind ?? "other"), emoji: p.emoji, qty: 1, unit: "pcs", grams: 0,
+      per: g?.per ?? had?.per ?? "", kcal: g?.kcal ?? had?.kcal ?? 0, protein: g?.protein ?? had?.protein ?? 0, fat: 0, carbs: 0, salt: 0, expiry: "", storage: "", allergens: "", note: "" });
+  };
+  const askAI = async (g: "meal" | "packet") => {
+    if (!img) return;
     if (g === "meal") {
-      setBusy("Reading the food…");
-      const r = await readMeal(session, { photo: aiPhoto(im) }, data.items);
+      setBusy("🤖 AI is reading the food…");
+      const r = await readMeal(session, { photo: aiPhoto(img) }, data.items);
       setBusy("");
       if (r.foods.length) setMeal({ foods: r.foods, note: r.note }); else setErr(r.error || "Couldn't read the food. Open the meal sheet and type it.");
-    }
-    if (g === "packet") {
-      setBusy("Reading the packet…");
-      const r = await readProduct(session, aiPhoto(im));
+    } else {
+      setBusy("🤖 AI is reading the packet…");
+      const r = await readProduct(session, aiPhoto(img));
       setBusy("");
       if (r.product?.found !== false && r.product?.name) setProd(r.product); else setErr(r.error || "Couldn't read the packet. Add it in My stuff.");
     }
@@ -328,10 +344,12 @@ export function CameraSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title="📸 Snap anything" onClose={onClose}>
       <input ref={file} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) snap(f); e.target.value = ""; }} />
-      <p className="text-sm text-muted">Food, a packet, a receipt or a book page: Sensei guesses what it is and sends it to the right place.</p>
+      <p className="text-sm text-muted">Food, a packet, a receipt or a book page: say what it is, and Sensei finds it in the app&apos;s list and sends it to the right place.</p>
       <button onClick={() => file.current?.click()} className="btn-primary w-full">{thumb ? "📸 Take another" : "📸 Take a photo"}</button>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {thumb && <img src={thumb} alt="Your photo" className="mx-auto h-28 w-28 rounded-xl object-cover" />}
+      {choose && img && <SnapChoice photo={thumb} img={img} list={choose === "meal" ? food.picks : packets} what={choose === "meal" ? "food" : "item"} onClose={() => setChoose(null)}
+        onAI={() => askAI(choose)} onPick={choose === "meal" ? pickMeal : pickPacket} />}
       {busy && <p className="text-sm text-center animate-pulse">{busy}</p>}
       {err && <p className="text-xs text-amber-300">{err}</p>}
       {thumb && !busy && (

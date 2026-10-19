@@ -1,10 +1,11 @@
 "use client";
 
 import { StartButton } from "@/components/Doing";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { DRINK_CATS, DRINKS, drinkCatOf, drinkMatch, drinkOf, type Drink, type DrinkCat } from "@/lib/drinks";
 import { aiPhoto, readMeal, readProduct } from "@/lib/foodai";
+import { SnapChoice, type Pick } from "@/components/SnapChoice";
 import { loadImage, smallPhoto } from "@/lib/foodphoto";
 import { useApp } from "@/lib/store";
 import { drinkGoodness, scoreColor } from "@/lib/goodness";
@@ -54,7 +55,7 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { 
   };
   return (
     <Sheet title={slot ? `🥤 ${slot}` : "🥤 What did you drink?"} onClose={onClose}>
-      <DrinkSnap photo={photo} setPhoto={setPhoto} onDrink={choose} />
+      <DrinkSnap photo={photo} setPhoto={setPhoto} onDrink={choose} all={all} mine={mine.length} />
       <input className="input" placeholder={`Search ${all.length} drinks (pocari, cola, soy milk, 麦茶…)`} value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         <button onClick={() => setCat("")} className={`chip !py-0.5 text-[11px] shrink-0 ${!cat ? "chip-on" : ""}`}>All</button>
@@ -105,17 +106,24 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { 
 
 // Snap the drink or say it, like food: the app finds it in the drink list,
 // or reads its calories, sugar and protein for the amount.
-function DrinkSnap({ photo, setPhoto, onDrink }: { photo: string; setPhoto: (p: string) => void; onDrink: (d: Drink, ml: number) => void }) {
+function DrinkSnap({ photo, setPhoto, onDrink, all, mine }: { photo: string; setPhoto: (p: string) => void; onDrink: (d: Drink, ml: number) => void; all: Drink[]; mine: number }) {
+  const [ask, setAsk] = useState<{ ai: string; img: HTMLImageElement } | null>(null);
+  const [offer, setOffer] = useState(false); // "not in the list" → show the Ask AI button
+  const guess = useCallback((text: string) => { const d = drinkMatch(text); return d ? [d.name] : []; }, []);
+  const picks = useMemo<Pick[]>(() => all.map((x, i) => ({ name: x.name, emoji: x.emoji, ja: x.ja, sub: `${x.ml} ml · ${Math.round(x.kcal100 * x.ml / 100)} kcal`, mine: i < mine })), [all, mine]);
   const { data, session } = useApp();
   const [say, setSay] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const ref = useRef<HTMLInputElement>(null);
-  const read = async (ai?: string) => {
+  const read = async (ai?: string, askAI = false) => {
     if (!ai && !say.trim()) return;
     // Typed a drink the list knows ("mango lassi 300 ml"): no need to ask the AI.
     const local = !ai ? drinkOf(say.replace(/\d+\s*ml|\b(a|one|big|small|glass|cup|bottle|can|of)\b/gi, " ").trim()) : undefined;
-    if (local) { const ml = Number(/(\d+)\s*ml/i.exec(say)?.[1]) || local.ml; onDrink(local, ml); setMsg(`📖 ${local.name}, ${ml} ml. Check the amount below.`); setSay(""); return; }
+    if (local) { const ml = Number(/(\d+)\s*ml/i.exec(say)?.[1]) || local.ml; onDrink(local, ml); setMsg(`📖 ${local.name}, ${ml} ml. Check the amount below.`); setSay(""); setOffer(false); return; }
+    // Not in the app's list: AI only when you tap the button.
+    if (!ai && !askAI) { setOffer(true); setMsg("📋 Not in the app's drink list. Check the spelling, or tap Ask AI."); return; }
+    setOffer(false);
     setBusy(true); setMsg(ai ? "Reading the label…" : "Reading…");
     // A photo: read the bottle's label first (name, size, nutrition), like a shop item.
     if (ai) {
@@ -161,11 +169,14 @@ function DrinkSnap({ photo, setPhoto, onDrink }: { photo: string; setPhoto: (p: 
           if (!file) return;
           const img = await loadImage(file);
           setPhoto(smallPhoto(img, 160));
-          read(aiPhoto(img));
+          setAsk({ ai: aiPhoto(img), img });
         }} />
-        <textarea className="input flex-1 min-h-14 text-sm" placeholder="big glass of mango lassi, Starbucks latte, 2 cups chai…" value={say} onChange={(e) => setSay(e.target.value)} />
+        {ask && <SnapChoice photo={photo} img={ask.img} guess={guess} list={picks} what="drink" onClose={() => setAsk(null)} onAI={() => read(ask.ai)}
+          onPick={(p) => { const x = all.find((d) => d.name === p.name); if (x) { onDrink(x, x.ml); setMsg(`📋 ${x.name}, ${x.ml} ml (from the list). Check the amount below.`); } }} />}
+        <textarea className="input flex-1 min-h-14 text-sm" placeholder="big glass of mango lassi, Starbucks latte, 2 cups chai…" value={say} onChange={(e) => { setSay(e.target.value); setOffer(false); }} />
       </div>
-      <button disabled={busy || !say.trim()} onClick={() => read()} className="btn-primary w-full !py-1.5 text-sm disabled:opacity-40">{busy ? "Reading…" : "Read my drink"}</button>
+      <button disabled={busy || !say.trim()} onClick={() => read()} className="btn-primary w-full !py-1.5 text-sm disabled:opacity-40">{busy ? "Reading…" : "Find in the list"}</button>
+      {offer && !busy && <button onClick={() => read(undefined, true)} className="btn-ghost w-full !py-1.5 text-sm ring-1 ring-[var(--accent)]">🤖 Ask AI about &quot;{say.trim().slice(0, 30)}&quot;</button>}
       {msg && <p className={`text-[11px] ${busy ? "animate-pulse text-[var(--accent2)]" : "text-muted"}`}>{msg}</p>}
     </div>
   );

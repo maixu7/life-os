@@ -1,13 +1,16 @@
 "use client";
 
 import { StartButton } from "@/components/Doing";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { readMealText } from "@/lib/foodtext";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { WhenPicker } from "@/components/When";
 import { DishCard, dishesFrom, dishFrom, dishTotals, FoodNames, newDish, type Dish } from "@/components/Dishes";
 import { aiPhoto, readMeal } from "@/lib/foodai";
 import { animeStyle, loadImage, smallPhoto } from "@/lib/foodphoto";
 import { energy, type Eaten } from "@/lib/body";
+import { SnapChoice } from "@/components/SnapChoice";
+import { foodPicks } from "@/lib/foodpicks";
 import { haveFoods, recentFoods, takeFromPantry } from "@/lib/have";
 import { DrinkSheet } from "@/components/Drinks";
 import { allMealSlots, ICONS, MEAL_IDEAS, mealSlots, uid, type MealSlot } from "@/lib/layout";
@@ -218,24 +221,43 @@ export function FoodThumbs({ foods, size = 22 }: { foods?: Eaten[]; size?: numbe
 
 // Snap the whole plate or say the whole meal; every food is found with its amount.
 function WholeMeal({ anime, onFoods }: { anime: boolean; onFoods: (ds: Partial<Dish>[]) => void }) {
+  const { data: d0 } = useApp();
+  type Pic = { ai: string; small: string; img: HTMLImageElement };
+  const [ask, setAsk] = useState<Pic | null>(null);
+  const [offer, setOffer] = useState(false); // typed words not all in the list → Ask AI button
+  // The app's own food list: your foods, everyday foods and chain-shop dishes.
+  const { picks, nums } = useMemo(() => foodPicks(d0), [d0]);
   const { data, session } = useApp();
   const [say, setSay] = useState("");
-  const [pic, setPic] = useState<{ ai: string; small: string } | null>(null);
+  const [pic, setPic] = useState<Pic | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const ref = useRef<HTMLInputElement>(null);
-  const read = async (photo = pic) => {
-    if (!photo && !say.trim()) return;
-    setBusy(true); setMsg(photo ? "Looking at every food on the plate and how much…" : "Reading…");
+  // Photo → AI only from the Ask AI button. Words → the app's food tables first;
+  // AI only when you tap Ask AI.
+  const read = async (photo?: Pic | null, askAI = false) => {
+    if (!photo && !say.trim()) { if (pic) setAsk(pic); return; }
+    setOffer(false);
+    if (!photo && !askAI) {
+      const { foods, unknown } = readMealText(say, data.items);
+      if (foods.length) {
+        onFoods([...foods.map((f, i) => dishFrom(f, i === 0 ? pic?.small : undefined)), ...unknown.map((u) => ({ name: u }))]);
+        const total = foods.reduce((n, f) => n + f.kcal * f.qty, 0);
+        setMsg(`📖 ${foods.map((f) => f.name).join(" + ")}${total ? ` ≈ ${total} kcal` : ""} (from the list).${unknown.length ? ` Not in the list: ${unknown.join(", ")}. Add their numbers below, or tap Ask AI.` : ""} Check the amounts below.`);
+        if (unknown.length) setOffer(true); else { setSay(""); setPic(null); }
+      } else { setOffer(true); setMsg("📋 Not in the app's food list. Check the spelling, add it below with its numbers, or tap Ask AI."); }
+      return;
+    }
+    setBusy(true); setMsg(photo ? "🤖 AI is looking at every food on the plate and how much…" : "🤖 Asking AI…");
     const r = await readMeal(session, { photo: photo?.ai, text: say }, data.items);
     setBusy(false);
     if (r.foods.length || r.unknown?.length) {
       onFoods([...r.foods.map((f, i) => dishFrom(f, i === 0 ? photo?.small : undefined)), ...(r.unknown ?? []).map((u) => ({ name: u }))]);
       const total = r.foods.reduce((n, f) => n + f.kcal * f.qty, 0);
-      setMsg(`${r.ai ? "🤖" : "📖"} ${r.foods.map((f) => f.name).join(" + ")}${total ? ` ≈ ${total} kcal` : ""}. ${r.note}${photo && !r.ai ? ` (Photo reading failed: ${r.error || "unknown"}. I used your words.)` : ""} Check the amounts below.`);
+      setMsg(`${r.ai ? "🤖" : "📖"} ${r.foods.map((f) => f.name).join(" + ")}${total ? ` ≈ ${total} kcal` : ""}. ${r.note}${!r.ai ? ` (AI failed: ${r.error || "unknown"}. I used the list.)` : ""} Check the amounts below.`);
       setSay(""); setPic(null);
-    } else if (photo && !r.ai) setMsg(`Photo reading failed: ${r.error || "unknown"}. Type what's in it, like "big bowl rice and instant ramen", then tap Read.`);
-    else setMsg(r.ai ? "I couldn't see food there. Try a closer photo or type it." : "I don't know that one. Add it below with its numbers.");
+    } else if (!r.ai) setMsg(`AI failed: ${r.error || "unknown"}. Type what's in it, like "big bowl rice and instant ramen", then tap Find.`);
+    else setMsg("AI couldn't see food there. Try a closer photo or type it.");
   };
   return (
     <div className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 p-2.5 space-y-2">
@@ -249,12 +271,15 @@ function WholeMeal({ anime, onFoods }: { anime: boolean; onFoods: (ds: Partial<D
           const f = e.target.files?.[0]; e.target.value = "";
           if (!f) return;
           const img = await loadImage(f);
-          const p = { ai: aiPhoto(img), small: anime ? animeStyle(img, 160) : smallPhoto(img, 160) };
-          setPic(p); read(p);
+          const p = { ai: aiPhoto(img), small: anime ? animeStyle(img, 160) : smallPhoto(img, 160), img };
+          setPic(p); setAsk(p);
         }} />
-        <textarea className="input flex-1 min-h-14 text-sm" placeholder="big bowl of rice and instant ramen, 2 eggs…" value={say} onChange={(e) => setSay(e.target.value)} />
+        {ask && <SnapChoice photo={ask.small} img={ask.img} list={picks} what="food" onClose={() => setAsk(null)} onAI={() => read(ask)}
+          onPick={(x) => { const n = nums.get(x.name); onFoods([{ name: x.name, photo: ask.small, auto: true, ...(n ? { per: n.per, kcal: String(n.kcal), protein: String(n.protein) } : {}) }]); setPic(null); setMsg(`📋 ${x.name} (from the list). Check the amount below.`); }} />}
+        <textarea className="input flex-1 min-h-14 text-sm" placeholder="big bowl of rice and instant ramen, 2 eggs…" value={say} onChange={(e) => { setSay(e.target.value); setOffer(false); }} />
       </div>
-      <button disabled={busy || (!say.trim() && !pic)} onClick={() => read()} className="btn-primary w-full !py-1.5 text-sm disabled:opacity-40">{busy ? "Reading…" : "Read my meal"}</button>
+      <button disabled={busy || (!say.trim() && !pic)} onClick={() => read()} className="btn-primary w-full !py-1.5 text-sm disabled:opacity-40">{busy ? "Reading…" : say.trim() || !pic ? "Find in the list" : "📋 Pick the photo from the list"}</button>
+      {offer && !busy && <button onClick={() => read(null, true)} className="btn-ghost w-full !py-1.5 text-sm ring-1 ring-[var(--accent)]">🤖 Ask AI about &quot;{say.trim().slice(0, 30)}&quot;</button>}
       {msg && <p className={`text-[11px] ${busy ? "animate-pulse text-[var(--accent2)]" : "text-muted"}`}>{msg}</p>}
     </div>
   );

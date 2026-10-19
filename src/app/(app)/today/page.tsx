@@ -19,7 +19,8 @@ import { mealSlots } from "@/lib/layout";
 import type { Eaten } from "@/lib/body";
 import { bodyOf, energy } from "@/lib/body";
 import { describe } from "@/lib/describe";
-import { sched } from "@/lib/schedule";
+import { dayType, goalsOn, isOffDay, sched } from "@/lib/schedule";
+import { MyTasksCard } from "@/components/MyTasks";
 import { toDay, useApp, type Log } from "@/lib/store";
 
 const hm = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "");
@@ -49,7 +50,7 @@ export default function TodayPage() {
   const slept = data.logs.filter((l) => l.kind === "sleep" && l.data.end && toDay(new Date(String(l.data.end))) === day);
   const sleepH = slept.reduce((n, l) => n + (new Date(String(l.data.end)).getTime() - new Date(String(l.data.start)).getTime()) / 3.6e6, 0);
   const wake = first((l) => l.kind === "wake" || (l.kind === "activity" && /wake|woke/i.test(String(l.data.name))));
-  const plan = dayPlan(kitOf(data.pantry), new Date(`${day}T12:00:00`));
+  const plan = dayPlan(kitOf(data.pantry), new Date(`${day}T12:00:00`), isOffDay(dayType(sc, new Date(`${day}T12:00:00`))));
   const movesDone = plan.filter((r) => logs.filter((l) => l.kind === "workout" && String(l.data.exercise).toLowerCase() === r.name.toLowerCase()).reduce((n, l) => n + (Number(l.data.sets) || 1), 0) >= r.sets).length;
   const meal = (m: string) => logs.filter((l) => l.kind === "activity" && String(l.data.name).toLowerCase() === m.toLowerCase());
 
@@ -69,7 +70,7 @@ export default function TodayPage() {
     { icon: "⚔️", name: "Workout", did: movesDone ? `${movesDone} of ${plan.length} moves` : "", goal: "today's plan", done: movesDone >= plan.length, href: "/train" },
     { icon: "🔥", name: "Calories", did: `${e.intake} eaten · ${e.active} burned`, goal: `${e.out} used`, done: e.intake > 0 },
     { icon: "🍗", name: "Protein", did: `${e.protein} g`, goal: `${need} g+`, done: e.protein >= need },
-    { icon: "📖", name: "Learning", did: learn ? `${learn} min` : "", goal: `${sc.learnGoal} min`, done: learn >= sc.learnGoal, href: "/learn" },
+    { icon: "📖", name: "Learning", did: learn ? `${learn} min` : "", goal: `${goalsOn(sc, new Date(`${day}T12:00:00`)).learnGoal} min`, done: learn >= goalsOn(sc, new Date(`${day}T12:00:00`)).learnGoal, href: "/learn" },
   ];
 
   return (
@@ -84,6 +85,7 @@ export default function TodayPage() {
       <Blocks page="/today" parts={{
         quick: isToday ? <QuickBar /> : null,
         doing: isToday ? <DoingCard /> : null,
+        mytasks: <MyTasksCard />,
         basics: (
       <section className="card p-3 mb-4">
         <div className="flex items-center justify-between mb-2">

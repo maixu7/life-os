@@ -170,7 +170,7 @@ async function readWithGemini(key: string, ask: string, img: { mime: string; dat
         // Google's own message (never contains the key), so the app can say what went wrong.
         why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
         // Not found, or this model's free daily limit is used up: each model has its own limit.
-        if (r.status === 404 || r.status === 429) continue;
+        if (r.status === 404 || r.status === 429 || r.status >= 500) continue;
         return bad(why, 502);
       }
       const text = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
@@ -231,7 +231,7 @@ async function productWithGemini(key: string, ask: string, img: { mime: string; 
       const j = await r.json().catch(() => null);
       if (!r.ok) {
         why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
-        if (r.status === 404 || r.status === 429) continue;
+        if (r.status === 404 || r.status === 429 || r.status >= 500) continue;
         return bad(why, 502);
       }
       const text = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
@@ -297,7 +297,7 @@ async function bookWithGemini(key: string, ask: string, img: { mime: string; dat
       const j = await r.json().catch(() => null);
       if (!r.ok) {
         why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
-        if (r.status === 404 || r.status === 429) continue;
+        if (r.status === 404 || r.status === 429 || r.status >= 500) continue;
         return bad(why, 502);
       }
       const text = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
@@ -374,7 +374,7 @@ async function receiptWithGemini(key: string, img: { mime: string; data: string 
       const j = await r.json().catch(() => null);
       if (!r.ok) {
         why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
-        if (r.status === 404 || r.status === 429) continue;
+        if (r.status === 404 || r.status === 429 || r.status >= 500) continue;
         return bad(why, 502);
       }
       const text = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
@@ -404,7 +404,7 @@ async function chat(gemini: string | undefined, ask: string) {
           body: JSON.stringify({ systemInstruction: { parts: [{ text: CHAT_SYSTEM }] }, contents: [{ role: "user", parts: [{ text: ask }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 300 } }),
         });
         const j = await r.json().catch(() => null);
-        if (!r.ok) { why = `Gemini ${r.status}`; if (r.status === 404 || r.status === 429) continue; return bad(why, 502); }
+        if (!r.ok) { why = `Gemini ${r.status}`; if (r.status === 404 || r.status === 429 || r.status >= 500) continue; return bad(why, 502); }
         const answer = j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("").trim();
         if (answer) return NextResponse.json({ answer: answer.slice(0, 1200) });
         why = "Empty answer";
@@ -451,7 +451,7 @@ async function guessWithGemini(key: string, ask: string, img: { mime: string; da
           generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { kind: { type: "STRING", enum: ["meal", "packet", "receipt", "book", "other"] } }, required: ["kind"] }, temperature: 0 } }),
       });
       const j = await r.json().catch(() => null);
-      if (!r.ok) { if (r.status === 404 || r.status === 429) continue; return bad(`Gemini ${r.status}`, 502); }
+      if (!r.ok) { if (r.status === 404 || r.status === 429 || r.status >= 500) continue; return bad(`Gemini ${r.status}`, 502); }
       const out = Guess.safeParse(JSON.parse(j?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") || "null"));
       if (out.success) return NextResponse.json(out.data);
     } catch {}

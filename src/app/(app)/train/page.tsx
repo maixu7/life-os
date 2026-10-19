@@ -15,7 +15,8 @@ import { personalBest } from "@/lib/fitness";
 import { Sheet } from "@/components/Sheet";
 import { PoseDemo, type Prop } from "@/components/PoseDemo";
 import { howTo, variantFromName } from "@/lib/howto";
-import { canDo, dayPlan, kitOf, kitText, setsText, type PlanRow } from "@/lib/have";
+import { canDo, dayPlan, kitOf, kitText, setsText, todayKit, type PlanRow } from "@/lib/have";
+import { dayType, isOffDay, sched } from "@/lib/schedule";
 import Link from "next/link";
 import { type Pattern } from "@/lib/exercises";
 import { moveOf, MOVES, myMove, variantOf } from "@/lib/moves";
@@ -128,7 +129,9 @@ export default function TrainPage() {
   const [family, setFamily] = useState<string>("");
   const [mine, setMine] = useState(false);
   const kit = kitOf(data.pantry);
-  const plan = dayPlan(kit);
+  const hard = isOffDay(dayType(sched(data.profile.settings.schedule)));
+  const plan = dayPlan(kit, new Date(), hard);
+  const tools = todayKit(kit);
   const vr = variantOf(move, variant ?? (ex ? variantFromName(move, ex.name) : undefined));
   const pick = (name: string, t?: string, row?: PlanRow) => {
     const have = items.find((i) => i.name === name);
@@ -215,7 +218,7 @@ export default function TrainPage() {
         <>
       <details className="card p-3 mb-3" open={Object.keys(kit).length > 0 || !items.length}>
         <summary className="text-sm font-semibold cursor-pointer">📅 Today&apos;s full workout (made from what you have)</summary>
-        <p className="text-xs text-muted mt-2">{Object.keys(kit).length ? <>You have {kitText(kit)}.</> : <>No equipment yet, so this is bodyweight only. <Link href="/have" className="text-[var(--accent2)] underline">Add your dumbbells, kettlebell or pull-up bar</Link> and it changes.</>} A new plan each day.</p>
+        <p className="text-xs text-muted mt-2">{hard && <b className="text-amber-300">🔥 Day off: hard mode (an extra set, more reps, 2 extra moves). </b>}{Object.keys(kit).length ? <>Today&apos;s tools: <b>{kitText(tools)}</b> plus bodyweight moves.{Object.keys(tools).length < Object.keys(kit).length ? " Your other gear comes on other days." : ""}</> : <>No equipment yet, so this is bodyweight only. <Link href="/have" className="text-[var(--accent2)] underline">Add your dumbbells, kettlebell or pull-up bar</Link> and it changes.</>} A new random plan each day.</p>
         <p className="text-[11px] text-muted mt-1">How to read it: <b>3 sets of 8–12 reps</b> = do the move 8 to 12 times, rest about 1 minute, and do that 3 times. Tap ▶ Start: it times every set and rest for you and ticks the move when it&apos;s done.</p>
         <ul className="mt-2 space-y-1.5">
           {plan.map((r) => {

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { learnedOn } from "@/components/Learn";
 import { MEALS } from "@/components/Meals";
 import { dailyMissions } from "@/lib/missions";
-import { sched } from "@/lib/schedule";
+import { goalsOn, sched } from "@/lib/schedule";
 import { toDay, useApp, useCustomItems, type Log } from "@/lib/store";
 import { emojiFor } from "@/lib/emoji";
 
@@ -21,7 +21,7 @@ export function useGoals(day = toDay(new Date())): Goal[] {
   const { items } = useCustomItems("activity");
   const logs = data.logs.filter((l) => l.day === day);
   const out: Goal[] = dailyMissions(logs, profile.settings).map((m) => ({ id: m.id, icon: m.icon, name: m.name, have: m.progress, need: m.target, unit: m.unit, doneAt: m.done ? logs.at(-1)?.created_at : undefined }));
-  const learn = learnedOn(data.logs, day).total, need = sched(profile.settings.schedule).learnGoal || 60;
+  const learn = learnedOn(data.logs, day).total, need = goalsOn(sched(profile.settings.schedule), new Date(`${day}T12:00:00`)).learnGoal || 60;
   out.push({ id: "learn", icon: "📖", name: "Learning", have: learn, need, unit: "min" });
   const meals = MEALS.filter(([m]) => m !== "Snack");
   const ate = (m: string) => (l: Log) => l.kind === "activity" && String(l.data.name).toLowerCase() === m.toLowerCase();

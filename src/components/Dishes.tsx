@@ -3,13 +3,15 @@
 import { GoodsSuggest } from "@/components/GoodsSuggest";
 import { goodFor, norm, type Good } from "@/lib/goods";
 
-import { useRef } from "react";
+import { useMemo, useRef, useState } from "react";
+import { SnapChoice } from "@/components/SnapChoice";
+import { foodPicks } from "@/lib/foodpicks";
 import { aiPhoto, readMeal } from "@/lib/foodai";
 import { readFood, readMealText, type MealFood } from "@/lib/foodtext";
 import { allFoods, type Eaten } from "@/lib/body";
 import { emojiFor } from "@/lib/emoji";
 import { lookupBarcode } from "@/lib/foodlookup";
-import { animeStyle, loadImage, recognise, smallPhoto } from "@/lib/foodphoto";
+import { animeStyle, loadImage, smallPhoto } from "@/lib/foodphoto";
 import { readLabel } from "@/lib/label";
 import { foodGoodness } from "@/lib/goodness";
 import { GoodBadge } from "@/components/GoodBadge";
@@ -96,10 +98,21 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
     } else set(fill(v));
   };
 
+  // A photo: first the app's own food list (on the phone, no AI); AI only from its button.
+  const [shot, setShot] = useState<HTMLImageElement | null>(null);
+  const { picks, nums } = useMemo(() => foodPicks(data), [data]);
   const takePhoto = async (f: File) => {
     const img = await loadImage(f);
-    const photo = anime ? animeStyle(img, 160) : smallPhoto(img, 160);
-    set({ photo, busy: true, status: "Looking at what's in it and how much…" });
+    set({ photo: anime ? animeStyle(img, 160) : smallPhoto(img, 160) });
+    setShot(img);
+  };
+  const picked = (name: string) => {
+    const n = nums.get(name);
+    set({ name, ...(n ? { ...blank, per: n.per, kcal: String(n.kcal), protein: String(n.protein), auto: true } : fill(name, true)), status: `📋 ${name} (from the list).` });
+  };
+  const askAI = async (img: HTMLImageElement) => {
+    const photo = d.photo;
+    set({ busy: true, status: "🤖 AI is looking at what's in it and how much…" });
     // The AI reader sees every food and its amount; the name you typed helps it.
     const r = await readMeal(session, { photo: aiPhoto(img), text: d.name }, items);
     if (r.ai && r.foods.length) {
@@ -108,14 +121,8 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
       if (rest.length) addMore?.(rest.map((f) => dishFrom(f)));
       return;
     }
-    if (r.ai) return set({ busy: false, status: "I couldn't see food in that photo. Type what it is." });
-    if (d.name) return set({ busy: false, status: `Photo saved. Numbers come from the name you typed.${r.error ? ` (Photo reading failed: ${r.error})` : ""}` });
-    try {
-      const m = await recognise(img);
-      const g = m.foods[0];
-      if (g) set({ name: g, ...fill(g, true), busy: false, status: `Rough guess: ${g}. If that's wrong, type the real name and the numbers change.` });
-      else set({ busy: false, status: `I see ${m.seen.slice(0, 2).join(" or ")}. Type the name or snap the label.` });
-    } catch { set({ busy: false, status: "Type the name, or snap the label for the calories." }); }
+    if (r.ai) return set({ busy: false, status: "AI couldn't see food in that photo. Type what it is." });
+    set({ busy: false, status: `AI failed${r.error ? ` (${r.error})` : ""}. Type the name and the numbers fill in.` });
   };
 
   const readPacket = async (files: File[]) => {
@@ -166,6 +173,7 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
         {box(d.photo, "Food photo", "📷", () => pic.current?.click())}
         {box(d.label, "Label photo", "🏷️", () => lab.current?.click())}
         <input ref={pic} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) takePhoto(f); e.target.value = ""; }} />
+        {shot && d.photo && <SnapChoice photo={d.photo} img={shot} list={picks} what="food" onClose={() => setShot(null)} onAI={() => askAI(shot)} onPick={(p) => picked(p.name)} />}
         <input ref={lab} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const l = [...(e.target.files ?? [])]; if (l.length) readPacket(l); e.target.value = ""; }} />
         <div className="flex-1 min-w-0 space-y-1.5">
           <div className="flex gap-1">
