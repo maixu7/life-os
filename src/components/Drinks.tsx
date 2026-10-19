@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { DRINK_CATS, DRINKS, drinkCatOf, drinkMatch, drinkOf, type Drink, type DrinkCat } from "@/lib/drinks";
 import { aiPhotos, readMeal, readProduct } from "@/lib/foodai";
-import { perAmount } from "@/lib/label";
+import { perAmount, scaleFacts } from "@/lib/label";
+import { FactsTable } from "@/components/FactsTable";
 import { SnapChoice, useRememberSnap, type LabelRead, type Pick } from "@/components/SnapChoice";
 import { loadImage, smallPhoto } from "@/lib/foodphoto";
 import { useApp } from "@/lib/store";
@@ -40,7 +41,7 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat, file
     const pic = photo || undefined;
     // Keep new drinks (and their photo) in My drinks, so they're one tap next time.
     if (!DRINKS.some((x) => x.name === pick.name) || pic) {
-      const config = { cat: pick.cat, emoji: pick.emoji, ml: pick.ml, kcal100: pick.kcal100, sugar100: pick.sugar100, protein100: pick.protein100, caffeine100: pick.caffeine100, alcohol: pick.alcohol, water: pick.water, photo: pic ?? mine.find((x) => x.name === pick.name)?.photo };
+      const config = { cat: pick.cat, emoji: pick.emoji, ml: pick.ml, kcal100: pick.kcal100, sugar100: pick.sugar100, protein100: pick.protein100, caffeine100: pick.caffeine100, alcohol: pick.alcohol, water: pick.water, facts: pick.facts, factsPer: pick.factsPer, photo: pic ?? mine.find((x) => x.name === pick.name)?.photo };
       update((d) => ({ ...d, items: d.items.some((i) => i.category === "drink" && i.name === pick.name)
         ? d.items.map((i) => (i.category === "drink" && i.name === pick.name ? { ...i, config } : i))
         : [...d.items, { id: crypto.randomUUID(), category: "drink", name: pick.name, sort: Date.now(), config }] }));
@@ -50,6 +51,7 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat, file
       : logActivity("drink", {
       photo: pic, name: pick.name, emoji: pick.emoji, cat: pick.cat, slot, ml, kcal, sugar, protein: pick.protein100 ? +(pick.protein100 * k).toFixed(1) : undefined,
       caffeine: pick.caffeine100 ? Math.round(pick.caffeine100 * k) : undefined, alcohol: pick.alcohol, water_ml: Math.round(ml * (pick.water ?? 0.9)),
+      facts: pick.facts && pick.factsPer ? scaleFacts(pick.facts, pick.factsPer, ml) : undefined,
     }, at);
     celebrate({ title: "GULP!", subtitle: `${pick.emoji} ${pick.name} ${ml} ml${kcal ? ` · ${kcal} kcal` : ""}${sugar >= 10 ? ` · ${sugar} g sugar` : ""}`, xp: r.xp, kind: "small" });
     onClose();
@@ -92,6 +94,7 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat, file
             <div className="rounded-lg bg-white/5 p-1.5"><b>{((pick.protein100 ?? 0) * k).toFixed(1)}</b><br /><span className="text-muted">g protein</span></div>
             <div className="rounded-lg bg-white/5 p-1.5"><b>{Math.round((pick.caffeine100 ?? 0) * k)}</b><br /><span className="text-muted">mg caffeine</span></div>
           </div>
+          {pick.facts && pick.factsPer && <FactsTable facts={scaleFacts(pick.facts, pick.factsPer, ml)} title={`🏷️ From the label, for ${ml} ml`} />}
           <GoodBadge g={drinkGoodness(pick, ml)} />
           {pick.sugar100 * k > 25 && <p className="text-[11px] text-rose-300">That&apos;s more sugar than the WHO&apos;s ideal for a whole day (25 g).</p>}
           <CaffeineWarning mg={Math.round((pick.caffeine100 ?? 0) * k)} />
@@ -123,13 +126,14 @@ function DrinkSnap({ photo, setPhoto, onDrink, all, mine, file }: { photo: strin
     const x = all.find((d) => d.name === p.name);
     const base = perAmount(l?.per) ?? (l?.per ? undefined : 100);
     const per = (v?: number) => (v != null && base ? Math.round((v / base) * 1000) / 10 : undefined);
+    const f: Partial<Drink> = l && Object.keys(l.facts).length && base ? { facts: l.facts, factsPer: base, ...(l.facts.caffeine != null ? { caffeine100: per(l.facts.caffeine) } : {}) } : {};
     if (x) {
-      const k = l?.kcal != null && base ? { kcal100: per(l.kcal)!, sugar100: per(l.sugar) ?? x.sugar100, protein100: per(l.protein) ?? x.protein100 } : {};
+      const k: Partial<Drink> = l?.kcal != null && base ? { kcal100: per(l.kcal)!, sugar100: per(l.sugar) ?? x.sugar100, protein100: per(l.protein) ?? x.protein100, ...f } : {};
       onDrink({ ...x, ...k }, x.ml); setMsg(`📋 ${x.name}, ${x.ml} ml (from the list${k.kcal100 != null ? ", numbers from the label" : ""}). Check the amount below.`); return;
     }
     // A new drink named from the label.
     const ml = perAmount(l?.per) ?? 500;
-    onDrink({ name: p.name, cat: drinkCatOf(p.name), emoji: "🥤", ml, kcal100: per(l?.kcal) ?? 0, sugar100: per(l?.sugar ?? l?.carbs) ?? 0, protein100: per(l?.protein) ?? 0, water: 0.9 }, ml);
+    onDrink({ name: p.name, cat: drinkCatOf(p.name), emoji: "🥤", ml, kcal100: per(l?.kcal) ?? 0, sugar100: per(l?.sugar ?? l?.carbs) ?? 0, protein100: per(l?.protein) ?? 0, water: 0.9, ...f }, ml);
     setMsg(`🏷️ ${p.name} from the label. Check the amount and numbers below; it's saved to My drinks when you log it.`);
   };
   // A photo saved with "Scan later" opens straight away.

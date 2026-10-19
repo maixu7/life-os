@@ -80,7 +80,7 @@ export function LaterSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title="📥 Photos to scan" onClose={onClose}>
       {open?.imgs && <SnapChoice photo={open.small!} img={open.imgs} list={picks} what="item" kind="item" laterType={open.type} onClose={() => setOpen(null)}
-        onAI={() => askAI(open)} onPick={(p, l) => put(open, p.name, p.emoji, l?.kcal != null ? { kcal: l.kcal, protein: l.protein, per: l.per ?? "1 serving" } : {})} />}
+        onAI={() => askAI(open)} onPick={(p, l) => put(open, p.name, p.emoji, l?.kcal != null ? { kcal: l.kcal, protein: l.protein, per: l.per ?? "1 serving", facts: l.facts } : {})} />}
       <p className="text-xs text-muted">Photos you saved with ⏰ Scan later. Scan each whenever you want. Change its type first if needed.</p>
       {items.length ? (
         <div className="space-y-2">

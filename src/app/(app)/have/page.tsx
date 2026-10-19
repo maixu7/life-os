@@ -14,6 +14,7 @@ import { loadImage, recognise, smallPhoto } from "@/lib/foodphoto";
 import { aiPhotos, readProduct } from "@/lib/foodai";
 import { GoodsSuggest } from "@/components/GoodsSuggest";
 import { goods, type Good } from "@/lib/goods";
+import { FactsTable } from "@/components/FactsTable";
 import { SnapChoice, useRememberSnap, type LabelRead, type Pick } from "@/components/SnapChoice";
 import { EQUIPMENT } from "@/lib/equipment";
 import { fromPhoto, gearOf, itemKind, kindOf, KINDS, kitOf, kitText, whenToEat, withGear, type Kind } from "@/lib/have";
@@ -94,6 +95,7 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
   const [ja, setJa] = useState(item?.ja ?? "");
   const [brand, setBrand] = useState(item?.brand ?? "");
   const [expiry, setExpiry] = useState(item?.expiry ?? "");
+  const [facts, setFacts] = useState(item?.facts);
   const [nut, setNut] = useState<{ per: string; kcal: number; protein: number } | null>(item?.kcal != null ? { per: item.per ?? "1", kcal: item.kcal, protein: item.protein ?? 0 } : null);
   const { session } = useApp();
   const pickGood = (g: Good) => {
@@ -123,6 +125,7 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
   const pickListed = (p: Pick, l?: LabelRead) => {
     const g = goods().find((x) => x.name === p.name);
     if (l?.contents && !note) setNote(`Contains: ${l.contents}`);
+    if (l && Object.keys(l.facts).length) setFacts(l.facts);
     if (l?.kcal != null) { setName(p.name); setNut({ per: l.per ?? "1 serving", kcal: l.kcal, protein: l.protein ?? 0 }); setMsg(`🏷️ ${p.name}: ${l.kcal} kcal per ${l.per ?? "serving"} from the label.`); if (g) { setJa(g.ja); } return; }
     if (g) { pickGood(g); return; }
     const had = data.pantry.find((x) => x.name === p.name);
@@ -168,7 +171,7 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
       qty: Number(qty) || 0, unit, last_price: item?.last_price ?? null, updated_at: new Date().toISOString(),
       kind: k, photo: photo || undefined, kg: Number(kg) || undefined, note: note || undefined,
       ja: ja || undefined, brand: brand || undefined, expiry: expiry || undefined,
-      per: nut?.per, kcal: nut?.kcal, protein: nut?.protein,
+      per: nut?.per, kcal: nut?.kcal, protein: nut?.protein, facts,
     };
     update((d) => {
       const next = { ...d, pantry: d.pantry.some((x) => x.id === p.id) ? d.pantry.map((x) => (x.id === p.id ? p : x)) : [...d.pantry, p] };
@@ -197,6 +200,7 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
           <input className="input" placeholder="Name or 日本語 (ウインナー, Apple, Dumbbell 10 kg…)" value={name} onChange={(e) => { setName(e.target.value); setNut(null); }} />
           {!nut && <GoodsSuggest q={name} onPick={pickGood} max={5} />}
           {msg && <p className={`text-[11px] ${busy ? "animate-pulse text-[var(--accent2)]" : "text-muted"}`}>{msg}</p>}
+          <FactsTable facts={facts} title={`🏷️ Label${nut?.per ? ` (per ${nut.per})` : ""}`} />
           <div className="flex flex-wrap gap-1">
             {KINDS.map(([x, e, l]) => <button key={x} onClick={() => setKind(x)} className={`chip !px-2 !py-0.5 text-[11px] ${k === x ? "chip-on" : ""}`}>{e} {l}</button>)}
           </div>

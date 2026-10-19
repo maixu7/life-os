@@ -1,3 +1,4 @@
+import type { Facts } from "@/lib/label";
 // Drinks you might log: generic drinks plus real products sold in Japan and India.
 // Values per 100 ml from manufacturer labels or standard tables (MEXT / USDA); sugar = 糖質 where labels give that.
 // `water` is the share that counts toward hydration; `alcohol` is % ABV.
@@ -8,7 +9,11 @@ import { MIXED } from "@/lib/drinkmix";
 
 export type DrinkCat = "water" | "tea" | "coffee" | "milk" | "plant milk" | "soda" | "sports" | "energy" | "juice" | "smoothie" | "yogurt drink" | "protein" | "soup" | "alcohol" | "other";
 
-export type Drink = { name: string; ja?: string; cat: DrinkCat; emoji: string; ml: number; kcal100: number; sugar100: number; protein100?: number; caffeine100?: number; alcohol?: number; water?: number };
+export type Drink = {
+  name: string; ja?: string; cat: DrinkCat; emoji: string; ml: number; kcal100: number; sugar100: number; protein100?: number; caffeine100?: number; alcohol?: number; water?: number;
+  /** Everything its label says (fat, cholesterol, sodium…), for `factsPer` ml. */
+  facts?: Facts; factsPer?: number;
+};
 
 export const DRINK_CATS: [DrinkCat, string][] = [
   ["water", "💧 Water"], ["tea", "🍵 Tea"], ["coffee", "☕ Coffee"], ["milk", "🥛 Milk"], ["plant milk", "🫘 Plant milk"],
