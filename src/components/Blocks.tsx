@@ -203,6 +203,15 @@ export function Blocks({ page, parts }: { page: string; parts: Record<string, Re
     saveSettings({ ui: { ...ui, pages } });
     if (keep && shown === id) setShown(null);
   };
+  // Move a block up or down the page (any place you want).
+  const move = (id: string, by: number) => {
+    const ids = list.map((x) => x.id), i = ids.indexOf(id), j = i + by;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    const pages = { ...(ui?.pages ?? {}) };
+    pages[page] = { ...(pages[page] ?? {}), order: ids };
+    saveSettings({ ui: { ...ui, pages } });
+  };
   return (
     <>
       {main.map(({ id, own }) => render(id, own))}
@@ -219,6 +228,8 @@ export function Blocks({ page, parts }: { page: string; parts: Record<string, Re
                 return (
                   <li key={id} className="flex items-center gap-2 text-sm">
                     <span className="flex-1 truncate">{label(id)}</span>
+                    <button aria-label="Move up" onClick={() => move(id, -1)} className="chip !px-2 !py-0.5 text-[11px]">▲</button>
+                    <button aria-label="Move down" onClick={() => move(id, 1)} className="chip !px-2 !py-0.5 text-[11px]">▼</button>
                     <button onClick={() => place(id, !on)} className={`chip !py-0.5 text-[11px] ${on ? "chip-on" : ""}`}>{on ? "On screen" : "In More"}</button>
                   </li>
                 );
