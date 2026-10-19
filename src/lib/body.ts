@@ -53,7 +53,9 @@ export const guessFood = (name: string, items: CustomItem[] = []): Food | undefi
   return g && g.kcal ? { name: g.name, re: new RegExp(`^${esc(g.name)}$`, "i"), per: g.per, kcal: g.kcal, protein: g.protein, emoji: g.emoji } : undefined;
 };
 
-export type Eaten = { name: string; qty: number; kcal: number; protein: number; fat?: number; carbs?: number; sugar?: number; salt?: number; photo?: string; per?: string; contents?: string; facts?: Facts };
+export type Eaten = { name: string; qty: number; kcal: number; protein: number; fat?: number; carbs?: number; sugar?: number; salt?: number; photo?: string; per?: string; contents?: string; facts?: Facts;
+  /** A home-cooked dish: the ingredients one serving used (in What I have units). */
+  uses?: { name: string; qty: number }[] };
 
 // Everything eaten in a list of logs.
 export function eaten(logs: Log[], items: CustomItem[] = []): Eaten[] {

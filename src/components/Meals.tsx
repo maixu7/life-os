@@ -16,6 +16,7 @@ import { DrinkSheet } from "@/components/Drinks";
 import { allMealSlots, ICONS, MEAL_IDEAS, mealSlots, uid, type MealSlot } from "@/lib/layout";
 import type { Ui } from "@/lib/ui";
 import { toDay, useApp, type Log } from "@/lib/store";
+import { CookButton, ReceiptButton, usesOf } from "@/components/FoodWays";
 
 export const MEALS: [string, string][] = [["Breakfast", "🍳"], ["Lunch", "🍱"], ["Snack", "🍪"], ["Dinner", "🍛"]];
 // Every meal and drink button, including your own (Control Centre or the ＋ on Food today).
@@ -53,6 +54,21 @@ export function MealSheet({ meal: initial, log, onClose, start, file, at }: { me
   // Quick picks: what you have at home and what you ate lately.
   const quick = [...new Set([...haveFoods(data.pantry).map((p) => p.name), ...recentFoods(data.logs)])].filter((nm) => !dishes.some((d) => d.name === nm)).slice(0, 14);
 
+  // One tap: the same as yesterday's meal, or what you usually have for it.
+  const past = useMemo(() => {
+    const mine = data.logs.filter((l) => isMealLog(l, ui) && String(l.data.name).toLowerCase() === meal.toLowerCase() && (l.data.foods as Eaten[] | undefined)?.length && l.id !== log?.id);
+    const yday = toDay(new Date(Date.now() - 86_400_000));
+    const y = [...mine].reverse().find((l) => l.day === yday);
+    const since = Date.now() - 30 * 86_400_000, count = new Map<string, { n: number; foods: Eaten[] }>();
+    for (const l of mine) {
+      if (new Date(l.created_at).getTime() < since) continue;
+      const foods = l.data.foods as Eaten[], k = foods.map((f) => f.name).sort().join(" + ");
+      count.set(k, { n: (count.get(k)?.n ?? 0) + 1, foods });
+    }
+    const usual = [...count.values()].sort((a, b) => b.n - a.n)[0];
+    return { y: y?.data.foods as Eaten[] | undefined, usual: usual && usual.n >= 2 ? usual.foods : undefined };
+  }, [data.logs, meal, ui, log?.id]);
+  const takeFoods = (fs: Eaten[]) => setDishes((ds) => [...ds.filter((x) => x.name.trim() || Number(x.kcal) || x.photo), ...dishesFrom(fs)]);
   const save = () => {
     const first = foods.find((f) => f.photo)?.photo;
     const payload = { name: meal, emoji: icon, meal: true, foods, kcal, note: contents || undefined, photo: first };
@@ -60,7 +76,7 @@ export function MealSheet({ meal: initial, log, onClose, start, file, at }: { me
     else {
       const row = logActivity("activity", payload, new Date(when));
       // Eaten food comes out of "What I have".
-      update((d) => ({ ...d, pantry: takeFromPantry(d.pantry, foods) }));
+      update((d) => ({ ...d, pantry: takeFromPantry(d.pantry, [...foods, ...usesOf(foods)]) }));
       celebrate({ title: "ITADAKIMASU!", subtitle: `${meal} · ${foods.length} food${foods.length === 1 ? "" : "s"}${kcal ? ` · ${kcal} kcal · ${protein} g protein` : ""}`, xp: row.xp, icon: payload.emoji });
     }
     onClose();
@@ -77,6 +93,12 @@ export function MealSheet({ meal: initial, log, onClose, start, file, at }: { me
         <span className="text-muted">Each food: 📷 its photo, 🏷️ its packet label (reads the calories).</span>
         <button onClick={() => setAnime(!anime)} className={`chip !py-0.5 text-[11px] shrink-0 ${anime ? "chip-on" : ""}`}>🎨 Anime</button>
       </div>
+      {!log && (past.y || past.usual) && (
+        <div className="grid grid-cols-2 gap-2">
+          {past.y && <button onClick={() => takeFoods(past.y!)} className="btn-ghost !py-2 text-xs text-left">🔁 Same as yesterday<span className="block text-[10px] text-muted truncate">{past.y.map((f) => f.name).join(" + ")}</span></button>}
+          {past.usual && <button onClick={() => takeFoods(past.usual!)} className="btn-ghost !py-2 text-xs text-left">⭐ My usual {meal.toLowerCase()}<span className="block text-[10px] text-muted truncate">{past.usual.map((f) => f.name).join(" + ")}</span></button>}
+        </div>
+      )}
       {!log && <WholeMeal anime={anime} file={file} onFoods={(ps) => setDishes((ds) => [...ds.filter((x) => x.name.trim() || Number(x.kcal) || x.photo), ...ps.map((p) => ({ ...newDish(), ...p }))])} />}
       <div className="space-y-2">
         {dishes.map((d) => <DishCard key={d.key} d={d} set={set(d.key)} anime={anime} addMore={(ps) => setDishes((ds) => { const i = ds.findIndex((x) => x.key === d.key); return [...ds.slice(0, i + 1), ...ps.map((p) => ({ ...newDish(), ...p })), ...ds.slice(i + 1)]; })} remove={() => setDishes((ds) => (ds.length > 1 ? ds.filter((x) => x.key !== d.key) : [newDish()]))} />)}
@@ -244,7 +266,10 @@ function WholeMeal({ anime, file, onFoods }: { anime: boolean; file?: Blob[]; on
   const picked = (x: Pick, l?: LabelRead) => {
     const n = nums.get(x.name);
     const fromLabel = l?.kcal != null ? { per: l.per ?? "1 serving", kcal: String(l.kcal), protein: l.protein != null ? String(l.protein) : "", fat: l.fat != null ? String(l.fat) : "", carbs: l.carbs != null ? String(l.carbs) : "", sugar: l.sugar != null ? String(l.sugar) : "", salt: l.salt != null ? String(l.salt) : "", contents: l.contents, facts: l.facts } : null;
-    onFoods([{ name: x.name, photo: ask?.small, auto: !fromLabel, ...(fromLabel ?? (n ? { per: n.per, kcal: String(n.kcal), protein: String(n.protein) } : {})) }]);
+    // A dish you cooked before brings its ingredients (taken off What I have).
+    const mine = data.items.find((i) => i.category === "food" && i.name === x.name && Array.isArray(i.config.uses));
+    const uses = mine ? (mine.config.uses as { name: string; qty: number }[]).map((u) => ({ name: u.name, qty: +(u.qty / (Number(mine.config.serves) || 1)).toFixed(3) })) : undefined;
+    onFoods([{ name: x.name, photo: ask?.small, auto: !fromLabel, uses, ...(mine?.config.contents ? { contents: String(mine.config.contents) } : {}), ...(fromLabel ?? (n ? { per: n.per, kcal: String(n.kcal), protein: String(n.protein) } : {})) }]);
     setPic(null); setMsg(`${fromLabel ? "🏷️" : "📋"} ${x.name} (${fromLabel ? "numbers from the label" : "from the list"}). Check the amount below.`);
   };
   // A photo saved with "Scan later" opens straight away.
@@ -289,6 +314,7 @@ function WholeMeal({ anime, file, onFoods }: { anime: boolean; file?: Blob[]; on
           onPick={picked} />}
         <textarea className="input flex-1 min-h-14 text-sm" placeholder="big bowl of rice and instant ramen, 2 eggs…" value={say} onChange={(e) => { setSay(e.target.value); setOffer(false); }} />
       </div>
+      <div className="flex flex-wrap gap-1.5 items-center"><span className="text-[10px] text-muted">Also, no AI:</span><ReceiptButton onFoods={onFoods} /><CookButton onFoods={onFoods} photo={pic?.small} /></div>
       <button disabled={busy || (!say.trim() && !pic)} onClick={() => read()} className="btn-primary w-full !py-1.5 text-sm disabled:opacity-40">{busy ? "Reading…" : say.trim() || !pic ? "Find in the list" : "📋 Pick the photo from the list"}</button>
       {offer && !busy && <button onClick={() => read(null, true)} className="btn-ghost w-full !py-1.5 text-sm ring-1 ring-[var(--accent)]">🤖 Ask AI about &quot;{say.trim().slice(0, 30)}&quot;</button>}
       {msg && <p className={`text-[11px] ${busy ? "animate-pulse text-[var(--accent2)]" : "text-muted"}`}>{msg}</p>}
