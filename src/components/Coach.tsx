@@ -32,6 +32,7 @@ export function useRunAction() {
       case "sleep": openSlotSheet({ kind: "sleep" }); return;
       case "wake": openSlotSheet({ kind: "wake" }); return;
       case "href": router.push(a.href); return;
+      case "hub": window.dispatchEvent(new CustomEvent("lifeos-hub", { detail: a.id })); return;
       default: {
         const detail = a.type === "activity" ? `activity:${a.name}` : "library";
         if (path === "/") window.dispatchEvent(new CustomEvent("lifeos-do", { detail }));

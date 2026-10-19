@@ -4,7 +4,7 @@ import { GoodsSuggest } from "@/components/GoodsSuggest";
 import { goodFor, norm, type Good } from "@/lib/goods";
 
 import { useMemo, useRef, useState } from "react";
-import { SnapChoice } from "@/components/SnapChoice";
+import { SnapChoice, useRememberSnap } from "@/components/SnapChoice";
 import { foodPicks } from "@/lib/foodpicks";
 import { aiPhoto, readMeal } from "@/lib/foodai";
 import { readFood, readMealText, type MealFood } from "@/lib/foodtext";
@@ -110,6 +110,7 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
     const n = nums.get(name);
     set({ name, ...(n ? { ...blank, per: n.per, kcal: String(n.kcal), protein: String(n.protein), auto: true } : fill(name, true)), status: `📋 ${name} (from the list).` });
   };
+  const rememberAI = useRememberSnap();
   const askAI = async (img: HTMLImageElement) => {
     const photo = d.photo;
     set({ busy: true, status: "🤖 AI is looking at what's in it and how much…" });
@@ -117,6 +118,7 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
     const r = await readMeal(session, { photo: aiPhoto(img), text: d.name }, items);
     if (r.ai && r.foods.length) {
       const [first, ...rest] = r.foods;
+      rememberAI(first.name, "🍱");
       set({ ...dishFrom(first, photo), busy: false, status: `${r.foods.length > 1 ? `Found ${r.foods.length} foods. ` : ""}${r.note}` });
       if (rest.length) addMore?.(rest.map((f) => dishFrom(f)));
       return;
@@ -173,7 +175,7 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
         {box(d.photo, "Food photo", "📷", () => pic.current?.click())}
         {box(d.label, "Label photo", "🏷️", () => lab.current?.click())}
         <input ref={pic} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) takePhoto(f); e.target.value = ""; }} />
-        {shot && d.photo && <SnapChoice photo={d.photo} img={shot} list={picks} what="food" onClose={() => setShot(null)} onAI={() => askAI(shot)} onPick={(p) => picked(p.name)} />}
+        {shot && d.photo && <SnapChoice photo={d.photo} img={shot} list={picks} what="food" kind="food" onClose={() => setShot(null)} onAI={() => askAI(shot)} onPick={(p) => picked(p.name)} />}
         <input ref={lab} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const l = [...(e.target.files ?? [])]; if (l.length) readPacket(l); e.target.value = ""; }} />
         <div className="flex-1 min-w-0 space-y-1.5">
           <div className="flex gap-1">

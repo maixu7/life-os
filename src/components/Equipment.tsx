@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { Pic } from "@/components/Pic";
 import { EQUIP_TYPES, EQUIPMENT, equipOf, parseGear } from "@/lib/equipment";
@@ -14,24 +14,26 @@ import { useApp, type PantryItem } from "@/lib/store";
 // 📷 My equipment: snap your dumbbells, bands or bench and the app knows
 // exactly what it is (from the equipment list), saves it with the photo in
 // What I have, and builds today's workout from it.
-export function EquipmentSheet({ onClose }: { onClose: () => void }) {
+export function EquipmentSheet({ onClose, file }: { onClose: () => void; file?: Blob[] }) {
   const { data, session, update, celebrate } = useApp();
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [say, setSay] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   // Photos waiting for "AI or my list?", one at a time.
-  const [queue, setQueue] = useState<{ file: File; small: string; img: HTMLImageElement }[]>([]);
-  const guess = useCallback((text: string, seen: string[]) => { const e = equipOf(`${text} ${seen.join(" ")}`); return e ? [e.name] : []; }, []);
+  const [queue, setQueue] = useState<{ file: Blob; small: string; img: HTMLImageElement }[]>([]);
+  const guess = useCallback((text: string) => { const e = text.trim().length > 3 ? equipOf(text) : undefined; return e ? [e.name] : []; }, []);
   const picks = useMemo<Pick[]>(() => [
     ...data.pantry.filter((p) => itemKind(p) === "equipment").map((p) => ({ name: p.name, emoji: p.emoji, sub: p.kg ? `${p.kg} kg` : undefined, mine: true })),
     ...EQUIPMENT.map((e) => ({ name: e.name, emoji: e.emoji, ja: e.ja, sub: e.brand })),
   ], [data.pantry]);
-  const choose = async (files: File[]) => {
-    const out: { file: File; small: string; img: HTMLImageElement }[] = [];
+  const choose = async (files: Blob[]) => {
+    const out: { file: Blob; small: string; img: HTMLImageElement }[] = [];
     for (const file of files) { const img = await loadImage(file); out.push({ file, img, small: smallPhoto(img, 160) }); }
     setQueue(out);
   };
+  // A photo saved with "Scan later" opens straight away.
+  useEffect(() => { if (file?.length) choose(file); }, [file]);
   const ref = useRef<HTMLInputElement>(null);
   const mine = data.pantry.filter((p) => itemKind(p) === "equipment");
   const kit = kitOf(data.pantry);
@@ -56,7 +58,7 @@ export function EquipmentSheet({ onClose }: { onClose: () => void }) {
 
   // Read each photo like food and drinks: the AI names it, the equipment list
   // pins down exactly what it is. Several photos at once are fine.
-  const snap = async (files: File[]) => {
+  const snap = async (files: Blob[]) => {
     const out: Parameters<typeof save>[0] = [];
     const missed: string[] = [];
     setBusy(true);
@@ -89,7 +91,7 @@ export function EquipmentSheet({ onClose }: { onClose: () => void }) {
             {photos.length ? <img src={photos[photos.length - 1]} alt="Equipment" className="h-full w-full object-cover" /> : "📷"}
           </button>
           <input ref={ref} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ""; if (f.length) choose(f); }} />
-          {queue[0] && <SnapChoice key={queue.length} photo={queue[0].small} img={queue[0].img} guess={guess} list={picks} what="equipment" more={queue.length > 1 ? `${queue.length - 1} more after this` : undefined} onClose={() => setQueue((q) => q.slice(1))}
+          {queue[0] && <SnapChoice key={queue.length} photo={queue[0].small} img={queue[0].img} guess={guess} list={picks} what="equipment" kind="equipment" more={queue.length > 1 ? `${queue.length - 1} more after this` : undefined} onClose={() => setQueue((q) => q.slice(1))}
             onAI={() => snap([queue[0].file])} onPick={(p) => { setPhotos((ps) => [...ps, queue[0].small]); save([{ name: p.name, extra: { photo: queue[0].small } }]); }} />}
           <textarea className="input flex-1 min-h-14 text-sm" placeholder={"or type it, one per line:\ndumbbell 10 kg ×2\nkettlebell 20 kg\nab wheel"} value={say} onChange={(e) => setSay(e.target.value)} />
         </div>

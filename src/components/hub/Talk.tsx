@@ -10,7 +10,7 @@ import { decodeCard, duel, myCard, shareText, type BuddyCard } from "@/lib/buddy
 import { emojiFor } from "@/lib/emoji";
 import { aiPhoto, readMeal, readProduct, type ProductRead } from "@/lib/foodai";
 import { loadImage, smallPhoto } from "@/lib/foodphoto";
-import { SnapChoice, type Pick } from "@/components/SnapChoice";
+import { SnapChoice, useRememberSnap, type LabelRead, type Pick } from "@/components/SnapChoice";
 import { foodPicks } from "@/lib/foodpicks";
 import { goods } from "@/lib/goods";
 import type { MealFood } from "@/lib/foodtext";
@@ -298,8 +298,10 @@ export function CameraSheet({ onClose }: { onClose: () => void }) {
     setGuess(g); setErr("");
     if (img && (g === "meal" || g === "packet")) setChoose(g);
   };
-  const pickMeal = (p: Pick) => {
+  const rememberAI = useRememberSnap();
+  const pickMeal = (p: Pick, l?: LabelRead) => {
     const n = food.nums.get(p.name);
+    if (l?.kcal != null) { setMeal({ foods: [{ name: p.name, qty: 1, per: l.per ?? "1 serving", kcal: l.kcal, protein: l.protein ?? 0 }], note: "🏷️ Numbers from the label." }); return; }
     setMeal({ foods: [{ name: p.name, qty: 1, per: n?.per ?? "1 serving", kcal: n?.kcal ?? 0, protein: n?.protein ?? 0 }], note: "📋 From the list." });
   };
   const pickPacket = (p: Pick) => {
@@ -313,12 +315,12 @@ export function CameraSheet({ onClose }: { onClose: () => void }) {
       setBusy("🤖 AI is reading the food…");
       const r = await readMeal(session, { photo: aiPhoto(img) }, data.items);
       setBusy("");
-      if (r.foods.length) setMeal({ foods: r.foods, note: r.note }); else setErr(r.error || "Couldn't read the food. Open the meal sheet and type it.");
+      if (r.foods.length) { rememberAI(r.foods.map((f) => f.name).join(" + "), "🍱"); setMeal({ foods: r.foods, note: r.note }); } else setErr(r.error || "Couldn't read the food. Open the meal sheet and type it.");
     } else {
       setBusy("🤖 AI is reading the packet…");
       const r = await readProduct(session, aiPhoto(img));
       setBusy("");
-      if (r.product?.found !== false && r.product?.name) setProd(r.product); else setErr(r.error || "Couldn't read the packet. Add it in My stuff.");
+      if (r.product?.found !== false && r.product?.name) { rememberAI(r.product.name, r.product.emoji); setProd(r.product); } else setErr(r.error || "Couldn't read the packet. Add it in My stuff.");
     }
   };
   const logMeal = () => {
@@ -346,9 +348,10 @@ export function CameraSheet({ onClose }: { onClose: () => void }) {
       <input ref={file} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) snap(f); e.target.value = ""; }} />
       <p className="text-sm text-muted">Food, a packet, a receipt or a book page: say what it is, and Sensei finds it in the app&apos;s list and sends it to the right place.</p>
       <button onClick={() => file.current?.click()} className="btn-primary w-full">{thumb ? "📸 Take another" : "📸 Take a photo"}</button>
+      <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("lifeos-hub", { detail: "later" })), 50); }} className="btn-ghost w-full !py-2 text-sm">📥 Photos to scan ({data.items.filter((i) => i.category === "later").length})</button>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {thumb && <img src={thumb} alt="Your photo" className="mx-auto h-28 w-28 rounded-xl object-cover" />}
-      {choose && img && <SnapChoice photo={thumb} img={img} list={choose === "meal" ? food.picks : packets} what={choose === "meal" ? "food" : "item"} onClose={() => setChoose(null)}
+      {choose && img && <SnapChoice photo={thumb} img={img} list={choose === "meal" ? food.picks : packets} what={choose === "meal" ? "food" : "item"} kind={choose === "meal" ? "food" : "item"} laterType={choose === "meal" ? "food" : "have"} onClose={() => setChoose(null)}
         onAI={() => askAI(choose)} onPick={choose === "meal" ? pickMeal : pickPacket} />}
       {busy && <p className="text-sm text-center animate-pulse">{busy}</p>}
       {err && <p className="text-xs text-amber-300">{err}</p>}

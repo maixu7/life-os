@@ -1,11 +1,12 @@
 "use client";
 
 import { StartButton } from "@/components/Doing";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { DRINK_CATS, DRINKS, drinkCatOf, drinkMatch, drinkOf, type Drink, type DrinkCat } from "@/lib/drinks";
-import { aiPhoto, readMeal, readProduct } from "@/lib/foodai";
-import { SnapChoice, type Pick } from "@/components/SnapChoice";
+import { aiPhotos, readMeal, readProduct } from "@/lib/foodai";
+import { perAmount } from "@/lib/label";
+import { SnapChoice, useRememberSnap, type LabelRead, type Pick } from "@/components/SnapChoice";
 import { loadImage, smallPhoto } from "@/lib/foodphoto";
 import { useApp } from "@/lib/store";
 import { drinkGoodness, scoreColor } from "@/lib/goodness";
@@ -14,7 +15,7 @@ import { CaffeineWarning } from "@/components/FoodPlus";
 
 // Any drink: pick it, pick how much, and the app logs calories, sugar and
 // caffeine. Water and milk count toward their goals.
-export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { onClose: () => void; at?: Date; start?: string; slot?: string; cat?: DrinkCat }) {
+export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat, file }: { onClose: () => void; at?: Date; start?: string; slot?: string; cat?: DrinkCat; file?: Blob[] }) {
   const { data, logActivity, celebrate, update } = useApp();
   const [photo, setPhoto] = useState("");
   // Your own drinks: ones read from a photo or words, saved with their photo for next time.
@@ -55,7 +56,7 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { 
   };
   return (
     <Sheet title={slot ? `🥤 ${slot}` : "🥤 What did you drink?"} onClose={onClose}>
-      <DrinkSnap photo={photo} setPhoto={setPhoto} onDrink={choose} all={all} mine={mine.length} />
+      <DrinkSnap photo={photo} setPhoto={setPhoto} onDrink={choose} all={all} mine={mine.length} file={file} />
       <input className="input" placeholder={`Search ${all.length} drinks (pocari, cola, soy milk, 麦茶…)`} value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         <button onClick={() => setCat("")} className={`chip !py-0.5 text-[11px] shrink-0 ${!cat ? "chip-on" : ""}`}>All</button>
@@ -106,10 +107,33 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { 
 
 // Snap the drink or say it, like food: the app finds it in the drink list,
 // or reads its calories, sugar and protein for the amount.
-function DrinkSnap({ photo, setPhoto, onDrink, all, mine }: { photo: string; setPhoto: (p: string) => void; onDrink: (d: Drink, ml: number) => void; all: Drink[]; mine: number }) {
-  const [ask, setAsk] = useState<{ ai: string; img: HTMLImageElement } | null>(null);
+function DrinkSnap({ photo, setPhoto, onDrink, all, mine, file }: { photo: string; setPhoto: (p: string) => void; onDrink: (d: Drink, ml: number) => void; all: Drink[]; mine: number; file?: Blob[] }) {
+  const [ask, setAsk] = useState<{ ai: string; imgs: HTMLImageElement[] } | null>(null);
+  const rememberAI = useRememberSnap();
   const [offer, setOffer] = useState(false); // "not in the list" → show the Ask AI button
   const guess = useCallback((text: string) => { const d = drinkMatch(text); return d ? [d.name] : []; }, []);
+  // One photo or several (front and back) of the same drink.
+  const takePhoto = async (fs: Blob[]) => {
+    const imgs = await Promise.all(fs.map(loadImage));
+    setPhoto(smallPhoto(imgs[0], 160));
+    setAsk({ ai: aiPhotos(imgs), imgs });
+  };
+  // From the list, with the label's own numbers when it could read them.
+  const picked = (p: Pick, l?: LabelRead) => {
+    const x = all.find((d) => d.name === p.name);
+    const base = perAmount(l?.per) ?? (l?.per ? undefined : 100);
+    const per = (v?: number) => (v != null && base ? Math.round((v / base) * 1000) / 10 : undefined);
+    if (x) {
+      const k = l?.kcal != null && base ? { kcal100: per(l.kcal)!, sugar100: per(l.sugar) ?? x.sugar100, protein100: per(l.protein) ?? x.protein100 } : {};
+      onDrink({ ...x, ...k }, x.ml); setMsg(`📋 ${x.name}, ${x.ml} ml (from the list${k.kcal100 != null ? ", numbers from the label" : ""}). Check the amount below.`); return;
+    }
+    // A new drink named from the label.
+    const ml = perAmount(l?.per) ?? 500;
+    onDrink({ name: p.name, cat: drinkCatOf(p.name), emoji: "🥤", ml, kcal100: per(l?.kcal) ?? 0, sugar100: per(l?.sugar ?? l?.carbs) ?? 0, protein100: per(l?.protein) ?? 0, water: 0.9 }, ml);
+    setMsg(`🏷️ ${p.name} from the label. Check the amount and numbers below; it's saved to My drinks when you log it.`);
+  };
+  // A photo saved with "Scan later" opens straight away.
+  useEffect(() => { if (file?.length) takePhoto(file); }, [file]); // eslint-disable-line react-hooks/exhaustive-deps
   const picks = useMemo<Pick[]>(() => all.map((x, i) => ({ name: x.name, emoji: x.emoji, ja: x.ja, sub: `${x.ml} ml · ${Math.round(x.kcal100 * x.ml / 100)} kcal`, mine: i < mine })), [all, mine]);
   const { data, session } = useApp();
   const [say, setSay] = useState("");
@@ -132,6 +156,7 @@ function DrinkSnap({ photo, setPhoto, onDrink, all, mine }: { photo: string; set
         setBusy(false); setSay("");
         const known = drinkMatch(p.name_ja, `${p.brand} ${p.name}`, p.name);
         const ml = Math.round(p.grams) || known?.ml || 500;
+        rememberAI(known?.name ?? [p.brand, p.name].filter(Boolean).join(" ").trim(), known?.emoji ?? p.emoji);
         if (known) { onDrink(known, ml); setMsg(`🤖 ${known.name}${known.ja ? ` (${known.ja})` : ""}, ${ml} ml. Check the amount below.`); return; }
         // Not in the list: use the label. Its numbers are per 100 ml or for the serving in "per".
         const base = /100\s*(ml|g|ｍｌ)/i.test(p.per) ? 100 : Number(/(\d+)\s*(ml|g)/i.exec(p.per)?.[1]) || ml;
@@ -148,6 +173,7 @@ function DrinkSnap({ photo, setPhoto, onDrink, all, mine }: { photo: string; set
     if (!f) { setMsg(ai && !r.ai ? `Photo reading failed (${r.error || "unknown"}). Type what it is, then tap Read.` : "I couldn't tell. Search for it below or type it."); return; }
     const ml = Math.round(f.grams ?? 0) || 250;
     const known = drinkMatch(f.name);
+    if (r.ai) rememberAI(known?.name ?? f.name, known?.emoji);
     if (known && r.ai) { onDrink(known, ml); setMsg(`${r.ai ? "🤖" : "📖"} ${known.name}, about ${ml} ml. Check the amount below.`); }
     else {
       const per = (x: number) => Math.round((x / ml) * 1000) / 10;
@@ -158,21 +184,15 @@ function DrinkSnap({ photo, setPhoto, onDrink, all, mine }: { photo: string; set
   };
   return (
     <div className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 p-2.5 space-y-2">
-      <div className="text-xs font-semibold">🔍 Snap or say your drink</div>
+      <div className="text-xs font-semibold">🔍 Snap or say your drink <span className="font-normal text-muted">(front + back photos OK)</span></div>
       <div className="flex gap-2">
         <button onClick={() => ref.current?.click()} aria-label="Drink photo" className="h-14 w-14 shrink-0 rounded-xl border border-dashed border-white/25 grid place-items-center overflow-hidden text-xl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {photo ? <img src={photo} alt="Drink" className="h-full w-full object-cover" /> : "📷"}
         </button>
-        <input ref={ref} type="file" accept="image/*" className="hidden" onChange={async (e) => {
-          const file = e.target.files?.[0]; e.target.value = "";
-          if (!file) return;
-          const img = await loadImage(file);
-          setPhoto(smallPhoto(img, 160));
-          setAsk({ ai: aiPhoto(img), img });
-        }} />
-        {ask && <SnapChoice photo={photo} img={ask.img} guess={guess} list={picks} what="drink" onClose={() => setAsk(null)} onAI={() => read(ask.ai)}
-          onPick={(p) => { const x = all.find((d) => d.name === p.name); if (x) { onDrink(x, x.ml); setMsg(`📋 ${x.name}, ${x.ml} ml (from the list). Check the amount below.`); } }} />}
+        <input ref={ref} type="file" accept="image/*" className="hidden" multiple onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ""; if (f.length) takePhoto(f); }} />
+        {ask && <SnapChoice photo={photo} img={ask.imgs} guess={guess} list={picks} what="drink" kind="drink" onClose={() => setAsk(null)} onAI={() => read(ask.ai)}
+          onPick={picked} />}
         <textarea className="input flex-1 min-h-14 text-sm" placeholder="big glass of mango lassi, Starbucks latte, 2 cups chai…" value={say} onChange={(e) => { setSay(e.target.value); setOffer(false); }} />
       </div>
       <button disabled={busy || !say.trim()} onClick={() => read()} className="btn-primary w-full !py-1.5 text-sm disabled:opacity-40">{busy ? "Reading…" : "Find in the list"}</button>

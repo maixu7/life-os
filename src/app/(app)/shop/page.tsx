@@ -13,9 +13,9 @@ import { UNITS, useApp, type PantryItem, type ShopItem } from "@/lib/store";
 import { deletePhoto, getPhoto, putPhoto } from "@/lib/vault";
 import { AutoGrocery, CategoryBudgets, MoneyTools, ReceiptSheet } from "@/components/Money";
 import { BIG_TILE } from "@/components/MainActions";
-import { aiPhoto, readProduct } from "@/lib/foodai";
+import { aiPhotos, readProduct } from "@/lib/foodai";
 import { loadImage, smallPhoto } from "@/lib/foodphoto";
-import { SnapChoice, type Pick } from "@/components/SnapChoice";
+import { SnapChoice, useRememberSnap, type Pick } from "@/components/SnapChoice";
 import { goods } from "@/lib/goods";
 
 type Tab = "list" | "storage" | "history" | "rewards" | "photos";
@@ -88,15 +88,17 @@ export default function ShopPage() {
   // Snap a product (or its empty packet): the app reads what it is and adds it
   // to the list with the photo, so next time it's easy to find in the shop.
   // First the app's own list (on the phone, no AI); AI only from its button.
-  const [shot, setShot] = useState<{ file: File; img: HTMLImageElement; small: string } | null>(null);
+  const [shot, setShot] = useState<{ file: File; imgs: HTMLImageElement[]; small: string } | null>(null);
+  const rememberAI = useRememberSnap();
   const picks = useMemo<Pick[]>(() => [
     ...[...new Set(data.shopping.map((s) => s.name))].map((n) => ({ name: n, emoji: emojiFor(n, "🛍️"), sub: "bought before", mine: true })),
     ...data.pantry.map((p) => ({ name: p.name, emoji: p.emoji, ja: p.ja, sub: "in What I have", mine: true })),
     ...goods().map((g) => ({ name: g.name, emoji: g.emoji, ja: g.ja || undefined, sub: g.cat })),
   ], [data.shopping, data.pantry]);
-  const snapAdd = async (file: File) => {
-    const img = await loadImage(file);
-    setShot({ file, img, small: smallPhoto(img, 160) });
+  // One photo or several (front and back) of the same thing.
+  const snapAdd = async (files: File[]) => {
+    const imgs = await Promise.all(files.map(loadImage));
+    setShot({ file: files[0], imgs, small: smallPhoto(imgs[0], 160) });
   };
   const addSnapped = async (file: File, name: string, p?: Awaited<ReturnType<typeof readProduct>>["product"] | null, error?: string) => {
     const photo_id = crypto.randomUUID();
@@ -112,10 +114,11 @@ export default function ShopPage() {
     if (name !== "Photo item") setSnapMsg(`📷 Added ${item.emoji} ${name}${item.note ? ` (${item.note})` : ""}. Tap it to change anything.`);
     else { setSnapMsg(`Couldn't tell what it is${error ? ` (${error})` : ""}. I added it with the photo; type its name.`); setEditItem(item); }
   };
-  const askAI = async (file: File, img: HTMLImageElement) => {
+  const askAI = async (file: File, imgs: HTMLImageElement[]) => {
     setTab("list"); setSnapMsg("🤖 AI is reading what this is…");
-    const r = await readProduct(session, aiPhoto(img), "something I want to buy");
+    const r = await readProduct(session, aiPhotos(imgs), "something I want to buy");
     const p = r.product?.found ? r.product : null;
+    if (p?.name) rememberAI(p.name, p.emoji);
     await addSnapped(file, p?.name ?? "", p, r.error);
   };
 
@@ -138,9 +141,9 @@ export default function ShopPage() {
         <button onClick={() => snapRef.current?.click()} className={BIG_TILE}><span className="text-4xl leading-none">📷</span><span className="font-black text-sm leading-tight">Snap to add</span><span className="text-[10px] text-muted leading-tight">Photo of what you need</span></button>
         <button onClick={() => setReceipt(true)} className={BIG_TILE}><span className="text-4xl leading-none">🧾</span><span className="font-black text-sm leading-tight">Scan receipt</span><span className="text-[10px] text-muted leading-tight">Ticks what you bought</span></button>
       </div>
-      <input ref={snapRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) snapAdd(f); }} />
-      {shot && <SnapChoice photo={shot.small} img={shot.img} list={picks} what="item" onClose={() => setShot(null)}
-        onAI={() => askAI(shot.file, shot.img)} onPick={(p) => { setTab("list"); addSnapped(shot.file, p.name); }} />}
+      <input ref={snapRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ""; if (f.length) snapAdd(f); }} />
+      {shot && <SnapChoice photo={shot.small} img={shot.imgs} list={picks} what="item" kind="item" laterType="shop" onClose={() => setShot(null)}
+        onAI={() => askAI(shot.file, shot.imgs)} onPick={(p) => { setTab("list"); addSnapped(shot.file, p.name); }} />}
       {receipt && <ReceiptSheet onClose={() => setReceipt(false)} />}
       {snapMsg && <p className="card p-3 mb-3 text-xs">{snapMsg}</p>}
 

@@ -11,10 +11,10 @@ import { foodGoodness } from "@/lib/goodness";
 import { GoodBadge } from "@/components/GoodBadge";
 import { emojiFor } from "@/lib/emoji";
 import { loadImage, recognise, smallPhoto } from "@/lib/foodphoto";
-import { aiPhoto, readProduct } from "@/lib/foodai";
+import { aiPhotos, readProduct } from "@/lib/foodai";
 import { GoodsSuggest } from "@/components/GoodsSuggest";
 import { goods, type Good } from "@/lib/goods";
-import { SnapChoice, type Pick } from "@/components/SnapChoice";
+import { SnapChoice, useRememberSnap, type LabelRead, type Pick } from "@/components/SnapChoice";
 import { EQUIPMENT } from "@/lib/equipment";
 import { fromPhoto, gearOf, itemKind, kindOf, KINDS, kitOf, kitText, whenToEat, withGear, type Kind } from "@/lib/have";
 import { UNITS, useApp, type PantryItem } from "@/lib/store";
@@ -107,32 +107,38 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
   const kit = kitOf(data.pantry);
 
   // A photo: first the app's own list (on the phone, no AI); AI only from its button.
-  const [shot, setShot] = useState<HTMLImageElement | null>(null);
+  const [shot, setShot] = useState<HTMLImageElement[] | null>(null);
+  const rememberAI = useRememberSnap();
   const picks = useMemo<Pick[]>(() => [
     ...data.pantry.map((p) => ({ name: p.name, emoji: p.emoji, ja: p.ja, sub: "in What I have", mine: true })),
     ...goods().map((g) => ({ name: g.name, emoji: g.emoji, ja: g.ja || undefined, sub: g.kcal ? `${g.kcal} kcal per ${g.per}` : g.cat })),
     ...EQUIPMENT.map((e) => ({ name: e.name, emoji: e.emoji, ja: e.ja, sub: e.brand })),
   ], [data.pantry]);
-  const snap = async (f: File) => {
-    const img = await loadImage(f);
-    setPhoto(smallPhoto(img, 160));
-    setShot(img);
+  // One photo or several (front and back) of the same thing.
+  const snap = async (fs: File[]) => {
+    const imgs = await Promise.all(fs.map(loadImage));
+    setPhoto(smallPhoto(imgs[0], 160));
+    setShot(imgs);
   };
-  const pickListed = (p: Pick) => {
+  const pickListed = (p: Pick, l?: LabelRead) => {
     const g = goods().find((x) => x.name === p.name);
+    if (l?.contents && !note) setNote(`Contains: ${l.contents}`);
+    if (l?.kcal != null) { setName(p.name); setNut({ per: l.per ?? "1 serving", kcal: l.kcal, protein: l.protein ?? 0 }); setMsg(`🏷️ ${p.name}: ${l.kcal} kcal per ${l.per ?? "serving"} from the label.`); if (g) { setJa(g.ja); } return; }
     if (g) { pickGood(g); return; }
     const had = data.pantry.find((x) => x.name === p.name);
     setName(p.name); setJa(p.ja ?? ""); setKind(had ? itemKind(had) : kindOf(p.name));
     setMsg(`📋 ${p.emoji} ${p.name} (from the list).`);
   };
-  const askAI = async (img: HTMLImageElement) => {
+  const askAI = async (imgs: HTMLImageElement[]) => {
+    const img = imgs[0];
     setBusy(true);
     setMsg("🤖 AI is reading the packet (English and 日本語)…");
     // 1) The AI reader reads the packet: name, amount, calories, best-before date.
-    const r0 = await readProduct(session, aiPhoto(img), name);
+    const r0 = await readProduct(session, aiPhotos(imgs), name);
     setBusy(false);
     const p = r0.product;
     if (p && p.found !== false && p.name) {
+      rememberAI(p.name, p.emoji);
       setName(p.name); setJa(p.name_ja || ""); setBrand(p.brand || "");
       const k = (["food", "fruit", "veg", "drink", "book", "equipment", "other"] as Kind[]).includes(p.kind as Kind) ? (p.kind as Kind) : kindOf(p.name);
       setKind(k);
@@ -185,8 +191,8 @@ function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => 
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {photo ? <img src={photo} alt={name} className="h-full w-full object-cover" /> : <span className="text-xs text-muted text-center">📷<br />Photo</span>}
         </button>
-        <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) snap(f); e.target.value = ""; }} />
-        {shot && <SnapChoice photo={photo} img={shot} list={picks} what="thing" onClose={() => setShot(null)} onAI={() => askAI(shot)} onPick={pickListed} />}
+        <input ref={file} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const f = [...(e.target.files ?? [])]; if (f.length) snap(f); e.target.value = ""; }} />
+        {shot && <SnapChoice photo={photo} img={shot} list={picks} what="thing" kind="item" onClose={() => setShot(null)} onAI={() => askAI(shot)} onPick={pickListed} />}
         <div className="flex-1 min-w-0 space-y-2">
           <input className="input" placeholder="Name or 日本語 (ウインナー, Apple, Dumbbell 10 kg…)" value={name} onChange={(e) => { setName(e.target.value); setNut(null); }} />
           {!nut && <GoodsSuggest q={name} onPick={pickGood} max={5} />}

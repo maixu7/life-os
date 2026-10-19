@@ -15,7 +15,7 @@ import { myTasks } from "@/lib/mytasks";
 
 export type Action =
   | { type: "water" } | { type: "milk" } | { type: "sleep" } | { type: "wake" } | { type: "library" }
-  | { type: "activity"; name: string } | { type: "href"; href: string };
+  | { type: "activity"; name: string } | { type: "href"; href: string } | { type: "hub"; id: string };
 
 export type Task = { id: string; icon: string; title: string; why: string; because: string; priority: number; action: Action };
 
@@ -196,6 +196,9 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
 
   // Tasks you made yourself, in with the rest.
   for (const t of myTasks(d, now)) add(t);
+  // Photos saved with "Scan later".
+  const later = d.items.filter((i) => i.category === "later").length;
+  if (later) add({ id: "later", icon: "📥", priority: 38, action: { type: "hub", id: "later" }, title: `Scan ${later} saved photo${later > 1 ? "s" : ""}`, because: "You saved them with Scan later.", why: "Logged food, drinks and things keep your numbers right." });
 
   if (!out.length && !busy) {
     add({ id: "read", icon: "📚", title: "Read 10 pages of a good book", priority: 5, action: { type: "library" },
