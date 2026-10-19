@@ -121,7 +121,7 @@ const DEFS: Def[] = [
   D("Ceiling-mounted pull-up bar", "天井懸垂バー", "bar", "🤸", "Bars & racks", /pull[\s-]*up|chin[\s-]*up|懸垂/i, { q: /ceiling|天井/i }),
   D("Pull-up bar", "懸垂バー", "bar", "🤸", "Bars & racks", /pull[\s-]*up|chin[\s-]*up|chinning|懸垂|チンニング/i),
   D("Chin-up stand with pull-up bar", "チンニングスタンド", "bar", "🤸", "Bars & racks", /chin[\s-]*up\s*stand|pull[\s-]*up\s*stand|free[\s-]*standing|チンニングスタンド|ぶら下がり健康器/i),
-  D("Power tower pull-up and dip station", "パワータワー", "bar", "🤸", "Bars & racks", /power\s*tower|vkr|knee\s*raise\s*station|パワータワー/i),
+  D("Power tower pull-up and dip station", "パワータワー", "bar", "🤸", "Bars & racks", /power\s*tower|vkr|knee\s*raise\s*station|(pull[\s-]*up|chin[\s-]*up|懸垂)[^,\n]{0,25}dip|dip[^,\n]{0,25}(pull[\s-]*up|chin[\s-]*up)|パワータワー|ぶら下がり健康器/i),
   D("Power rack with pull-up bar", "パワーラック", "bar", "🏗️", "Bars & racks", /power\s*rack|power\s*cage|squat\s*cage|full\s*rack|パワーラック/i),
   D("Half rack with pull-up bar", "ハーフラック", "bar", "🏗️", "Bars & racks", /half\s*rack|ハーフラック/i),
   D("Squat stand", "スクワットスタンド", null, "🏗️", "Bars & racks", /squat\s*(stand|rack)|スクワットラック|スクワットスタンド/i),
@@ -136,7 +136,8 @@ const DEFS: Def[] = [
   D("Gymnastic rings", "吊り輪", "rings", "⭕", "Bodyweight", /gymnastic(s)?\s*rings?|\brings?\b|吊り輪|リング/i, { v: ["(wood)", "(plastic)"] }),
   D("Suspension trainer", "サスペンショントレーナー", null, "🪢", "Bodyweight", /suspension|\btrx\b|サスペンション/i),
   D("Nordic curl strap", "ノルディックハムストリング", null, "🦵", "Bodyweight", /nordic\s*(curl|hamstring)/i),
-  D("Ab wheel", "腹筋ローラー", "wheel", "🛞", "Ab wheels", /ab(dominal)?\s*(wheel|roller|carver)|腹筋ローラー|アブローラー/i, { v: ["(single)", "(double)", "(wide)", "with knee pad", "(auto-rebound)"] }),
+  D("Ab crunch machine", "腹筋マシン", null, "🦵", "Ab wheels", /ab(dominal)?\s*(crunch(er)?|coaster|machine|trainer|glider)|crunch\s*machine|lower\s*body\s*(exercise|trainer|tool|machine)|leg\s*(and|n|&)\s*lower\s*body|腹筋マシン|アブコースター|アブマシン/i),
+  D("Ab wheel", "腹筋ローラー", "wheel", "🛞", "Ab wheels", /ab(dominal)?\s*(wheel|roller|carver)|exercise\s*(wheel|roller)|wheel\s*roller|^\s*roller\b|腹筋ローラー|アブローラー/i, { v: ["(single)", "(double)", "(wide)", "with knee pad", "(auto-rebound)"] }),
   D("Sit-up assist strap", "腹筋サポーター", null, "🤸", "Bodyweight", /sit[\s-]*up\s*(bar|assist)|腹筋サポート/i),
 
   // Benches
@@ -226,6 +227,7 @@ const DEFS: Def[] = [
 
   // Grip and forearms
   D("Hand gripper", "ハンドグリップ", null, "✊", "Grip", /hand\s*grip(per)?|grip\s*(strengthener|trainer)|gripper|ハンドグリップ|握力/i, { v: ["(adjustable 5–60 kg)", "(adjustable 10–40 kg)", "20 kg", "30 kg", "40 kg", "50 kg", "60 kg", "100 lb", "150 lb", "200 lb", "250 lb", "300 lb"] }),
+  D("Rotating arm exerciser", "回転式アームトレーナー", null, "💪", "Grip", /rotating\s*arm|arm\s*(exerciser|trainer|blaster|twister)|speed\s*wheel|power\s*twister|アームトレーナー|アームツイスター/i),
   D("Wrist roller", "リストローラー", null, "✊", "Grip", /wrist\s*roller|forearm\s*roller|リストローラー/i),
   D("Finger exerciser", "フィンガートレーナー", null, "✊", "Grip", /finger\s*(exerciser|strengthener|trainer)|フィンガー/i),
   D("Gyroscopic wrist ball", "パワーボール", null, "✊", "Grip", /powerball|power\s*ball|gyro(scopic)?\s*(wrist)?\s*ball|パワーボール/i),
@@ -1041,4 +1043,23 @@ export function equipOf(text: string): Equip | undefined {
   }
   if (!e.brand && brands.size === 1) return { ...e, brand: [...brands][0] };
   return e;
+}
+
+/** A typed list of gear, one thing per line: "Dumbbell 10kg each, item 2", "kettlebell 20kg",
+ *  "push up bars set of 2". Gives each line's name (from the list when known), how many and kg each. */
+type GearLine = { name: string; qty?: number; kg?: number };
+export function parseGear(text: string): GearLine[] {
+  return text.normalize("NFKC").split(/\n|;/).map((raw): GearLine | null => {
+    const line = raw.replace(/^\s*(?:[-•*]|\d+[.)])\s+/, "").trim();
+    if (!line) return null;
+    const n = /(?:item|items|x|×|set\s*of|qty|pcs?)\s*:?\s*(\d+)|(\d+)\s*(?:pcs|pieces|items?|個|本|台)\b/i.exec(line);
+    const qty = n ? Number(n[1] ?? n[2]) : undefined;
+    const each = /(\d+(?:\.\d+)?)\s*kg\s*each/i.exec(line);
+    const lb = /(\d+(?:\.\d+)?)\s*(?:-\s*)?(?:lb|lbs|pound)/i.exec(line);
+    const kg = each ? Number(each[1]) : (/total/i.test(line) ? undefined : kgIn(line)) || (lb ? Math.round(Number(lb[1]) * 0.4536 * 10) / 10 : undefined);
+    const e = equipOf(line);
+    const name = e?.name ?? line.replace(/\b(item|items|qty|set of|total|each)\b.*$/i, "").replace(/[,:]+\s*$/, "").trim();
+    // "10 kg each" alone says how heavy, not what it is.
+    return name.replace(/[\d.,\s]|kg|lbs?|each|total/gi, "").length >= 3 ? { name, qty, kg: kg || e?.kg } : null;
+  }).filter((x): x is GearLine => !!x);
 }
