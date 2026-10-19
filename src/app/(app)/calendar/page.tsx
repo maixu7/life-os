@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import Link from "next/link";
-import { describe } from "@/lib/describe";
+import { DayRecords } from "@/components/DayRecords";
 import { dailyGoals } from "@/lib/goals";
 import { toDay, today, useApp, type Log } from "@/lib/store";
 
@@ -21,6 +21,7 @@ export default function CalendarPage() {
   const [view, setView] = useState<"month" | "week" | "day">("month");
   const [cursor, setCursor] = useState(new Date());
   const [selected, setSelected] = useState(today());
+  const listRef = useRef<HTMLElement>(null);
 
   const byDay = useMemo(() => {
     const m: Record<string, Log[]> = {};
@@ -40,7 +41,7 @@ export default function CalendarPage() {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const monthDays = Array.from({ length: 42 }, (_, i) => addDays(monday(first), i));
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(monday(cursor), i));
-  const dayLogs = byDay[view === "day" ? toDay(cursor) : selected] ?? [];
+  const shown = view === "day" ? toDay(cursor) : selected;
   const title =
     view === "month" ? cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })
     : view === "week" ? `Week of ${weekDays[0].toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
@@ -49,6 +50,14 @@ export default function CalendarPage() {
   const pick = (d: Date) => {
     setSelected(toDay(d));
     if (view === "day") setCursor(d);
+    // Bring the day's list into view below the calendar.
+    setTimeout(() => listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+  // Jump to any date typed or picked by hand.
+  const jump = (v: string) => {
+    if (!v) return;
+    setSelected(v);
+    setCursor(new Date(`${v}T12:00`));
   };
 
   return (
@@ -67,6 +76,12 @@ export default function CalendarPage() {
             onChange={(e) => e.target.value && setCursor(new Date(`${e.target.value}-01T12:00`))} />
         </label>
         <button onClick={() => step(1)} className="btn-ghost">›</button>
+      </div>
+      <div className="card flex items-center gap-2 p-2 mb-3">
+        <label htmlFor="cal-date" className="text-sm font-semibold">📅 Go to date</label>
+        <input id="cal-date" type="date" value={shown} onChange={(e) => jump(e.target.value)}
+          className="flex-1 min-w-0 rounded-lg bg-white/5 border border-white/10 px-2 py-1 text-sm" />
+        {shown !== today() && <button onClick={() => jump(today())} className="chip chip-on">Today</button>}
       </div>
 
       {view === "month" && (
@@ -107,27 +122,8 @@ export default function CalendarPage() {
         </div>
       )}
 
-      <section>
-        <h3 className="font-bold mb-2">
-          {view === "day" ? "Timeline" : new Date(selected + "T12:00").toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
-        </h3>
-        {dayLogs.length === 0 && <p className="text-sm text-muted">Nothing logged.</p>}
-        <ol className="card divide-y divide-white/5">
-          {[...dayLogs].sort((a, b) => a.created_at.localeCompare(b.created_at)).map((l) => {
-            const d = describe(l, profile.settings.currency);
-            return (
-              <li key={l.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                <span className="w-11 text-xs tabular-nums text-muted">{new Date(l.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                <span className="text-lg">{d.emoji}</span>
-                <span className="flex-1 min-w-0"><span className="block font-semibold truncate">{d.title}</span>
-                  {d.detail && <span className="block text-xs text-muted truncate">{d.detail}</span>}</span>
-                <span className="text-xs text-[var(--accent2)]">+{l.xp}</span>
-              </li>
-            );
-          })}
-        </ol>
-        <Link href={`/?day=${view === "day" ? toDay(cursor) : selected}`} className="btn-primary mt-3 block text-center">Open this day to add or edit</Link>
-      </section>
+      <DayRecords ref={listRef} day={shown} />
+      <Link href={`/?day=${shown}`} className="btn-primary mt-3 mb-4 block text-center">Open this day to add or edit</Link>
     </>
   );
 }
