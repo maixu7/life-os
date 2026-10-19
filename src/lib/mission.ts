@@ -1,7 +1,8 @@
 import type { Action } from "@/lib/coach";
 import { itemKind, kitOf } from "@/lib/have";
 import { AREAS, dueOn, measure, targetOf, taskOf, type Area } from "@/lib/mytasks";
-import { dayType, goalsOn, isOffDay, sched, sleepTimes, toMin } from "@/lib/schedule";
+import { dayType, goalsOn, hm, isOffDay, sched, sleepTimes, studyFrom, toMin } from "@/lib/schedule";
+import { autoSteps } from "@/lib/dayplan";
 import { isStudy } from "@/lib/worst";
 import { pathFor, pathScore } from "@/lib/karma";
 import { toDay, type Data, type Log } from "@/lib/store";
@@ -12,19 +13,25 @@ import { toDay, type Data, type Log } from "@/lib/store";
 // checked against what you actually logged: ✓ on time / N min late / early,
 // or ✗ when it didn't happen.
 
-export type StepKind = "wake" | "sleep" | "meal" | "water" | "work" | "study" | "workout" | "step";
-/** One of your own timed steps (settings.routine). */
-export type RoutineItem = { id: string; time: string; label: string; kind: StepKind; ml?: number; days?: number[] };
+export type StepKind = "wake" | "sleep" | "meal" | "water" | "work" | "study" | "code" | "read" | "workout" | "step";
+/** One timed step: your own (settings.routine), from the schedule, or added by the app (auto). */
+export type RoutineItem = { id: string; time: string; end?: string; label: string; kind: StepKind; ml?: number; days?: number[]; note?: string; href?: string; auto?: boolean };
+/** Your changes to any step (settings.routineEdit): its times, its name, or hidden. */
+export type StepEdit = { time?: string; end?: string; label?: string; off?: boolean; ml?: number };
 
 export type Step = {
   id: string; time: string; label: string; icon: string; kind: StepKind; fixed: boolean; ml?: number;
   /** Where it happens in the app. */ action: Action; href?: string;
   state: "done" | "missed" | "due" | "later"; at?: string; diff?: number; // minutes late (+) or early (−)
+  end?: string; note?: string; auto?: boolean; own?: boolean; logId?: string; doneEnd?: string;
 };
 export type Pickd = { id: string; icon: string; title: string; href: string; area: Area; target: number; got: number; done: boolean; why: string };
 
-const ICON: Record<StepKind, string> = { wake: "🌅", sleep: "🌙", meal: "🍱", water: "💧", work: "💼", study: "📖", workout: "🏋️", step: "⭐" };
-const HREF: Partial<Record<StepKind, string>> = { meal: "/food", water: "/food", study: "/learn", workout: "/train" };
+const ICON: Record<StepKind, string> = { wake: "🌅", sleep: "🌙", meal: "🍱", water: "💧", work: "💼", study: "📖", code: "💻", read: "📚", workout: "🏋️", step: "⭐" };
+// Pictures for the everyday steps the app adds.
+const STEP_ICON: [RegExp, string][] = [[/sitz|bath|shower/i, "🛁"], [/toilet/i, "🚽"], [/brush/i, "🪥"], [/wash face|get ready/i, "🧼"], [/stretch|salutation|posture|warm up|cool down/i, "🧘"], [/walk/i, "🚶"], [/listen/i, "🎧"], [/shop/i, "🛒"], [/tidy|laundry|dishes/i, "🧹"], [/breath/i, "🌬️"], [/plan|prepare|pack/i, "🎒"], [/call|message/i, "📞"], [/phone|eyes|screen/i, "📵"], [/write|journal/i, "✍️"], [/snack/i, "🍎"], [/watch/i, "📺"], [/drink (?!water)/i, "🥤"]];
+const iconOf = (it: RoutineItem) => (it.kind === "step" || it.kind === "meal" || it.kind === "water" ? STEP_ICON.find(([re]) => re.test(it.label))?.[1] : undefined) ?? ICON[it.kind];
+const HREF: Partial<Record<StepKind, string>> = { meal: "/food", water: "/food", study: "/learn", code: "/learn", read: "/learn", workout: "/train" };
 const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 const mins = (iso: string) => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes(); };
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9぀-鿿]+/g, " ").trim();
@@ -35,12 +42,18 @@ export function builtIn(d: Data, date: Date): RoutineItem[] {
   const t = dayType(s, date), off = isOffDay(t);
   const night = sleepTimes(s, new Date(`${toDay(date)}T20:00:00`));
   const out: RoutineItem[] = [{ id: "b-wake", time: off ? s.weekendWake : s.wake, label: "Wake up", kind: "wake" }];
-  if (s.breakfast) out.push({ id: "b-breakfast", time: s.breakfast, label: "Breakfast", kind: "meal" });
-  if (!off && s.workStart) out.push({ id: "b-work", time: s.workStart, label: s.workPlace || "Work", kind: "work" });
-  if (s.lunch) out.push({ id: "b-lunch", time: s.lunch, label: "Lunch", kind: "meal" });
-  if (s.dinner) out.push({ id: "b-dinner", time: s.dinner, label: "Dinner", kind: "meal" });
-  if (s.studyStart) out.push({ id: "b-study", time: s.studyStart, label: "Study", kind: "study" });
-  if (s.exercise) out.push({ id: "b-exercise", time: s.exercise, label: "Exercise", kind: "workout" });
+  if (s.breakfast) out.push({ id: "b-breakfast", time: s.breakfast, end: hm(toMin(s.breakfast) + 20), label: "Breakfast", kind: "meal" });
+  if (!off && s.workStart) out.push({ id: "b-work", time: s.workStart, end: t === "half" ? s.halfEnd : s.workEnd, label: s.workPlace || "Work", kind: "work" });
+  if (s.lunch) out.push({ id: "b-lunch", time: s.lunch, end: hm(toMin(s.lunch) + 30), label: "Lunch", kind: "meal" });
+  if (s.dinner) out.push({ id: "b-dinner", time: s.dinner, end: hm(toMin(s.dinner) + 30), label: "Dinner", kind: "meal" });
+  // Study and exercise never sit inside work hours, and not both at the same minute.
+  const free = studyFrom(s, date);
+  const ex = s.exercise ? Math.max(toMin(s.exercise), off ? 0 : free) : NaN;
+  let st = s.studyStart ? Math.max(toMin(s.studyStart), free) : NaN;
+  const stLen = s.studyEnd ? Math.max(30, toMin(s.studyEnd) - toMin(s.studyStart)) : 90;
+  if (!Number.isNaN(ex) && !Number.isNaN(st) && Math.abs(st - ex) < 50) st = ex + 50;
+  if (!Number.isNaN(st)) out.push({ id: "b-study", time: hm(st), end: hm(st + stLen), label: "Study", kind: "study" });
+  if (!Number.isNaN(ex)) out.push({ id: "b-exercise", time: hm(ex), end: hm(ex + (off ? 60 : 45)), label: "Exercise", kind: "workout" });
   out.push({ id: "b-sleep", time: night.sleep, label: "Go to sleep", kind: "sleep" });
   return out;
 }
@@ -66,23 +79,38 @@ function didAt(it: RoutineItem, logs: Log[], all: Log[], day: string): string | 
     case "water": return logs.find((l) => ["water", "drink", "milk"].includes(l.kind) && near(l, 30, 120) && (!it.ml || Number(l.data.ml) >= it.ml * 0.8))?.created_at;
     case "work": return logs.find((l) => l.kind === "activity" && /work|office|school|college|job/i.test(String(l.data.name)) && near(l, 60, 180))?.created_at;
     case "study": return logs.find((l) => isStudy(l) && near(l, 60, 240))?.created_at;
+    case "code": return logs.find((l) => (l.kind === "coding" || (l.kind === "activity" && /cod(e|ing)|program/i.test(String(l.data.name)))) && near(l, 120, 300))?.created_at;
+    case "read": return logs.find((l) => l.kind === "media" && l.data.mode !== "watch" && near(l, 120, 240))?.created_at;
     case "workout": return logs.find((l) => l.kind === "workout" && near(l, 120, 360))?.created_at;
     default: return logs.find((l) => norm(String(l.data.name ?? "")) === norm(it.label))?.created_at;
   }
 }
 
 // How long after its time a step still counts as "due" before it's ✗.
-const GRACE: Record<StepKind, number> = { wake: 120, sleep: 180, meal: 120, water: 90, work: 90, study: 180, workout: 240, step: 60 };
+const GRACE: Record<StepKind, number> = { wake: 120, sleep: 180, meal: 120, water: 90, work: 90, study: 180, code: 180, read: 180, workout: 240, step: 90 };
 
 /** The day's timeline, each step checked against your logs. */
 export function steps(d: Data, day: string, now = new Date()): Step[] {
   const date = new Date(`${day}T12:00:00`);
-  const own = (d.profile.settings.routine ?? []).filter((r) => !r.days?.length || r.days.includes(date.getDay()));
-  const items = [...builtIn(d, date), ...own];
+  const own = (d.profile.settings.routine ?? []).filter((r) => !r.days?.length || r.days.includes(date.getDay())).map((r) => ({ ...r, mine: true }));
+  const edits = d.profile.settings.routineEdit ?? {};
+  // Your changes win: new times, a new name, or a step you hid (schedule steps can't be hidden).
+  const items = [...builtIn(d, date), ...autoSteps(d, date), ...own]
+    .map((it) => { const e = edits[it.id]; return e ? { ...it, ...(e.time ? { time: e.time } : {}), ...(e.end !== undefined ? { end: e.end || undefined } : {}), ...(e.label ? { label: e.label } : {}), ...(e.ml ? { ml: e.ml } : {}), off: !!e.off && !it.id.startsWith("b-") } : it; })
+    .filter((it) => !("off" in it && it.off));
+  // Steps the app added never sit on top of a schedule block (exercise, study, meals): they move to just after it.
+  const blocks = items.filter((it) => it.id.startsWith("b-") && it.end && it.kind !== "work").map((it) => [toMin(it.time), toMin(it.end!)] as const);
+  for (let pass = 0; pass < 3; pass++) for (let i = 0; i < items.length; i++) {
+    const it = items[i];
+    if (!it.auto || it.kind === "water" || edits[it.id]?.time) continue;
+    const m = toMin(it.time), hit = blocks.find(([a, b]) => m >= a && m < b);
+    if (hit) { const len = it.end ? (toMin(it.end) - m + 1440) % 1440 : 0; items[i] = { ...it, time: hm(hit[1] + 2), end: it.end ? hm(hit[1] + 2 + len) : undefined }; }
+  }
   const logs = logsOn(d, day);
   const isToday = day === toDay(now), past = day < toDay(now);
   const nowM = now.getHours() * 60 + now.getMinutes();
   return items.map((it) => {
+    const log = logs.find((l) => l.data.routine === it.id);
     const at = didAt(it, logs, d.logs, day);
     const plan = toMin(it.time);
     let diff: number | undefined;
@@ -95,9 +123,10 @@ export function steps(d: Data, day: string, now = new Date()): Step[] {
     // Bedtime can still happen after midnight, so it's only ✗ once the day is over.
     const over = past || (isToday && it.kind !== "sleep" && nowM > end);
     const state: Step["state"] = at ? "done" : over ? "missed" : isToday && nowM >= plan - 30 ? "due" : "later";
-    const href = HREF[it.kind];
+    const href = it.href ?? HREF[it.kind];
     const action: Action = it.kind === "wake" ? { type: "wake" } : it.kind === "sleep" ? { type: "sleep" } : it.kind === "water" ? { type: "water" } : href ? { type: "href", href } : { type: "activity", name: it.label };
-    return { id: it.id, time: it.time, label: it.label, icon: ICON[it.kind], kind: it.kind, fixed: true, ml: it.ml, action, href, state, at, diff };
+    const doneEnd = log?.data.end ? hhmm(new Date(String(log.data.end))) : undefined;
+    return { id: it.id, time: it.time, end: it.end, note: it.note, auto: it.auto, own: "mine" in it, label: it.label, icon: iconOf(it), kind: it.kind, fixed: it.id.startsWith("b-"), ml: it.ml, action, href, state, at, diff, logId: log?.id ?? (at ? (logs.find((l) => l.created_at === at) ?? d.logs.find((l) => l.created_at === at))?.id : undefined), doneEnd };
   }).sort((a, b) => toMin(a.time) - toMin(b.time));
 }
 
