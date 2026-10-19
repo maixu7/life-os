@@ -60,14 +60,15 @@ export function handledToday(d: Data, id: string, now = new Date()): boolean {
   }
 }
 
-export function gaps(d: Data, period: Period, now = new Date()): { gaps: Gap[]; days: number } {
+// onDays: judge these exact days instead of the ones before `now` (past reports).
+export function gaps(d: Data, period: Period, now = new Date(), onDays?: string[]): { gaps: Gap[]; days: number } {
   const span = PERIODS.find((p) => p.id === period)!.days;
   const byDay = new Map<string, Log[]>();
   for (const l of d.logs) (byDay.get(l.day) ?? byDay.set(l.day, []).get(l.day)!).push(l);
   // Only days the hero actually tracked; today counts only for "Today".
   const days: DayStats[] = [];
-  for (let i = period === "day" ? 0 : 1; i < (period === "day" ? 1 : span + 1); i++) {
-    const day = toDay(new Date(now.getTime() - i * 86_400_000));
+  const list = onDays ?? Array.from({ length: period === "day" ? 1 : span }, (_, i) => toDay(new Date(now.getTime() - (period === "day" ? 0 : i + 1) * 86_400_000)));
+  for (const day of list) {
     const ls = byDay.get(day);
     if (ls?.some((l) => l.kind !== "login" && l.kind !== "battle")) days.push(statsFor(d, day, ls));
   }
@@ -77,14 +78,14 @@ export function gaps(d: Data, period: Period, now = new Date()): { gaps: Gap[]; 
   const h = now.getHours();
   const s = d.profile.settings, sc = sched(s.schedule);
   const b = bodyOf(d);
-  const per = period === "day" ? "today" : `a day over your last ${n} tracked day${n > 1 ? "s" : ""}`;
+  const isToday = period === "day" && list[0] === toDay(now);
+  const per = isToday ? "today" : n === 1 ? "that day" : `a day over ${n} tracked days`;
   const out: Gap[] = [];
-  const isToday = period === "day";
 
   const sleepDays = days.filter((x) => x.sleep > 0);
   if (sleepDays.length) {
     const sl = sleepDays.reduce((a, x) => a + x.sleep, 0) / sleepDays.length;
-    if (sl < 7) out.push({ id: "sleep", icon: "😴", label: "Sleep", have: `${sl.toFixed(1)} h ${isToday ? "last night" : "a night"}`, need: "7 to 9 h", severity: Math.min(1, (7 - sl) / 3),
+    if (sl < 7) out.push({ id: "sleep", icon: "😴", label: "Sleep", have: `${sl.toFixed(1)} h ${isToday ? "last night" : n === 1 ? "that night" : "a night"}`, need: "7 to 9 h", severity: Math.min(1, (7 - sl) / 3),
       task: { title: `Sleep by ${sc.sleep} tonight`, why: "Short sleep lowers focus, mood and muscle recovery, and makes junk food cravings stronger.", action: { type: "sleep" }, from: 21, to: 27 } });
   }
   if (!isToday || h >= 11) {
