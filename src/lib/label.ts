@@ -2,10 +2,37 @@
 // Tesseract OCR, then pulls out calories, protein, fat, carbs, salt, the
 // serving, the ingredients, a name and the barcode number.
 
+export type FactKey = "kcal" | "protein" | "fat" | "satfat" | "transfat" | "cholesterol" | "carbs" | "sugar" | "fiber" | "sodium" | "salt"
+  | "caffeine" | "calcium" | "iron" | "potassium" | "vitc";
+/** Everything the nutrition panel says, in English names and fixed units (g, mg, kcal). */
+export type Facts = Partial<Record<FactKey, number>>;
+
 export type Label = {
   kcal?: number; protein?: number; fat?: number; carbs?: number; sugar?: number; salt?: number;
   per?: string; contents?: string; names: string[]; barcode?: string; text: string; confidence?: number;
+  facts: Facts;
 };
+
+// The nutrition panel, any language → English. Order matters: the more
+// specific names (saturated fat) are read and cut out before the general (fat).
+export const FACTS: [key: FactKey, name: string, unit: "g" | "mg" | "kcal", labels: string][] = [
+  ["kcal", "Calories", "kcal", "熱量|エネルギー|energy|calories|calorie|カロリー|能量|热量|열량|에너지|ऊर्जा|calorías|valorenergético|énergie|energie|energia|энергетическаяценность|калорийность|พลังงาน|nănglượng|energi|enerji|الطاقة|السعرات"],
+  ["satfat", "Saturated fat", "g", "飽和脂肪酸|饱和脂肪|포화지방|संतृप्तवसा|saturatedfat|saturates|grasassaturadas|acidesgrassaturés|gesättigtefettsäuren|acidigrassisaturi|gordurassaturadas|насыщенныежирныекислоты|ไขมันอิ่มตัว|chấtbéobãohòa|lemakjenuh|doymuşyağ|دهونمشبعة"],
+  ["transfat", "Trans fat", "g", "トランス脂肪酸|反式脂肪|트랜스지방|ट्रांसवसा|transfat|grasastrans|acidesgrastrans|transfettsäuren|grassitrans|gordurastrans|трансжиры|ไขมันทรานส์|chấtbéochuyểnhóa|lemaktrans|transyağ|دهونمتحولة"],
+  ["cholesterol", "Cholesterol", "mg", "コレステロール|胆固醇|콜레스테롤|कोलेस्ट्रॉल|cholesterol|colesterol|cholestérol|cholesterin|colesterolo|холестерин|คอเลสเตอรอล|kolesterol|كوليسترول"],
+  ["fat", "Fat", "g", "脂質|脂肪|지방|वसा|totalfat|grasas?|matièresgrasses|lipides|fett|grassi|gorduras?|tłuszcz|жиры?|ไขมัน|chấtbéo|lemak|yağ|دهون|fat"],
+  ["fiber", "Fiber", "g", "食物繊維|膳食纤维|식이섬유|फाइबर|dietaryfiber|dietaryfibre|fibre|fiber|fibra|fibres|ballaststoffe|błonnik|клетчатка|ใยอาหาร|chấtxơ|seratpangan|lif|ألياف"],
+  ["sugar", "Sugars", "g", "糖類|砂糖|糖类|당류|चीनी|totalsugars|azúcares|sucres|zucker|zuccheri|açúcares|cukry|сахара?|น้ำตาล|đường|gula|şeker|سكريات|sugars?"],
+  ["carbs", "Carbohydrate", "g", "炭水化物|糖質|碳水化合物|탄수화물|कार्बोहाइड्रेट|totalcarbohydrate|hidratosdecarbono|carbohidratos|glucides|kohlenhydrate|carboidrati|węglowodany|углеводы|คาร์โบไฮเดรต|carbohydrate|karbohidrat|karbonhidrat|كربوهيدرات|carbohydrates?|carbs?"],
+  ["protein", "Protein", "g", "たんぱく質|タンパク質|蛋白質|たん白質|蛋白质|단백질|प्रोटीन|proteínas?|protéines|eiweiß|eiwit|proteine|białko|белки?|โปรตีน|chấtđạm|protein|بروتين"],
+  ["salt", "Salt", "g", "食塩相当量|食塩|食盐|소금|नमक|sal|sel|salz|sale|sól|соль|เกลือ|muối|garam|tuz|ملح|salt"],
+  ["sodium", "Sodium", "mg", "ナトリウム|钠|나트륨|सोडियम|sodium|sodio|natrium|sódio|sód|натрий|โซเดียม|natri|sodyum|صوديوم"],
+  ["caffeine", "Caffeine", "mg", "カフェイン|咖啡因|카페인|कैफीन|caffeine|cafeína|caféine|koffein|caffeina|kofeina|кофеин|คาเฟอีน|kafein|كافيين"],
+  ["calcium", "Calcium", "mg", "カルシウム|钙|칼슘|कैल्शियम|calcium|calcio|cálcio|wapń|кальций|แคลเซียม|canxi|kalsiyum|كالسيوم"],
+  ["iron", "Iron", "mg", "鉄|铁|철분|आयरन|iron|hierro|fer|eisen|ferro|żelazo|железо|เหล็ก|sắt|besi|demir|حديد"],
+  ["potassium", "Potassium", "mg", "カリウム|钾|칼륨|पोटैशियम|potassium|potasio|kalium|potássio|potas|калий|โพแทสเซียม|kali|potasyum|بوتاسيوم"],
+  ["vitc", "Vitamin C", "mg", "ビタミンC|维生素C|비타민C|विटामिनसी|vitaminc|vitaminac|vitaminec|витаминC|วิตามินซี"],
+];
 
 type Tess = { recognize: (img: string | HTMLCanvasElement, langs: string, opts?: object) => Promise<{ data: { text: string; confidence: number } }> };
 declare global { interface Window { Tesseract?: Tess } }
@@ -39,27 +66,42 @@ const num = (s?: string) => (s ? Number(s.replace(",", ".").replace(/[oO]/g, "0"
 // Pulls nutrition numbers out of OCR text (exported for testing).
 export function parseLabel(text: string): Label {
   // Japanese OCR puts spaces between characters; remove them for matching.
-  const t = text.replace(/[ \t　]+/g, "").replace(/[：:]/g, "").replace(/ｋ|Ｋ/g, "k").replace(/ｃａｌ/gi, "cal").replace(/ｇ/g, "g");
-  const after = (labels: string, unit: string) => {
-    const m = t.match(new RegExp(`(?:${labels})[^0-9\\n]{0,8}([0-9]+(?:[.,][0-9]+)?)${unit}`, "i"));
-    return num(m?.[1]);
-  };
-  let kcal = after("熱量|エネルギー|energy|calories|calorie|カロリー|能量|热量|열량|에너지|ऊर्जा|calorías|valor energético|énergie|energie|energia|энергетическая ценность|калорийность|พลังงาน|năng lượng|energi|enerji|الطاقة|السعرات", "k?cal");
-  if (kcal == null) { const m = t.match(/([0-9]{2,4}(?:\.[0-9])?)kcal/i); kcal = num(m?.[1]); }
-  const protein = after("たんぱく質|タンパク質|蛋白質|たん白質|蛋白质|단백질|प्रोटीन|proteínas?|protéines|eiweiß|eiwit|proteine|białko|белки?|โปรตีน|chất đạm|protein|بروتين", "g");
-  const fat = after("脂質|脂肪|지방|वसा|grasas?|matières grasses|lipides|fett|grassi|gorduras?|tłuszcz|жиры?|ไขมัน|chất béo|lemak|yağ|دهون|fat", "g");
-  const carbs = after("炭水化物|糖質|碳水化合物|탄수화물|कार्बोहाइड्रेट|hidratos de carbono|carbohidratos|glucides|kohlenhydrate|carboidrati|węglowodany|углеводы|คาร์โบไฮเดรต|carbohydrate|karbohidrat|karbonhidrat|كربوهيدرات|carbohydrates?|carbs?", "g");
-  const salt = after("食塩相当量|食塩|食盐|食塩|소금|नमक|sal|sel|salz|sale|sól|соль|เกลือ|muối|garam|tuz|ملح|salt", "g");
-  const sugar = after("糖類|砂糖|糖类|당류|चीनी|azúcares|sucres|zucker|zuccheri|açúcares|cukry|сахара?|น้ำตาล|đường|gula|şeker|سكريات|sugars?", "g");
+  const t = text.replace(/[ \t　]+/g, "").replace(/[０-９．]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)).replace(/[：:]/g, "").replace(/ｋ|Ｋ/g, "k").replace(/ｃａｌ/gi, "cal").replace(/ｇ/g, "g");
+  // Read each panel line; a name that has been read is cut out so "fat" can't re-read "saturated fat".
+  let rest = t;
+  const facts: Facts = {};
+  for (const [key, , unit, labels] of FACTS) {
+    const re = new RegExp(`(?:${labels})[^0-9\\n]{0,10}?([0-9]+(?:[.,][0-9]+)?)\\s*(kcal|kj|cal|mg|g|µg|μg|mcg)?`, "i");
+    const m = rest.match(re);
+    if (!m) continue;
+    let v = num(m[1]);
+    const u = (m[2] ?? "").toLowerCase();
+    if (v == null || Number.isNaN(v)) continue;
+    if (unit === "kcal" && u && u !== "kcal" && u !== "cal") continue; // "energy 1046 kJ": the kcal number is found below
+    if (unit === "g" && u === "mg") v /= 1000;
+    if (unit === "mg" && u === "g") v *= 1000;
+    if (unit === "mg" && /µg|μg|mcg/.test(u)) v /= 1000;
+    if (!u && unit !== "kcal") continue; // a number with no unit is usually something else
+    facts[key] = Math.round(v * 100) / 100;
+    rest = rest.replace(m[0], " ");
+  }
+  if (facts.kcal == null) { const m = t.match(/([0-9]{2,4}(?:\.[0-9])?)kcal/i); if (m) facts.kcal = num(m[1]); }
+  // Japanese labels give salt; others give sodium. Fill whichever is missing (salt g = sodium mg × 2.54 / 1000).
+  if (facts.salt == null && facts.sodium != null) facts.salt = Math.round(facts.sodium * 2.54) / 1000;
+  if (facts.sodium == null && facts.salt != null) facts.sodium = Math.round((facts.salt * 1000) / 2.54);
+  const { kcal, protein, fat, carbs, sugar, salt } = facts;
   const perM = t.match(/(1(?:袋|個|本|枚|食|杯|包|箱|パック|切れ)(?:\([^)]{0,12}\))?|100g|100ml|1serving)(?:当たり|あたり|当り)?/i)
     ?? t.match(/per(100g|100ml|serving)/i);
-  const per = perM ? perM[1].replace("1serving", "1 serving") : undefined;
+  // Or the serving / whole pack size: "Serving size 1 can (473mL)", "内容量 500ml", "총 내용량 250ml".
+  const serv = t.match(/servingsize[^\n]*?([0-9]+(?:\.[0-9]+)?)(ml|g)/i);
+  const pack = t.match(/(?:内容量|총내용량|내용량|净含量|netwt|netcontents?|netvol)[^0-9\n]{0,6}([0-9]+(?:\.[0-9]+)?)(ml|g)/i);
+  const per = perM ? perM[1].replace("1serving", "1 serving") : serv ? `1 serving (${serv[1]}${serv[2].toLowerCase()})` : pack ? `1 pack (${pack[1]}${pack[2].toLowerCase()})` : undefined;
   const ing = text.match(/(?:原材料名?|配料表?|원재료명?|ingredients|ingredientes|ingrédients|zutaten|ingredienti|składniki|состав|ส่วนประกอบ|thành phần|komposisi|bahan|içindekiler|المكونات|सामग्री)[\s:：]*([^\n●■]{4,160})/i)?.[1]?.replace(/\s+/g, " ").trim();
   const barcode = t.match(/\b(4[59][0-9]{11}|[0-9]{13})\b/)?.[1];
   const names = [...new Set(text.split(/\n/).map((l) => l.replace(/\s+/g, l.match(/[a-z]{2}/i) ? " " : "").trim())
     .filter((l) => l.length >= 2 && l.length <= 24 && !/[0-9]{3}|[0-9](\.[0-9]+)?g|kcal|当たり|原材料|栄養|賞味|保存|製造|アレルギー/i.test(l) && /[\p{L}]{2}/u.test(l)))]
     .sort((a, b) => score(b) - score(a)).slice(0, 6);
-  return { kcal, protein, fat, carbs, sugar, salt, per, contents: ing, names, barcode, text };
+  return { kcal, protein, fat, carbs, sugar, salt, per, contents: ing, names, barcode, text, facts };
 }
 // Product names are usually short katakana words or capital English words.
 const score = (l: string) => (/^[A-Z][A-Z ]{3,}$/.test(l) ? 3 : 0) + (/[ァ-ヶー]{3,}/.test(l) ? 2 : 0) - (/[、。]/.test(l) ? 2 : 0);
@@ -107,4 +149,10 @@ export function perAmount(per?: string): number | undefined {
   if (!per) return undefined;
   const n = /(\d+(?:\.\d+)?)\s*(ml|g|ｍｌ|ｇ)/i.exec(per)?.[1];
   return n ? Number(n) : undefined;
+}
+
+/** The facts for `amount` ml/g when they were read for `base` ml/g. */
+export function scaleFacts(f: Facts, base: number, amount: number): Facts {
+  const k = base > 0 ? amount / base : 1;
+  return Object.fromEntries(Object.entries(f).map(([key, v]) => [key, Math.round((v as number) * k * 100) / 100])) as Facts;
 }

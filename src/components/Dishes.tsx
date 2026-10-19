@@ -12,7 +12,8 @@ import { allFoods, type Eaten } from "@/lib/body";
 import { emojiFor } from "@/lib/emoji";
 import { lookupBarcode } from "@/lib/foodlookup";
 import { animeStyle, loadImage, smallPhoto } from "@/lib/foodphoto";
-import { readLabel } from "@/lib/label";
+import { readLabel, scaleFacts, type Facts } from "@/lib/label";
+import { FactsTable } from "@/components/FactsTable";
 import { foodGoodness } from "@/lib/goodness";
 import { GoodBadge } from "@/components/GoodBadge";
 import { produceOf, PRODUCE, SIZES, sized, type Produce } from "@/lib/produce";
@@ -25,6 +26,8 @@ export type Dish = {
   key: string; name: string; qty: number; per: string; contents?: string;
   kcal: string; protein: string; fat: string; carbs: string; sugar: string; salt: string;
   photo?: string; label?: string; status?: string; busy?: boolean; size?: string;
+  /** Everything the label said (fat, cholesterol, sodium…) for one serving. */
+  facts?: Facts;
   // Numbers were filled in by the app (not typed or read from a label), so
   // renaming the food fills them again.
   auto?: boolean;
@@ -51,13 +54,13 @@ export const newDish = (name = ""): Dish => ({ key: Math.random().toString(36).s
 export function dishesFrom(foods: Eaten[] = []): Dish[] {
   return foods.map((f) => {
     const q = f.qty || 1, per = (x?: number) => (x ? String(r1(x / q)) : "");
-    return { ...newDish(f.name), qty: q, per: f.per ?? "1 serving", contents: f.contents, kcal: per(f.kcal), protein: per(f.protein), fat: per(f.fat), carbs: per(f.carbs), sugar: per(f.sugar), salt: per(f.salt), photo: f.photo };
+    return { ...newDish(f.name), qty: q, per: f.per ?? "1 serving", contents: f.contents, kcal: per(f.kcal), protein: per(f.protein), fat: per(f.fat), carbs: per(f.carbs), sugar: per(f.sugar), salt: per(f.salt), photo: f.photo, facts: f.facts ? scaleFacts(f.facts, q, 1) : undefined };
   });
 }
 // Dishes into what a meal log stores (totals).
 export function dishTotals(d: Dish): Eaten {
   const t = (s: string) => (s ? r1(n(s) * d.qty) : undefined);
-  return { name: d.name.trim() || "Food", qty: d.qty, per: d.per, contents: d.contents || undefined, kcal: Math.round(n(d.kcal) * d.qty), protein: t(d.protein) ?? 0, fat: t(d.fat), carbs: t(d.carbs), sugar: t(d.sugar), salt: t(d.salt), photo: d.photo };
+  return { name: d.name.trim() || "Food", qty: d.qty, per: d.per, contents: d.contents || undefined, kcal: Math.round(n(d.kcal) * d.qty), protein: t(d.protein) ?? 0, fat: t(d.fat), carbs: t(d.carbs), sugar: t(d.sugar), salt: t(d.salt), photo: d.photo, facts: d.facts ? scaleFacts(d.facts, 1, d.qty) : undefined };
 }
 
 export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p: Partial<Dish>) => void; remove: () => void; anime: boolean; addMore?: (ds: Partial<Dish>[]) => void }) {
@@ -77,7 +80,7 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
     if (fd) {
       const c = mine.config ?? {};
       const s = (v: unknown) => (v != null && v !== "" ? String(v) : "");
-      return { per: fd.per, kcal: String(fd.kcal), protein: String(fd.protein), fat: s(c.fat), carbs: s(c.carbs), sugar: s(c.sugar), salt: s(c.salt), contents: fd.contents, photo: d.photo || (c.photo ? String(c.photo) : undefined), auto: true, size: undefined };
+      return { per: fd.per, kcal: String(fd.kcal), protein: String(fd.protein), fat: s(c.fat), carbs: s(c.carbs), sugar: s(c.sugar), salt: s(c.salt), contents: fd.contents, facts: c.facts as Facts | undefined, photo: d.photo || (c.photo ? String(c.photo) : undefined), auto: true, size: undefined };
     }
     // A Japanese shop item with exactly this name, then the dish tables, then a close shop match.
     const g = name.trim() ? goodFor(name) : undefined;
@@ -138,7 +141,7 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
         names = [...names, ...r.names];
         const s = (v?: number) => (v != null ? String(v) : undefined);
         got = Object.fromEntries(Object.entries({ kcal: s(r.kcal), protein: s(r.protein), fat: s(r.fat), carbs: s(r.carbs), sugar: s(r.sugar), salt: s(r.salt), per: r.per?.replace(/^1袋/, "1 bag ").replace(/^1個/, "1 piece ").replace(/^1本/, "1 bottle ").replace(/^1枚/, "1 piece "), contents: r.contents }).filter(([, v]) => v)) as Partial<Dish>;
-        got = { ...got };
+        got = { ...got, ...(Object.keys(r.facts).length ? { facts: r.facts } : {}) };
         if (!got.kcal && r.barcode) {
           const b = await lookupBarcode(r.barcode);
           if (b) { got.kcal = String(b.kcalServing ?? b.kcal100); got.protein = String(b.proteinServing ?? b.protein100); got.per = b.kcalServing ? b.serving : "100g"; names = [b.name, ...names]; }
@@ -152,7 +155,7 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
     set(next);
     // Remember it, so next time typing the name fills everything.
     if (got.kcal && name) {
-      const cfg = { per: got.per ?? "1 serving", kcal: n(got.kcal), protein: n(got.protein ?? ""), fat: n(got.fat ?? "") || undefined, carbs: n(got.carbs ?? "") || undefined, sugar: n(got.sugar ?? "") || undefined, salt: n(got.salt ?? "") || undefined, contents: got.contents, photo: d.photo, emoji: emojiFor(name, "🍽️") };
+      const cfg = { per: got.per ?? "1 serving", kcal: n(got.kcal), protein: n(got.protein ?? ""), fat: n(got.fat ?? "") || undefined, carbs: n(got.carbs ?? "") || undefined, sugar: n(got.sugar ?? "") || undefined, salt: n(got.salt ?? "") || undefined, contents: got.contents, facts: got.facts, photo: d.photo, emoji: emojiFor(name, "🍽️") };
       const had = items.find((i) => i.name.toLowerCase() === name.toLowerCase());
       if (had) update(had.id, { config: { ...had.config, ...cfg } }); else add(name, cfg);
     }
@@ -200,6 +203,7 @@ export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p:
         </div>
       )}
       <div className="grid grid-cols-6 gap-1">{num("kcal", "kcal")}{num("protein", "Prot g")}{num("fat", "Fat g")}{num("carbs", "Carb g")}{num("sugar", "Sugar g")}{num("salt", "Salt g")}</div>
+      {d.facts && <FactsTable facts={scaleFacts(d.facts, 1, d.qty)} title={`🏷️ From the label${d.qty !== 1 ? ` (×${d.qty})` : ""}`} />}
       {d.name.trim().length > 2 && <GoodBadge compact g={foodGoodness({ ...dishTotals(d), contents: d.contents })} />}
       {!d.kcal && <GoodsSuggest q={d.name} kinds={["food", "drink", "fruit", "veg"]} onPick={(x) => set({ name: x.name, per: x.per, kcal: String(x.kcal), protein: String(x.protein), auto: true, size: undefined })} />}
       {d.status && <p className={`text-[11px] ${d.busy ? "animate-pulse text-[var(--accent2)]" : "text-muted"}`}>{d.status}</p>}

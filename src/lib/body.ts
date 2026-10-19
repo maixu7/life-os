@@ -1,3 +1,4 @@
+import type { Facts } from "@/lib/label";
 import { goodFor } from "@/lib/goods";
 import { logKarma } from "@/lib/karma";
 import { moveOf, MOVES } from "@/lib/moves";
@@ -52,7 +53,7 @@ export const guessFood = (name: string, items: CustomItem[] = []): Food | undefi
   return g && g.kcal ? { name: g.name, re: new RegExp(`^${esc(g.name)}$`, "i"), per: g.per, kcal: g.kcal, protein: g.protein, emoji: g.emoji } : undefined;
 };
 
-export type Eaten = { name: string; qty: number; kcal: number; protein: number; fat?: number; carbs?: number; sugar?: number; salt?: number; photo?: string; per?: string; contents?: string };
+export type Eaten = { name: string; qty: number; kcal: number; protein: number; fat?: number; carbs?: number; sugar?: number; salt?: number; photo?: string; per?: string; contents?: string; facts?: Facts };
 
 // Everything eaten in a list of logs.
 export function eaten(logs: Log[], items: CustomItem[] = []): Eaten[] {

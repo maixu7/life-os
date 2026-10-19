@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import type { Facts } from "@/lib/label";
 import type { Schedule } from "@/lib/schedule";
 import type { Ui } from "@/lib/ui";
 import type { Slot } from "@/lib/gear";
@@ -62,6 +63,7 @@ export type PantryItem = {
   id: string; name: string; emoji: string; qty: number; unit: string; last_price: number | null; updated_at: string;
   kind?: string; photo?: string; kg?: number; note?: string; // "What I have": type, picture, weight of each piece
   ja?: string; brand?: string; expiry?: string; per?: string; kcal?: number; protein?: number; // read from the packet or the shop list
+  facts?: Facts; // everything its nutrition label says, for `per`
 };
 export type Data = {
   profile: Profile; logs: Log[]; items: CustomItem[]; shopping: ShopItem[]; pantry: PantryItem[]; deleted: string[];

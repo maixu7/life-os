@@ -243,7 +243,7 @@ function WholeMeal({ anime, file, onFoods }: { anime: boolean; file?: Blob[]; on
   // From the list; the label's own numbers win when it could read them.
   const picked = (x: Pick, l?: LabelRead) => {
     const n = nums.get(x.name);
-    const fromLabel = l?.kcal != null ? { per: l.per ?? "1 serving", kcal: String(l.kcal), protein: l.protein != null ? String(l.protein) : "", fat: l.fat != null ? String(l.fat) : "", carbs: l.carbs != null ? String(l.carbs) : "", sugar: l.sugar != null ? String(l.sugar) : "", salt: l.salt != null ? String(l.salt) : "", contents: l.contents } : null;
+    const fromLabel = l?.kcal != null ? { per: l.per ?? "1 serving", kcal: String(l.kcal), protein: l.protein != null ? String(l.protein) : "", fat: l.fat != null ? String(l.fat) : "", carbs: l.carbs != null ? String(l.carbs) : "", sugar: l.sugar != null ? String(l.sugar) : "", salt: l.salt != null ? String(l.salt) : "", contents: l.contents, facts: l.facts } : null;
     onFoods([{ name: x.name, photo: ask?.small, auto: !fromLabel, ...(fromLabel ?? (n ? { per: n.per, kcal: String(n.kcal), protein: String(n.protein) } : {})) }]);
     setPic(null); setMsg(`${fromLabel ? "🏷️" : "📋"} ${x.name} (${fromLabel ? "numbers from the label" : "from the list"}). Check the amount below.`);
   };
