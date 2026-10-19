@@ -28,6 +28,8 @@ export type Dish = {
   photo?: string; label?: string; status?: string; busy?: boolean; size?: string;
   /** Everything the label said (fat, cholesterol, sodium…) for one serving. */
   facts?: Facts;
+  /** Home cooking: ingredients one serving used, taken off What I have. */
+  uses?: { name: string; qty: number }[];
   // Numbers were filled in by the app (not typed or read from a label), so
   // renaming the food fills them again.
   auto?: boolean;
@@ -54,13 +56,13 @@ export const newDish = (name = ""): Dish => ({ key: Math.random().toString(36).s
 export function dishesFrom(foods: Eaten[] = []): Dish[] {
   return foods.map((f) => {
     const q = f.qty || 1, per = (x?: number) => (x ? String(r1(x / q)) : "");
-    return { ...newDish(f.name), qty: q, per: f.per ?? "1 serving", contents: f.contents, kcal: per(f.kcal), protein: per(f.protein), fat: per(f.fat), carbs: per(f.carbs), sugar: per(f.sugar), salt: per(f.salt), photo: f.photo, facts: f.facts ? scaleFacts(f.facts, q, 1) : undefined };
+    return { ...newDish(f.name), qty: q, per: f.per ?? "1 serving", contents: f.contents, kcal: per(f.kcal), protein: per(f.protein), fat: per(f.fat), carbs: per(f.carbs), sugar: per(f.sugar), salt: per(f.salt), photo: f.photo, facts: f.facts ? scaleFacts(f.facts, q, 1) : undefined, uses: f.uses };
   });
 }
 // Dishes into what a meal log stores (totals).
 export function dishTotals(d: Dish): Eaten {
   const t = (s: string) => (s ? r1(n(s) * d.qty) : undefined);
-  return { name: d.name.trim() || "Food", qty: d.qty, per: d.per, contents: d.contents || undefined, kcal: Math.round(n(d.kcal) * d.qty), protein: t(d.protein) ?? 0, fat: t(d.fat), carbs: t(d.carbs), sugar: t(d.sugar), salt: t(d.salt), photo: d.photo, facts: d.facts ? scaleFacts(d.facts, 1, d.qty) : undefined };
+  return { name: d.name.trim() || "Food", qty: d.qty, per: d.per, contents: d.contents || undefined, kcal: Math.round(n(d.kcal) * d.qty), protein: t(d.protein) ?? 0, fat: t(d.fat), carbs: t(d.carbs), sugar: t(d.sugar), salt: t(d.salt), photo: d.photo, facts: d.facts ? scaleFacts(d.facts, 1, d.qty) : undefined, uses: d.uses };
 }
 
 export function DishCard({ d, set, remove, anime, addMore }: { d: Dish; set: (p: Partial<Dish>) => void; remove: () => void; anime: boolean; addMore?: (ds: Partial<Dish>[]) => void }) {
