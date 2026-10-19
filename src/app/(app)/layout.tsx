@@ -1,4 +1,5 @@
 import { DetailsHost } from "@/components/Details";
+import { SummaryHost } from "@/components/Summary";
 import { AlarmLayer } from "@/components/AlarmLayer";
 import { BodyCareWatcher } from "@/components/tools/BodyCare";
 import { PageExtras, SlotHost } from "@/components/Blocks";
@@ -43,6 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <AlarmLayer />
       <SlotHost />
       <DetailsHost />
+      <SummaryHost />
       <SafetyLayer />
       <HubHost />
     </Gate>

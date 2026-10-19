@@ -1,5 +1,5 @@
 // Offline support: serve the app shell from cache when there's no network.
-const CACHE = "lifeos-v2";
+const CACHE = "lifeos-v3";
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(["/", "/manifest.webmanifest", "/icons/icon-192.png"])));
@@ -32,9 +32,14 @@ self.addEventListener("fetch", (e) => {
 self.addEventListener("push", (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data && e.data.text() }; }
-  e.waitUntil(self.registration.showNotification(d.title || "Life OS", { body: d.body || "", tag: d.tag, icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", renotify: true }));
+  e.waitUntil(self.registration.showNotification(d.title || "Life OS", { body: d.body || "", tag: d.tag, data: { url: d.url || "/" }, icon: "/icons/icon-192.png", badge: "/icons/icon-192.png", renotify: true }));
 });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => (cs[0] ? cs[0].focus() : self.clients.openWindow("/"))));
+  const url = (e.notification.data && e.notification.data.url) || "/";
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => {
+    if (!cs[0]) return self.clients.openWindow(url);
+    if (url !== "/") cs[0].postMessage({ open: url });
+    return cs[0].focus();
+  }));
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApp, useCustomItems } from "@/lib/store";
 import { parseCommand } from "@/lib/voice";
 
@@ -14,6 +14,10 @@ type Recognition = {
   start: () => void;
   stop: () => void;
 };
+
+// Voice logging. It has no button of its own any more: the ＋ menu's
+// "Speak" starts it (startVoice), so one round button floats on the screen.
+export const startVoice = () => window.dispatchEvent(new Event("lifeos-voice"));
 
 export function VoiceButton() {
   const { logActivity, celebrate } = useApp();
@@ -49,15 +53,17 @@ export function VoiceButton() {
     r.start();
   };
 
+  useEffect(() => {
+    const go = () => start();
+    window.addEventListener("lifeos-voice", go);
+    return () => window.removeEventListener("lifeos-voice", go);
+  });
+
   return (
     <>
-      <button
-        aria-label="Voice command"
-        onClick={() => (listening ? rec.current?.stop() : start())}
-        className={`fixed right-4 bottom-24 z-[35] h-14 w-14 rounded-full text-2xl grid place-items-center btn-primary !p-0 ${listening ? "animate-pulse scale-110" : ""}`}
-      >
-        🎙️
-      </button>
+      {listening && (
+        <button aria-label="Stop listening" onClick={() => rec.current?.stop()} className="fixed right-4 bottom-24 z-[36] h-14 w-14 rounded-full text-2xl grid place-items-center btn-primary !p-0 animate-pulse scale-110">🎙️</button>
+      )}
       {toast && (
         <button onClick={() => setToast("")} className="fixed bottom-40 inset-x-4 z-40 card px-4 py-3 text-sm text-center animate-pop">{toast} <span className="text-muted">✕</span></button>
       )}

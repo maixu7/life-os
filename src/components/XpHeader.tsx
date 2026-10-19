@@ -1,5 +1,6 @@
 "use client";
 
+import { ReportButton } from "@/components/Summary";
 import Link from "next/link";
 import { useMemo } from "react";
 import { AvatarArt } from "@/components/AvatarArt";
@@ -86,6 +87,7 @@ export function XpHeader({ title, icon, subtitle }: { title: string; icon?: stri
           <h1 className="text-xl font-black glow-text uppercase">{t(title)}</h1>
           {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
         </div>
+        <ReportButton />
         <Bell />
         <Link href="/control" aria-label="Control Centre" title="Control Centre" className="shrink-0 h-10 w-10 rounded-xl border border-white/15 bg-white/5 grid place-items-center text-lg active:scale-90">🎛️</Link>
       </div>

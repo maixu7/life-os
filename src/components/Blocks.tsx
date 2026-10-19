@@ -10,7 +10,7 @@ import { SleepSheet, WakeSheet } from "@/components/WakeSleep";
 import { askDetails } from "@/components/Details";
 import { WidgetBlock } from "@/components/hub/Widgets";
 import { emojiFor } from "@/lib/emoji";
-import { arrange, PAGE_SECTIONS, QUICK_DEFAULT, quickChoices, type Block, type MiniSlot, type SlotAction } from "@/lib/layout";
+import { arrange, onScreen, PAGE_SECTIONS, QUICK_DEFAULT, quickChoices, type Block, type MiniSlot, type SlotAction } from "@/lib/layout";
 import { today, useApp } from "@/lib/store";
 import { StatsButton } from "@/components/Review";
 import { BLOCK_METRIC } from "@/lib/review";
@@ -171,16 +171,73 @@ export function OwnBlock({ b }: { b: Block }) {
 // Shows the page's built-in blocks and the hero's own blocks in the order set
 // in Control Centre, leaving out hidden ones.
 export function Blocks({ page, parts }: { page: string; parts: Record<string, React.ReactNode> }) {
-  const { profile } = useApp();
+  const { profile, saveSettings } = useApp();
+  const ui = profile.settings.ui;
+  const [shown, setShown] = useState<string | null>(null);
+  const [edit, setEdit] = useState(false);
+  const list = arrange(ui, page).filter(({ id, own }) => own || parts[id]);
+  const label = (id: string) => PAGE_SECTIONS[page]?.find(([x]) => x === id)?.[1] ?? id;
   // Blocks with a matching chart get a small 📊 on their top edge (30-day chart).
-  return <>{arrange(profile.settings.ui, page).map(({ id, own }) => {
+  const render = (id: string, own?: Block) => {
     if (own) return <OwnBlock key={id} b={own} />;
-    if (!parts[id]) return null;
     const metric = BLOCK_METRIC[`${page}:${id}`];
     return metric
       ? <div key={id} className="relative">{parts[id]}<StatsButton metric={metric} className="absolute -top-2.5 right-3 z-10" /></div>
       : <div key={id} className="contents">{parts[id]}</div>;
-  })}</>;
+  };
+  const main = list.filter(({ id, own }) => onScreen(ui, page, id, !!own));
+  const more = list.filter(({ id, own }) => !onScreen(ui, page, id, !!own));
+  // Move a block between the screen and "More" (saved, so every device matches).
+  const place = (id: string, keep: boolean) => {
+    const pages = { ...(ui?.pages ?? {}) };
+    const p = { ...(pages[page] ?? {}) };
+    p.open = keep ? [...new Set([...(p.open ?? []), id])] : (p.open ?? []).filter((x) => x !== id);
+    p.tuck = keep ? (p.tuck ?? []).filter((x) => x !== id) : [...new Set([...(p.tuck ?? []), id])];
+    pages[page] = p;
+    saveSettings({ ui: { ...ui, pages } });
+    if (keep && shown === id) setShown(null);
+  };
+  return (
+    <>
+      {main.map(({ id, own }) => render(id, own))}
+      {(more.length > 0 || edit) && (
+        <section className="card p-3 mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="section-title">📂 More here</h2>
+            <button onClick={() => setEdit(!edit)} className="text-[11px] text-muted">{edit ? "Done" : "✏️ Arrange"}</button>
+          </div>
+          {edit ? (
+            <ul className="space-y-1">
+              {list.filter(({ own }) => !own).map(({ id }) => {
+                const on = onScreen(ui, page, id, false);
+                return (
+                  <li key={id} className="flex items-center gap-2 text-sm">
+                    <span className="flex-1 truncate">{label(id)}</span>
+                    <button onClick={() => place(id, !on)} className={`chip !py-0.5 text-[11px] ${on ? "chip-on" : ""}`}>{on ? "On screen" : "In More"}</button>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {more.map(({ id }) => (
+                <button key={id} onClick={() => setShown(shown === id ? null : id)} className={`chip !py-1 text-xs ${shown === id ? "chip-on" : ""}`}>{label(id)}</button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+      {shown && more.some((m) => m.id === shown) && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-[11px] text-muted mb-1 px-1">
+            <button onClick={() => place(shown, true)}>📌 Keep on screen</button>
+            <button onClick={() => setShown(null)}>✕ Close</button>
+          </div>
+          {render(shown, more.find((m) => m.id === shown)?.own)}
+        </div>
+      )}
+    </>
+  );
 }
 
 // Own blocks for pages without a built-in block list: shown under the page.

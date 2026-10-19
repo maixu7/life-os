@@ -9,13 +9,19 @@ import { useApp, useCustomItems, type CustomItem } from "@/lib/store";
 // Phone notifications while the app is closed: Sensei's reminders are sent
 // from the server at the right time (your reminders, wake, meals, study, bed).
 
-type Plan = { at: string; body: string; days?: number[]; until?: "study" };
+type Plan = { at: string; body: string; days?: number[]; until?: "study"; first?: boolean; url?: string };
 const ON = "lifeos-push-on";
 const add = (t: string, mins: number) => { const [h, m] = t.split(":").map(Number); const x = (h * 60 + m + mins + 1440) % 1440; return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`; };
 const weekdays = [1, 2, 3, 4, 5], weekend = [0, 6];
 
 export function buildPlan(s: Schedule, reminders: CustomItem[], studying: boolean): Plan[] {
-  const p: Plan[] = reminders.filter((r) => /^\d\d:\d\d$/.test(String(r.config.time))).map((r) => ({ at: String(r.config.time), body: `⏰ ${r.name}` }));
+  // Reports: every day at 8 PM, every Saturday at 8 AM, and the month's on its first Saturday.
+  const p: Plan[] = [
+    { at: "20:00", body: "📊 Your day report is ready: what went well and what you lacked.", url: "/?report=day" },
+    { at: "08:00", body: "📊 Your week report is ready. 2 minutes to see how the week went.", days: [6], url: "/?report=week" },
+    { at: "08:00", body: "📊 Your month report is ready. See the month and what to fix next.", days: [6], first: true, url: "/?report=month" },
+  ];
+  p.push(...reminders.filter((r) => /^\d\d:\d\d$/.test(String(r.config.time))).map((r) => ({ at: String(r.config.time), body: `⏰ ${r.name}` })));
   const t = (at: string, body: string, days?: number[]) => { if (/^\d\d:\d\d$/.test(at)) p.push({ at, body, days }); };
   t(s.wake, "☀️ Good morning, hero! Drink a glass of water and open today's missions.", weekdays);
   t(s.weekendWake, "☀️ Good morning! Water first, then today's missions.", weekend);
@@ -34,7 +40,7 @@ export function buildPlan(s: Schedule, reminders: CustomItem[], studying: boolea
   t(s.sleep, "😴 Bedtime. Phone away, Sensei says goodnight.", weekdays);
   t(s.weekendSleep, "😴 Bedtime. Phone away.", weekend);
   const seen = new Set<string>();
-  return p.filter((x) => (seen.has(x.at + x.body) ? false : (seen.add(x.at + x.body), true))).slice(0, 90);
+  return p.filter((x) => (seen.has(x.at + x.body + (x.url ?? "")) ? false : (seen.add(x.at + x.body + (x.url ?? "")), true))).slice(0, 90);
 }
 
 const b64 = (s: string) => { const p = "=".repeat((4 - (s.length % 4)) % 4); const r = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...r].map((c) => c.charCodeAt(0))); };

@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
 
 const okPlan = (p: unknown): p is PushPlan[] =>
-  Array.isArray(p) && p.length <= 90 && p.every((x) => x && /^\d\d:\d\d$/.test(x.at) && typeof x.body === "string" && x.body.length <= 140 && (x.until === undefined || x.until === "study"));
+  Array.isArray(p) && p.length <= 90 && p.every((x) => x && /^\d\d:\d\d$/.test(x.at) && typeof x.body === "string" && x.body.length <= 140 && (x.until === undefined || x.until === "study") && (x.url === undefined || (typeof x.url === "string" && /^\/[\w/?=&-]{0,60}$/.test(x.url))));
 
 // key: the public key to subscribe with · save: this device + the reminder list · test: send one now
 export async function POST(req: Request) {

@@ -22,7 +22,7 @@ export const ALL_TABS: Tab[] = [
   { href: "/quick", icon: "⚡", label: "Quick log" },
 ];
 // Base sits on the right; the app opens on the leftmost tab.
-export const DEFAULT_TABS = ["/learn", "/food", "/doctor", "/train", "/today", "/tools", "/calendar", "/"];
+export const DEFAULT_TABS = ["/learn", "/today", "/food", "/train", "/tools", "/doctor", "/calendar", "/"];
 export const MAX_TABS = 9;
 
 export const SECTIONS: [string, string][] = [

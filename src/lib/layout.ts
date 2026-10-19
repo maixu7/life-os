@@ -26,7 +26,7 @@ export type Block = {
   goal?: number; unit?: string; // kind "counter"
   widget?: "water" | "kcal" | "study" | "exam"; // kind "widget" (Hero hub widgets)
 };
-export type PageLayout = { order?: string[]; hide?: string[]; blocks?: Block[] };
+export type PageLayout = { order?: string[]; hide?: string[]; blocks?: Block[]; open?: string[]; tuck?: string[] }; // open/tuck: kept on screen or moved into "More"
 export type CustomPage = { id: string; icon: string; label: string }; // its blocks live in ui.pages["/custom/<id>"]
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
@@ -45,6 +45,23 @@ export const PAGE_SECTIONS: Record<string, [string, string][]> = {
     ["potions", "🧪 Water and milk"], ["quests", "🗺 Side quests"], ["habits", "🔁 Habit quests"], ["library", "📚 Library"], ["pantry", "🎒 Inventory"], ["rival", "⚔️ Rival duel & loot"]],
 };
 // Pages without a list above still get the hero's own blocks (shown at the top).
+
+// The main job of each page: these blocks stay on screen. Everything else
+// waits in the page's "More" strip, one tap away (the hero can move any block
+// either way). Own blocks stay on screen.
+export const PAGE_MAIN: Record<string, string[]> = {
+  "/": ["pins", "coach", "missions", "sleep"],
+  "/today": ["quick", "doing", "basics", "did"],
+  "/food": ["quick", "meals", "next"],
+  "/train": ["plan", "list", "move", "done"],
+  "/learn": ["plan", "today"],
+};
+export function onScreen(ui: Ui | undefined, href: string, id: string, own: boolean) {
+  const p = pageOf(ui, href);
+  if (p.tuck?.includes(id)) return false;
+  if (own || p.open?.includes(id)) return true;
+  return !PAGE_MAIN[href] || PAGE_MAIN[href].includes(id);
+}
 
 export const pageOf = (ui: Ui | undefined, href: string): PageLayout => {
   const p = ui?.pages?.[href] ?? {};

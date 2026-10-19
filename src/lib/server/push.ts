@@ -7,7 +7,8 @@ import { kv } from "@/lib/server/kv";
 // to be set up in Vercel.
 
 // at "HH:MM" in the user's time, days 0=Sun…6; until "study" = stop once today's study is done.
-export type PushPlan = { at: string; body: string; days?: number[]; until?: "study" };
+// first: only in the month's first 7 days (with days=[6]: the first Saturday). url: page the tap opens.
+export type PushPlan = { at: string; body: string; days?: number[]; until?: "study"; first?: boolean; url?: string };
 export type PushDoc = { subs: PushSubscription[]; plan: PushPlan[]; tz: number; last?: number; studyDone?: string };
 
 export async function vapid() {
@@ -30,11 +31,11 @@ export async function savePush(user: string, doc: PushDoc) {
 }
 
 // Sends to every device of one user; drops devices that unsubscribed.
-export async function send(user: string, doc: PushDoc, title: string, body: string, tag = "lifeos") {
+export async function send(user: string, doc: PushDoc, title: string, body: string, tag = "lifeos", url?: string) {
   await vapid();
   const keep: PushSubscription[] = [];
   for (const s of doc.subs) {
-    try { await webpush.sendNotification(s, JSON.stringify({ title, body, tag }), { TTL: 3600 }); keep.push(s); }
+    try { await webpush.sendNotification(s, JSON.stringify({ title, body, tag, url }), { TTL: 3600 }); keep.push(s); }
     catch (e) { const c = (e as { statusCode?: number }).statusCode; if (c !== 404 && c !== 410) keep.push(s); }
   }
   if (keep.length !== doc.subs.length) await kv!.set(`push:${user}`, { ...doc, subs: keep });
@@ -58,7 +59,8 @@ export async function tick(now = Date.now()) {
         const dow = new Date(t - doc.tz * 60_000).getUTCDay();
         const day = new Date(t - doc.tz * 60_000).toISOString().slice(0, 10);
         if (p.until === "study" && doc.studyDone === day) continue;
-        if (t > from && t <= now && (!p.days?.length || p.days.includes(dow))) { await send(user, doc, "Life OS", p.body, `r-${p.at}`); sent++; }
+        if (p.first && Number(day.slice(8, 10)) > 7) continue;
+        if (t > from && t <= now && (!p.days?.length || p.days.includes(dow))) { await send(user, doc, "Life OS", p.body, p.url ? `r-${p.url}` : `r-${p.at}`, p.url); sent++; }
       }
     }
     await kv!.set(`push:${user}`, { ...(await kv!.get<PushDoc>(`push:${user}`)) ?? doc, last: now });

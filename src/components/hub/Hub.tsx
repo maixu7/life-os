@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { startVoice } from "@/components/VoiceButton";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { openSlotSheet, useRunSlot } from "@/components/Blocks";
@@ -85,13 +87,16 @@ export function Fab() {
   const pick = (f: () => void) => { setOpen(false); f(); };
   return (
     <>
-      <button aria-label="Quick add" onClick={() => setOpen(true)} className="fixed right-4 bottom-[10.5rem] z-[35] h-12 w-12 rounded-full text-2xl grid place-items-center btn-gold !p-0 shadow-lg">＋</button>
+      <button aria-label="Quick add" onClick={() => setOpen(true)} className="fixed right-4 bottom-24 z-[35] h-14 w-14 rounded-full text-3xl grid place-items-center btn-gold !p-0 shadow-lg">＋</button>
       {open && (
         <Sheet title="＋ Quick add" onClose={() => setOpen(false)}>
           <div className="grid grid-cols-5 gap-2">
             {quick.map((q) => <button key={q.id} onClick={() => pick(q.go)} className="rounded-2xl bg-white/5 border border-white/10 p-2 flex flex-col items-center gap-1 active:scale-95"><span className="text-2xl">{q.icon}</span><span className="text-[10px] leading-tight text-center">{q.label}</span></button>)}
           </div>
-          <HubTiles onPick={() => setOpen(false)} />
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => pick(startVoice)} className="btn-primary !py-3">🎙️ Speak to log</button>
+            <Link href="/tools" onClick={() => setOpen(false)} className="btn-ghost !py-3 text-center">🧰 All tools</Link>
+          </div>
         </Sheet>
       )}
     </>
