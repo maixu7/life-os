@@ -1,5 +1,6 @@
 "use client";
 
+import { MainActions } from "@/components/MainActions";
 import Link from "next/link";
 import { useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
@@ -28,6 +29,7 @@ export default function FoodPage() {
   return (
     <>
       <XpHeader title="Food" icon="🍱" subtitle="What you eat, with real calories" />
+      <MainActions page="/food" />
       <Blocks page="/food" parts={{
         quick: <QuickBar />,
         usual: <UsualMeals />, protein: <ProteinCard />, coffee: <CaffeineCard />, bottle: <BottleCard />, ideas: <FoodIdeas />, cost: <FoodCostCard />,

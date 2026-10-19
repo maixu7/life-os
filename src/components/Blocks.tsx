@@ -182,9 +182,15 @@ export function Blocks({ page, parts }: { page: string; parts: Record<string, Re
     if (own) return <OwnBlock key={id} b={own} />;
     const metric = BLOCK_METRIC[`${page}:${id}`];
     return metric
-      ? <div key={id} className="relative">{parts[id]}<StatsButton metric={metric} className="absolute -top-2.5 right-3 z-10" /></div>
-      : <div key={id} className="contents">{parts[id]}</div>;
+      ? <div key={id} data-block={id} className="relative">{parts[id]}<StatsButton metric={metric} className="absolute -top-2.5 right-3 z-10" /></div>
+      : <div key={id} data-block={id} className="contents">{parts[id]}</div>;
   };
+  // A big main button can ask for a block that sits in "More": open it there.
+  useEffect(() => {
+    const go = (e: Event) => setShown((e as CustomEvent<string>).detail);
+    window.addEventListener("lifeos-showblock", go);
+    return () => window.removeEventListener("lifeos-showblock", go);
+  }, []);
   const main = list.filter(({ id, own }) => onScreen(ui, page, id, !!own));
   const more = list.filter(({ id, own }) => !onScreen(ui, page, id, !!own));
   // Move a block between the screen and "More" (saved, so every device matches).

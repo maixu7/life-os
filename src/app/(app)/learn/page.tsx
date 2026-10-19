@@ -1,5 +1,6 @@
 "use client";
 
+import { MainActions } from "@/components/MainActions";
 import { LearnToday } from "@/components/Learn";
 import { StudyPlan } from "@/components/StudyPlan";
 import { Library } from "@/components/Library";
@@ -20,6 +21,7 @@ export default function LearnPage() {
   return (
     <>
       <XpHeader title="Learning Path" icon="📖" subtitle="Knowledge is the main quest. Every day, Day 1 smarter." />
+      <MainActions page="/learn" />
       <Blocks page="/learn" parts={{
         plan: <StudyPlan />,
         today: <LearnToday />,

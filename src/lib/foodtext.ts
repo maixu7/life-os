@@ -6,7 +6,7 @@ import type { CustomItem } from "@/lib/store";
 // separate foods with amounts and full nutrition. Works offline; the AI
 // reader (/api/food) is used first when it's switched on.
 
-export type MealFood = { name: string; qty: number; per: string; kcal: number; protein: number; fat?: number; carbs?: number; sugar?: number; salt?: number; contents?: string };
+export type MealFood = { name: string; qty: number; per: string; grams?: number; kcal: number; protein: number; fat?: number; carbs?: number; sugar?: number; salt?: number; contents?: string };
 
 // One normal serving each, from standard tables (日本食品標準成分表 for Japanese food).
 type N = [name: string, re: RegExp, per: string, g: number, kcal: number, protein: number, fat: number, carbs: number, sugar: number, salt: number, contents?: string];

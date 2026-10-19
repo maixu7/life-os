@@ -1,5 +1,6 @@
 "use client";
 
+import { MainActions } from "@/components/MainActions";
 import { fireAlarm } from "@/lib/alarm";
 
 import { EditLog } from "@/components/EditLog";
@@ -176,6 +177,7 @@ export default function TrainPage() {
     <>
       {run && <WorkoutRunner row={run} onClose={() => setRun(null)} />}
       <XpHeader title="Training Grounds" icon="⚔️" subtitle="Every rep is XP for your body" />
+      <MainActions page="/train" />
 
       <Blocks page="/train" parts={{
         list: (
