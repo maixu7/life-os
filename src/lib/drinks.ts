@@ -1,6 +1,9 @@
 // Drinks you might log: generic drinks plus real products sold in Japan and India.
 // Values per 100 ml from manufacturer labels or standard tables (MEXT / USDA); sugar = 糖質 where labels give that.
 // `water` is the share that counts toward hydration; `alcohol` is % ABV.
+// DRINKS = these hand-written ones, then the recipe-built variants from drinkmix.ts.
+
+import { MIXED } from "@/lib/drinkmix";
 
 export type DrinkCat = "water" | "tea" | "coffee" | "milk" | "plant milk" | "soda" | "sports" | "energy" | "juice" | "smoothie" | "yogurt drink" | "protein" | "soup" | "alcohol" | "other";
 
@@ -31,7 +34,7 @@ const d = (name: string, ja: string, cat: DrinkCat, emoji: string, ml: number, k
   return r;
 };
 
-export const DRINKS: Drink[] = [
+const BASE: Drink[] = [
   // ── Water ──
   d("Water", "水", "water", "💧", 500, 0, 0),
   d("Tap water", "水道水", "water", "🚰", 200, 0, 0),
@@ -625,25 +628,35 @@ export const DRINKS: Drink[] = [
   d("Kirin Zero Ichi", "キリン零ICHI", "other", "🍺", 350, 8, 1.8, { w: 0.95 }),
 ];
 
-const norm = (s: string) => s.toLowerCase().replace(/[\s.・\-'’()&!,/]/g, "");
+const baseNames = new Set(BASE.map((x) => x.name.toLowerCase()));
+export const DRINKS: Drink[] = [...BASE, ...MIXED.filter((x) => !baseNames.has(x.name.toLowerCase()))];
+const EXTRA = DRINKS.slice(BASE.length);
 
-/** Find a drink: exact name (or Japanese name), then the longest drink name inside the query, then the shortest name containing the query. */
+const norm = (s: string) => s.toLowerCase().replace(/[\s.・·\-'’()&!,/]/g, "");
+
+/** Find a drink: exact name (or Japanese name), then the longest drink name inside the query, then the shortest name containing the query.
+ *  The two fuzzy passes look at the hand-written drinks first, so bare words like "milk" or "chai" keep landing on the plain item. */
 export function drinkOf(name: string): Drink | undefined {
   const q = norm(name);
   if (!q) return undefined;
   const exact = DRINKS.find((x) => norm(x.name) === q || (x.ja !== undefined && norm(x.ja) === q));
   if (exact) return exact;
-  let best: Drink | undefined;
-  let bestLen = 0;
-  for (const x of DRINKS) {
-    const n = norm(x.name);
-    if (n.length > bestLen && q.includes(n)) { best = x; bestLen = n.length; }
+  for (const list of [BASE, EXTRA]) {
+    let best: Drink | undefined;
+    let bestLen = 0;
+    for (const x of list) {
+      const n = norm(x.name);
+      if (n.length > bestLen && q.includes(n)) { best = x; bestLen = n.length; }
+    }
+    if (best) return best;
   }
-  if (best) return best;
-  let short: Drink | undefined;
-  for (const x of DRINKS) {
-    const n = norm(x.name);
-    if ((n.includes(q) || (x.ja !== undefined && norm(x.ja).includes(q))) && (!short || n.length < norm(short.name).length)) short = x;
+  for (const list of [BASE, EXTRA]) {
+    let short: Drink | undefined;
+    for (const x of list) {
+      const n = norm(x.name);
+      if ((n.includes(q) || (x.ja !== undefined && norm(x.ja).includes(q))) && (!short || n.length < norm(short.name).length)) short = x;
+    }
+    if (short) return short;
   }
-  return short;
+  return undefined;
 }

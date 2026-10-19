@@ -22,7 +22,7 @@ export async function readMeal(s: Session, { photo, text = "" }: { photo?: strin
     const j = await r.json().catch(() => ({}));
     if (r.ok && Array.isArray(j.foods)) {
       const foods: MealFood[] = j.foods.map((f: Record<string, unknown>) => ({
-        name: String(f.name), qty: 1, per: String(f.portion ?? "1 serving"), kcal: Math.round(Number(f.kcal) || 0),
+        name: String(f.name), qty: 1, per: String(f.portion ?? "1 serving"), grams: Number(f.grams) || undefined, kcal: Math.round(Number(f.kcal) || 0),
         protein: Number(f.protein) || 0, fat: Number(f.fat) || 0, carbs: Number(f.carbs) || 0, sugar: Number(f.sugar) || 0, salt: Number(f.salt) || 0, contents: f.contents ? String(f.contents) : undefined,
       }));
       return { foods, note: String(j.note ?? ""), ai: true };

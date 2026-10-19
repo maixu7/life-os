@@ -79,8 +79,14 @@ export function useQuickLogs() {
 }
 
 // ---------- 62 Floating ＋ on every page ----------
+export const openFab = () => window.dispatchEvent(new Event("lifeos-fab"));
 export function Fab() {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    const go = () => setOpen(true);
+    window.addEventListener("lifeos-fab", go);
+    return () => window.removeEventListener("lifeos-fab", go);
+  }, []);
   const path = usePathname();
   const quick = useQuickLogs();
   if (path === "/control" || path === "/quick") return null;

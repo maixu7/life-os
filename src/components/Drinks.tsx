@@ -1,9 +1,11 @@
 "use client";
 
 import { StartButton } from "@/components/Doing";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/Sheet";
-import { DRINK_CATS, DRINKS, type Drink, type DrinkCat } from "@/lib/drinks";
+import { DRINK_CATS, DRINKS, drinkOf, type Drink, type DrinkCat } from "@/lib/drinks";
+import { aiPhoto, readMeal } from "@/lib/foodai";
+import { loadImage, smallPhoto } from "@/lib/foodphoto";
 import { useApp } from "@/lib/store";
 import { drinkGoodness, scoreColor } from "@/lib/goodness";
 import { GoodBadge } from "@/components/GoodBadge";
@@ -13,6 +15,7 @@ import { CaffeineWarning } from "@/components/FoodPlus";
 // caffeine. Water and milk count toward their goals.
 export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { onClose: () => void; at?: Date; start?: string; slot?: string; cat?: DrinkCat }) {
   const { data, logActivity, celebrate } = useApp();
+  const [photo, setPhoto] = useState("");
   const [q, setQ] = useState(() => (start && DRINKS.some((d) => `${d.name} ${d.ja ?? ""}`.toLowerCase().includes(start.toLowerCase())) ? start : ""));
   const [cat, setCat] = useState<DrinkCat | "">(startCat ?? "");
   const first = startCat ? DRINKS.find((d) => d.cat === startCat) ?? null : null;
@@ -23,16 +26,17 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { 
   const atTime = () => { const t = new Date(when ?? Date.now()); const [h, m] = time.split(":").map(Number); if (!isNaN(h)) t.setHours(h, m || 0, 0, 0); return t; };
   const recent = useMemo(() => [...new Set(data.logs.filter((l) => l.kind === "drink").slice(-30).reverse().map((l) => String(l.data.name)))].slice(0, 8), [data.logs]);
   const list = DRINKS.filter((d) => (!cat || d.cat === cat) && (!q || `${d.name} ${d.ja ?? ""}`.toLowerCase().includes(q.toLowerCase()))).slice(0, 80);
-  const choose = (d: Drink) => { setPick(d); setMl(d.ml); };
+  const choose = (d: Drink, amount = d.ml) => { setPick(d); setMl(amount); };
   const k = ml / 100;
   const save = () => {
     if (!pick || ml <= 0) return;
     const at = atTime();
     const kcal = Math.round(pick.kcal100 * k), sugar = +(pick.sugar100 * k).toFixed(1);
-    const r = pick.cat === "water" ? logActivity("water", { ml, name: pick.name, slot }, at)
-      : pick.cat === "milk" && /^(whole |low.?fat |skim |)milk/i.test(pick.name) ? logActivity("milk", { ml, name: pick.name, slot }, at)
+    const pic = photo || undefined;
+    const r = pick.cat === "water" ? logActivity("water", { ml, name: pick.name, slot, photo: pic }, at)
+      : pick.cat === "milk" && /^(whole |low.?fat |skim |)milk/i.test(pick.name) ? logActivity("milk", { ml, name: pick.name, slot, photo: pic }, at)
       : logActivity("drink", {
-      name: pick.name, emoji: pick.emoji, cat: pick.cat, slot, ml, kcal, sugar, protein: pick.protein100 ? +(pick.protein100 * k).toFixed(1) : undefined,
+      photo: pic, name: pick.name, emoji: pick.emoji, cat: pick.cat, slot, ml, kcal, sugar, protein: pick.protein100 ? +(pick.protein100 * k).toFixed(1) : undefined,
       caffeine: pick.caffeine100 ? Math.round(pick.caffeine100 * k) : undefined, alcohol: pick.alcohol, water_ml: Math.round(ml * (pick.water ?? 0.9)),
     }, at);
     celebrate({ title: "GULP!", subtitle: `${pick.emoji} ${pick.name} ${ml} ml${kcal ? ` · ${kcal} kcal` : ""}${sugar >= 10 ? ` · ${sugar} g sugar` : ""}`, xp: r.xp, kind: "small" });
@@ -40,6 +44,7 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { 
   };
   return (
     <Sheet title={slot ? `🥤 ${slot}` : "🥤 What did you drink?"} onClose={onClose}>
+      <DrinkSnap photo={photo} setPhoto={setPhoto} onDrink={choose} />
       <input className="input" placeholder={`Search ${DRINKS.length} drinks (pocari, cola, soy milk, 麦茶…)`} value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         <button onClick={() => setCat("")} className={`chip !py-0.5 text-[11px] shrink-0 ${!cat ? "chip-on" : ""}`}>All</button>
@@ -59,7 +64,11 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { 
       </div>
       {pick && (
         <div className="rounded-xl border border-white/10 p-3 space-y-2 text-sm">
-          <div className="font-semibold">{pick.emoji} {pick.name}</div>
+          <div className="flex items-center gap-2 font-semibold">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {photo && <img src={photo} alt={pick.name} className="h-10 w-10 rounded-lg object-cover" />}
+            <span>{pick.emoji} {pick.name}</span>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {[...new Set([150, 200, 250, 350, 500, pick.ml])].sort((a, b) => a - b).map((v) => <button key={v} onClick={() => setMl(v)} className={`chip !py-0.5 text-xs ${ml === v ? "chip-on" : ""}`}>{v} ml</button>)}
             <input className="input !w-20 !py-0.5 text-xs" inputMode="numeric" value={ml} onChange={(e) => setMl(Number(e.target.value) || 0)} aria-label="ml" />
@@ -80,5 +89,56 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { 
         </div>
       )}
     </Sheet>
+  );
+}
+
+// Snap the drink or say it, like food: the app finds it in the drink list,
+// or reads its calories, sugar and protein for the amount.
+function DrinkSnap({ photo, setPhoto, onDrink }: { photo: string; setPhoto: (p: string) => void; onDrink: (d: Drink, ml: number) => void }) {
+  const { data, session } = useApp();
+  const [say, setSay] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const ref = useRef<HTMLInputElement>(null);
+  const read = async (ai?: string) => {
+    if (!ai && !say.trim()) return;
+    // Typed a drink the list knows ("mango lassi 300 ml"): no need to ask the AI.
+    const local = !ai ? drinkOf(say.replace(/\d+\s*ml|\b(a|one|big|small|glass|cup|bottle|can|of)\b/gi, " ").trim()) : undefined;
+    if (local) { const ml = Number(/(\d+)\s*ml/i.exec(say)?.[1]) || local.ml; onDrink(local, ml); setMsg(`📖 ${local.name}, ${ml} ml. Check the amount below.`); setSay(""); return; }
+    setBusy(true); setMsg(ai ? "Looking at your drink and how much…" : "Reading…");
+    const r = await readMeal(session, { photo: ai, text: `A drink${say.trim() ? `: ${say.trim()}` : ""}` }, data.items);
+    setBusy(false);
+    const f = r.foods[0];
+    if (!f) { setMsg(ai && !r.ai ? `Photo reading failed (${r.error || "unknown"}). Type what it is, then tap Read.` : "I couldn't tell. Search for it below or type it."); return; }
+    const ml = Math.round(f.grams ?? 0) || 250;
+    const known = drinkOf(f.name);
+    if (known && r.ai) { onDrink(known, ml); setMsg(`${r.ai ? "🤖" : "📖"} ${known.name}, about ${ml} ml. Check the amount below.`); }
+    else {
+      const per = (x: number) => Math.round((x / ml) * 1000) / 10;
+      onDrink({ name: f.name, cat: "other", emoji: "🥤", ml, kcal100: per(f.kcal * f.qty), sugar100: per((f.sugar ?? 0) * f.qty), protein100: per(f.protein * f.qty), water: 0.9 }, ml);
+      setMsg(`${r.ai ? "🤖" : "📖"} ${f.name}, about ${ml} ml${f.kcal ? ` ≈ ${Math.round(f.kcal * f.qty)} kcal` : ""}. ${r.note} Check the amount below.`);
+    }
+    setSay("");
+  };
+  return (
+    <div className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 p-2.5 space-y-2">
+      <div className="text-xs font-semibold">🔍 Snap or say your drink</div>
+      <div className="flex gap-2">
+        <button onClick={() => ref.current?.click()} aria-label="Drink photo" className="h-14 w-14 shrink-0 rounded-xl border border-dashed border-white/25 grid place-items-center overflow-hidden text-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {photo ? <img src={photo} alt="Drink" className="h-full w-full object-cover" /> : "📷"}
+        </button>
+        <input ref={ref} type="file" accept="image/*" className="hidden" onChange={async (e) => {
+          const file = e.target.files?.[0]; e.target.value = "";
+          if (!file) return;
+          const img = await loadImage(file);
+          setPhoto(smallPhoto(img, 160));
+          read(aiPhoto(img));
+        }} />
+        <textarea className="input flex-1 min-h-14 text-sm" placeholder="big glass of mango lassi, Starbucks latte, 2 cups chai…" value={say} onChange={(e) => setSay(e.target.value)} />
+      </div>
+      <button disabled={busy || !say.trim()} onClick={() => read()} className="btn-primary w-full !py-1.5 text-sm disabled:opacity-40">{busy ? "Reading…" : "Read my drink"}</button>
+      {msg && <p className={`text-[11px] ${busy ? "animate-pulse text-[var(--accent2)]" : "text-muted"}`}>{msg}</p>}
+    </div>
   );
 }

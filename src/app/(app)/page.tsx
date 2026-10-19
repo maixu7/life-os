@@ -1,5 +1,6 @@
 "use client";
 
+import { MainActions } from "@/components/MainActions";
 import { DoingCard } from "@/components/Doing";
 import { EditLog } from "@/components/EditLog";
 import { WhenPicker } from "@/components/When";
@@ -136,6 +137,7 @@ export default function TodayPage() {
         <Link href="/today" aria-label="Today's table" title="Today's table" className="btn-ghost h-10 w-10 !p-0 grid place-items-center text-lg">📋</Link>
       </div>
 
+      {isToday && <MainActions page="/" />}
       {isToday && <DoingCard />}
       {isToday && <Nudges />}
       <DayScoreChip day={day} />

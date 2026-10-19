@@ -1,5 +1,6 @@
 "use client";
 
+import { MainActions } from "@/components/MainActions";
 import { Blocks, QuickBar } from "@/components/Blocks";
 import { DoingCard } from "@/components/Doing";
 import Link from "next/link";
@@ -79,6 +80,7 @@ export default function TodayPage() {
         <input type="date" className="input !w-auto text-center" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
         <button onClick={() => setDay(shift(day, 1))} disabled={isToday} className="btn-ghost !px-3 !py-1">▶</button>
       </div>
+      <MainActions page="/today" />
       <Blocks page="/today" parts={{
         quick: isToday ? <QuickBar /> : null,
         doing: isToday ? <DoingCard /> : null,
