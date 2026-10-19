@@ -14,8 +14,11 @@ import { CaffeineWarning } from "@/components/FoodPlus";
 // Any drink: pick it, pick how much, and the app logs calories, sugar and
 // caffeine. Water and milk count toward their goals.
 export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { onClose: () => void; at?: Date; start?: string; slot?: string; cat?: DrinkCat }) {
-  const { data, logActivity, celebrate } = useApp();
+  const { data, logActivity, celebrate, update } = useApp();
   const [photo, setPhoto] = useState("");
+  // Your own drinks: ones read from a photo or words, saved with their photo for next time.
+  const mine = useMemo(() => data.items.filter((i) => i.category === "drink").map((i) => ({ ...(i.config as Omit<Drink, "name">), name: i.name, photo: i.config.photo as string | undefined })), [data.items]);
+  const all = useMemo<(Drink & { photo?: string })[]>(() => [...mine, ...DRINKS], [mine]);
   const [q, setQ] = useState(() => (start && DRINKS.some((d) => `${d.name} ${d.ja ?? ""}`.toLowerCase().includes(start.toLowerCase())) ? start : ""));
   const [cat, setCat] = useState<DrinkCat | "">(startCat ?? "");
   const first = startCat ? DRINKS.find((d) => d.cat === startCat) ?? null : null;
@@ -25,7 +28,7 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { 
   const [time, setTime] = useState(() => { const t = when ?? new Date(); return `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`; });
   const atTime = () => { const t = new Date(when ?? Date.now()); const [h, m] = time.split(":").map(Number); if (!isNaN(h)) t.setHours(h, m || 0, 0, 0); return t; };
   const recent = useMemo(() => [...new Set(data.logs.filter((l) => l.kind === "drink").slice(-30).reverse().map((l) => String(l.data.name)))].slice(0, 8), [data.logs]);
-  const list = DRINKS.filter((d) => (!cat || d.cat === cat) && (!q || `${d.name} ${d.ja ?? ""}`.toLowerCase().includes(q.toLowerCase()))).slice(0, 80);
+  const list = all.filter((d) => (!cat || d.cat === cat) && (!q || `${d.name} ${d.ja ?? ""}`.toLowerCase().includes(q.toLowerCase()))).slice(0, 80);
   const choose = (d: Drink, amount = d.ml) => { setPick(d); setMl(amount); };
   const k = ml / 100;
   const save = () => {
@@ -33,6 +36,13 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { 
     const at = atTime();
     const kcal = Math.round(pick.kcal100 * k), sugar = +(pick.sugar100 * k).toFixed(1);
     const pic = photo || undefined;
+    // Keep new drinks (and their photo) in My drinks, so they're one tap next time.
+    if (!DRINKS.some((x) => x.name === pick.name) || pic) {
+      const config = { cat: pick.cat, emoji: pick.emoji, ml: pick.ml, kcal100: pick.kcal100, sugar100: pick.sugar100, protein100: pick.protein100, caffeine100: pick.caffeine100, alcohol: pick.alcohol, water: pick.water, photo: pic ?? mine.find((x) => x.name === pick.name)?.photo };
+      update((d) => ({ ...d, items: d.items.some((i) => i.category === "drink" && i.name === pick.name)
+        ? d.items.map((i) => (i.category === "drink" && i.name === pick.name ? { ...i, config } : i))
+        : [...d.items, { id: crypto.randomUUID(), category: "drink", name: pick.name, sort: Date.now(), config }] }));
+    }
     const r = pick.cat === "water" ? logActivity("water", { ml, name: pick.name, slot, photo: pic }, at)
       : pick.cat === "milk" && /^(whole |low.?fat |skim |)milk/i.test(pick.name) ? logActivity("milk", { ml, name: pick.name, slot, photo: pic }, at)
       : logActivity("drink", {
@@ -45,16 +55,17 @@ export function DrinkSheet({ onClose, at: when, start, slot, cat: startCat }: { 
   return (
     <Sheet title={slot ? `🥤 ${slot}` : "🥤 What did you drink?"} onClose={onClose}>
       <DrinkSnap photo={photo} setPhoto={setPhoto} onDrink={choose} />
-      <input className="input" placeholder={`Search ${DRINKS.length} drinks (pocari, cola, soy milk, 麦茶…)`} value={q} onChange={(e) => setQ(e.target.value)} />
+      <input className="input" placeholder={`Search ${all.length} drinks (pocari, cola, soy milk, 麦茶…)`} value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="flex gap-1.5 overflow-x-auto pb-1">
         <button onClick={() => setCat("")} className={`chip !py-0.5 text-[11px] shrink-0 ${!cat ? "chip-on" : ""}`}>All</button>
         {DRINK_CATS.map(([c, l]) => <button key={c} onClick={() => setCat(c)} className={`chip !py-0.5 text-[11px] shrink-0 ${cat === c ? "chip-on" : ""}`}>{l}</button>)}
       </div>
-      {recent.length > 0 && !q && !cat && <div className="flex flex-wrap gap-1">{recent.map((n) => { const d = DRINKS.find((x) => x.name === n); return d ? <button key={n} onClick={() => choose(d)} className="chip !py-0.5 text-[11px]">↺ {d.emoji} {n}</button> : null; })}</div>}
+      {recent.length > 0 && !q && !cat && <div className="flex flex-wrap gap-1">{recent.map((n) => { const d = all.find((x) => x.name === n); return d ? <button key={n} onClick={() => choose(d)} className="chip !py-0.5 text-[11px]">↺ {d.emoji} {n}</button> : null; })}</div>}
       <div className="max-h-56 overflow-y-auto divide-y divide-white/5 rounded-xl bg-white/[.03]">
         {list.map((d) => (
           <button key={d.name} onClick={() => choose(d)} className={`w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs ${pick?.name === d.name ? "bg-[var(--accent2)]/15" : ""}`}>
-            <span className="text-lg">{d.emoji}</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {d.photo ? <img src={d.photo} alt="" className="h-7 w-7 rounded-md object-cover" /> : <span className="text-lg">{d.emoji}</span>}
             <span className="flex-1 min-w-0"><span className="block truncate">{d.name}</span>{d.ja && <span className="block text-[10px] text-muted truncate">{d.ja}</span>}</span>
             <span className="text-muted whitespace-nowrap">{d.kcal100} kcal · {d.sugar100} g sugar</span>
             <span className={`w-6 text-right font-bold ${scoreColor(drinkGoodness(d).score)}`}>{drinkGoodness(d).score}</span>

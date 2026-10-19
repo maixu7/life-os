@@ -1,7 +1,7 @@
 "use client";
 
 import { WhenPicker } from "@/components/When";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { XpHeader } from "@/components/XpHeader";
 import { gold } from "@/lib/economy";
@@ -11,7 +11,10 @@ import { line } from "@/lib/lore";
 import { useCustomItems } from "@/lib/store";
 import { UNITS, useApp, type PantryItem, type ShopItem } from "@/lib/store";
 import { deletePhoto, getPhoto, putPhoto } from "@/lib/vault";
-import { AutoGrocery, CategoryBudgets, MoneyTools } from "@/components/Money";
+import { AutoGrocery, CategoryBudgets, MoneyTools, ReceiptSheet } from "@/components/Money";
+import { BIG_TILE } from "@/components/MainActions";
+import { aiPhoto, readProduct } from "@/lib/foodai";
+import { loadImage } from "@/lib/foodphoto";
 
 type Tab = "list" | "storage" | "history" | "rewards" | "photos";
 const monthOf = (iso: string) => iso.slice(0, 7);
@@ -35,6 +38,10 @@ export default function ShopPage() {
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [compare, setCompare] = useState<string[]>([]);
   const [quick, setQuick] = useState("");
+  const [receipt, setReceipt] = useState(false);
+  const [snapMsg, setSnapMsg] = useState("");
+  const snapRef = useRef<HTMLInputElement>(null);
+  const quickRef = useRef<HTMLInputElement>(null);
 
   const toBuy = useMemo(() => data.shopping.filter((i) => i.status === "to_buy").sort((a, b) => a.created_at.localeCompare(b.created_at)), [data.shopping]);
   const bought = useMemo(
@@ -76,6 +83,27 @@ export default function ShopPage() {
     setQuick("");
   };
 
+  // Snap a product (or its empty packet): the app reads what it is and adds it
+  // to the list with the photo, so next time it's easy to find in the shop.
+  const snapAdd = async (file: File) => {
+    setTab("list"); setSnapMsg("Reading what this is…");
+    const photo_id = crypto.randomUUID();
+    await putPhoto(session, photo_id, file).catch(() => {});
+    const img = await loadImage(file);
+    const r = await readProduct(session, aiPhoto(img), "something I want to buy");
+    const p = r.product?.found ? r.product : null;
+    const name = p?.name || "Photo item";
+    const last = lastBuy(name);
+    const item: ShopItem = {
+      id: crypto.randomUUID(), name, emoji: p?.emoji || emojiFor(name, "🛍️"), qty: last?.qty ?? 1, unit: last?.unit ?? (p?.unit || "pcs"),
+      price: last?.price ?? null, category: p?.kind ?? last?.category ?? "", note: [p?.brand, p?.name_ja].filter(Boolean).join(" · "), photo_id, status: "to_buy", purchased_at: null,
+      created_at: new Date().toISOString(),
+    };
+    update((d) => ({ ...d, shopping: [...d.shopping, item] }));
+    if (p) setSnapMsg(`📷 Added ${item.emoji} ${name}${item.note ? ` (${item.note})` : ""}. Tap it to change anything.`);
+    else { setSnapMsg(`Couldn't tell what it is${r.error ? ` (${r.error})` : ""}. I added it with the photo; type its name.`); setEditItem(item); }
+  };
+
   // Month allowance
   const allowance = profile.settings.allowances[month] ?? profile.settings.budget_monthly;
   const monthBuys = bought.filter((b) => monthOf(b.purchased_at!) === month);
@@ -89,10 +117,16 @@ export default function ShopPage() {
 
   return (
     <>
-      <XpHeader title="Merchant" icon="🏪" subtitle="Supplies, gear and treasure for your adventure" />
+      <XpHeader title="Shopping" icon="🛒" subtitle="Your shopping list, what you bought, and your money" />
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <button onClick={() => { setTab("list"); setTimeout(() => quickRef.current?.focus(), 50); }} className={BIG_TILE}><span className="text-4xl leading-none">🛒</span><span className="font-black text-sm leading-tight">Shopping list</span><span className="text-[10px] text-muted leading-tight">{toBuy.length} to buy</span></button>
+        <button onClick={() => snapRef.current?.click()} className={BIG_TILE}><span className="text-4xl leading-none">📷</span><span className="font-black text-sm leading-tight">Snap to add</span><span className="text-[10px] text-muted leading-tight">Photo of what you need</span></button>
+        <button onClick={() => setReceipt(true)} className={BIG_TILE}><span className="text-4xl leading-none">🧾</span><span className="font-black text-sm leading-tight">Scan receipt</span><span className="text-[10px] text-muted leading-tight">Ticks what you bought</span></button>
+      </div>
+      <input ref={snapRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) snapAdd(f); }} />
+      {receipt && <ReceiptSheet onClose={() => setReceipt(false)} />}
+      {snapMsg && <p className="card p-3 mb-3 text-xs">{snapMsg}</p>}
 
-      <AllowanceCard month={month} setMonth={setMonth} allowance={allowance} spent={spent} left={left} money={money} />
-      <MoneyTools />
 
       <div className="grid grid-cols-5 gap-1 p-1 mb-4 rounded-2xl bg-white/5">
         {([["list", "🛒 Supplies"], ["storage", "🎒 Bag"], ["history", "🧾 Ledger"], ["rewards", "🎁 Rewards"], ["photos", "📸 Photos"]] as const).map(([k, l]) => (
@@ -107,7 +141,7 @@ export default function ShopPage() {
           <form onSubmit={(e) => { e.preventDefault(); quickAdd(); }} className="flex gap-2 mb-2">
             <div className="relative flex-1">
               <span className="absolute left-2 top-1/2 -translate-y-1/2"><Pic name={quick} emoji={quick ? emojiFor(quick, "🛍️") : "🛍️"} size={34} /></span>
-              <input className="input !pl-14" placeholder="Add item, e.g. Apple" value={quick} onChange={(e) => setQuick(e.target.value)} />
+              <input ref={quickRef} className="input !pl-14" placeholder="Add item, e.g. Apple" value={quick} onChange={(e) => setQuick(e.target.value)} />
             </div>
             <button className="btn-primary">Add</button>
           </form>
@@ -243,6 +277,11 @@ export default function ShopPage() {
           {withPhotos.length === 0 && <p className="card p-6 text-center text-sm text-muted">Add a photo to an item to see it here.</p>}
         </>
       )}
+
+      <div className="mt-4">
+      <AllowanceCard month={month} setMonth={setMonth} allowance={allowance} spent={spent} left={left} money={money} />
+      <MoneyTools />
+      </div>
 
       {editItem && (
         <ItemSheet item={editItem === "new" ? null : editItem} lastBuy={lastBuy} money={money} onClose={() => setEditItem(null)}
