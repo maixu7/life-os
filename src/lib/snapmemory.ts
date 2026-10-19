@@ -5,7 +5,7 @@ import { colourSim } from "@/lib/identify";
 // so the same drink, meal or tool is found again next time without AI.
 // Each photo you confirm (from the list or from AI) adds one more look.
 
-export type SnapKind = "food" | "drink" | "equipment" | "item";
+export type SnapKind = "food" | "drink" | "equipment" | "item" | "learn";
 export type Seen = { name: string; emoji: string; photo?: string; sim: number; times: number; col?: number };
 
 const SURE = 0.7, MAYBE = 0.6; // tested on real photos: other shots of the same thing 0.62–0.87, different things ≤ 0.61

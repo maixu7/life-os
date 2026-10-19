@@ -68,13 +68,15 @@ export function useRememberSnap() {
   };
 }
 
-export function SnapChoice({ photo, img, list, what, kind, laterType, more, guess, onAI, onPick, onClose }: {
+export function SnapChoice({ photo, img, list, what, kind, laterType, more, guess, addNew, onAI, onPick, onClose }: {
   /** One photo, or several of the same thing (front, back, side). */
   photo: string; img?: HTMLImageElement | HTMLImageElement[] | null; list: Pick[]; what: string; kind: SnapKind; more?: string;
   /** Where "Scan later" files it (defaults from kind). */
   laterType?: LaterType;
   /** Extra matching for this kind of thing (e.g. drink or equipment names from the label text). */
   guess?: (text: string) => string[];
+  /** Always offer "Save as new" with the name read from the photo (or typed in the search box). */
+  addNew?: boolean;
   onAI: () => void; onPick: (p: Pick, label?: LabelRead) => void; onClose: () => void;
 }) {
   const imgs = useMemo(() => (Array.isArray(img) ? img : img ? [img] : []), [img]);
@@ -128,7 +130,8 @@ export function SnapChoice({ photo, img, list, what, kind, laterType, more, gues
       const known = byBarcode(items, l.barcode);
       if (known) setSeen((s) => ({ ...s, sure: [{ ...known, barcode: true }] }));
       // Look the exact product up in the open food database (not AI): name, brand, size, all it contains.
-      if (l.barcode) {
+      // Books and learning things are not food: no food database lookup.
+      if (l.barcode && kind !== "learn") {
         l.item = await productByBarcode(l.barcode).catch(() => null);
         const f = l.item?.facts;
         if (l.item && f?.kcal != null) l.product = { name: l.item.name, kcal100: f.kcal, protein100: f.protein ?? 0, serving: l.item.serving, contents: l.item.contents };
@@ -146,7 +149,7 @@ export function SnapChoice({ photo, img, list, what, kind, laterType, more, gues
       const rank = (p: Pick) => (sameSize(p, sz) ? 30 : 0) + (habit.get(norm(p.name)) ?? 0) + (p.mine ? 5 : 0);
       setBrand(b ? { brand: b.brand, items: b.items.filter((p) => !hits.includes(p)).sort((x, y) => rank(y) - rank(x)).slice(0, 6) } : null);
       // Nothing read at all: what you usually have, buy or log around this time.
-      setUsual(hits.length || b ? [] : list.filter((p) => (habit.get(norm(p.name)) ?? 0) > 0 || p.mine).sort((x, y) => rank(y) - rank(x)).slice(0, 5));
+      setUsual(hits.length || b || kind === "learn" ? [] : list.filter((p) => (habit.get(norm(p.name)) ?? 0) > 0 || p.mine).sort((x, y) => rank(y) - rank(x)).slice(0, 5));
       const c = imgs[0] ? colours(imgs[0]) : undefined; setCol(c);
       if (look) {
         const v = pack(look); setVec(v);
@@ -164,7 +167,7 @@ export function SnapChoice({ photo, img, list, what, kind, laterType, more, gues
     onClose(); onPick(p, p.note ? { ...(l ?? { names: [], text: "", facts: {} }), contents: p.note } : l);
   };
   const facts = label && [
-    label.contents && `Contains: ${label.contents}`, !label.item && label.barcode && `🔢 Barcode ${label.barcode} (not in the open food database yet: pick or save it once and it's known forever)`,
+    label.contents && kind !== "learn" && `Contains: ${label.contents}`, !label.item && label.barcode && kind !== "learn" && `🔢 Barcode ${label.barcode} (not in the open food database yet: pick or save it once and it's known forever)`,
   ].filter(Boolean) as string[];
   const hasFacts = !!label && Object.keys(label.facts).length > 0;
   const asPick = (s: Seen): Pick => list.find((p) => p.name === s.name) ?? { name: s.name, emoji: s.emoji, mine: true };
@@ -181,7 +184,7 @@ export function SnapChoice({ photo, img, list, what, kind, laterType, more, gues
     : seen.maybe[0] ? { pick: asPick(seen.maybe[0]), how: `📸 Looks like your earlier photo (${Math.round(seen.maybe[0].sim * 100)}%)`, photo: seen.maybe[0].photo }
     : usual[0] ? { pick: usual[0], how: "⭐ What you usually have at this time" } : undefined;
   // What the best answer contains: its own label if the photo showed one, else the open food database by its name (not AI).
-  const bestName = best && !item && !hasFacts && kind !== "equipment" ? best.pick.name : "";
+  const bestName = best && !item && !hasFacts && kind !== "equipment" && kind !== "learn" ? best.pick.name : "";
   useEffect(() => {
     if (!bestName || named?.name === bestName) return;
     let live = true;
@@ -194,7 +197,7 @@ export function SnapChoice({ photo, img, list, what, kind, laterType, more, gues
   const later = async () => {
     if (!imgs.length) return;
     setSaving(true);
-    try { await saveLater(session, update, laterType ?? (kind === "item" ? "have" : kind), await Promise.all(imgs.map(imgBlob))); } catch { /* stays open to try again */ setSaving(false); return; }
+    try { await saveLater(session, update, laterType ?? (kind === "item" || kind === "learn" ? "have" : kind), await Promise.all(imgs.map(imgBlob))); } catch { /* stays open to try again */ setSaving(false); return; }
     onClose();
   };
   const hits = useMemo(() => {
@@ -275,6 +278,7 @@ export function SnapChoice({ photo, img, list, what, kind, laterType, more, gues
           <div className="text-[10px] text-muted">Picking an item below fills in all these label numbers. Type a better name in the search box first if needed.</div>
         </div>
       )}
+      {addNew && newName && !(label && (hasFacts || facts!.length > 0)) && <button onClick={() => choose({ name: newName, emoji: "🏷️" })} className="btn-primary w-full !py-2 text-sm">＋ Save as new: {newName.slice(0, 40)}</button>}
       {found && found.length > 0 && <><div className="text-[10px] text-muted">From the label{size ? ` · size ${size}` : ""}</div><div className="space-y-1">{found.map(row)}</div></>}
       {brand && brand.items.length > 0 && <><div className="text-[10px] text-muted">🏭 Brand on the label: {brand.brand}{size ? ` · size ${size} first` : ""}</div><div className="space-y-1">{brand.items.map(row)}</div></>}
       {usual.length > 0 && <><div className="text-[10px] text-muted">⭐ What you usually have around this time</div><div className="space-y-1">{usual.map(row)}</div></>}

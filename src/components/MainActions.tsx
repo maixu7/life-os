@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { EquipmentSheet } from "@/components/Equipment";
+import { CollectionSheet } from "@/components/Collection";
 import { openSlotSheet } from "@/components/Blocks";
 import { openFab } from "@/components/hub/Hub";
 import { openReport } from "@/components/Summary";
@@ -15,7 +16,7 @@ import { openHub } from "@/components/hub/registry";
 // The page's main purpose as big buttons at the very top (Eat / Drink on
 // Food, Start workout on Train…). Everything else sits below them.
 
-type Big = { icon: string; label: string; sub: string; href?: string; go?: () => void };
+type Big = { icon: string; label: string; sub: string; href?: string; go?: () => void; tall?: boolean };
 
 // Scroll to a block on this page; if it's tucked in "More", open it first.
 export function toBlock(id: string) {
@@ -55,7 +56,8 @@ const MAIN: Record<string, Big[]> = {
   ],
   "/learn": [
     { icon: "▶️", label: "Study now", sub: "Focus timer on your goal", href: "/focus" },
-    { icon: "📖", label: "Log learning", sub: "Pages, minutes, kanji…", go: () => toBlock("today") },
+    { icon: "🗂️", label: "My collection", sub: "Books, apps, videos", go: () => window.dispatchEvent(new Event("lifeos-collection")) },
+    { icon: "📖", label: "Log learning", sub: "Pages, minutes, kanji…", go: () => toBlock("today"), tall: true },
   ],
 };
 
@@ -94,10 +96,13 @@ export const BIG_TILE = "rounded-2xl border border-[var(--accent)]/40 bg-gradien
 
 export function MainActions({ page }: { page: string }) {
   const [equip, setEquip] = useState(false);
+  const [kit, setKit] = useState(false);
   useEffect(() => {
     const go = () => setEquip(true);
+    const col = () => setKit(true);
     window.addEventListener("lifeos-equipment", go);
-    return () => window.removeEventListener("lifeos-equipment", go);
+    window.addEventListener("lifeos-collection", col);
+    return () => { window.removeEventListener("lifeos-equipment", go); window.removeEventListener("lifeos-collection", col); };
   }, []);
   const { data, saveSettings } = useApp();
   const tasks = useTasks();
@@ -126,6 +131,7 @@ export function MainActions({ page }: { page: string }) {
     <>
     {equip && <EquipmentSheet onClose={() => setEquip(false)} />}
     <CollectionHost />
+    {kit && <CollectionSheet onClose={() => setKit(false)} />}
     {fix && (
       <div className="card p-3 mb-3 text-sm border border-amber-400/50">
         ⏰ In About me you wrote you work <b>{fmt12(fix.start)}–{fmt12(fix.end)}</b>, but your schedule says <b>{fmt12(sc.workStart)}–{fmt12(sc.workEnd)}</b>. Tasks follow the schedule.
@@ -133,10 +139,11 @@ export function MainActions({ page }: { page: string }) {
       </div>
     )}
     {work && (page === "/learn" || page === "/train") && <p className="card p-2.5 mb-3 text-xs">💼 Work hours until {fmt12(sc.workEnd)}. Study and training tasks start after work ({page === "/learn" ? study : fmt12(sc.exercise || sc.workEnd)}).</p>}
-    <div className={`grid ${list.length === 3 ? "grid-cols-3" : "grid-cols-2"} gap-2 mb-4`}>
+    {/* Learn: My collection sits right below Study now, Log learning is the tall tile beside them. */}
+    <div className={`grid ${page === "/learn" ? "grid-cols-2 grid-rows-2 grid-flow-col" : list.length === 3 ? "grid-cols-3" : "grid-cols-2"} gap-2 mb-4`}>
       {list.map((b) => b.href
-        ? <Link key={b.label} href={b.href} className={cls}>{inner(b)}</Link>
-        : <button key={b.label} onClick={b.go} className={cls}>{inner(b)}</button>)}
+        ? <Link key={b.label} href={b.href} className={`${cls} ${b.tall ? "row-span-2" : ""}`}>{inner(b)}</Link>
+        : <button key={b.label} onClick={b.go} className={`${cls} ${b.tall ? "row-span-2" : ""}`}>{inner(b)}</button>)}
     </div>
     {MORE[page] && <div className={`grid ${MORE[page].length > 1 ? "grid-cols-2" : "grid-cols-1"} gap-2 mb-4 -mt-2`}>{MORE[page].map((b) => <button key={b.label} onClick={b.go} className={cls}>{inner(b)}</button>)}</div>}
     </>
