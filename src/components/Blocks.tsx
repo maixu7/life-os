@@ -182,7 +182,7 @@ export function Blocks({ page, parts }: { page: string; parts: Record<string, Re
     if (own) return <OwnBlock key={id} b={own} />;
     const metric = BLOCK_METRIC[`${page}:${id}`];
     return metric
-      ? <div key={id} data-block={id} className="relative">{parts[id]}<StatsButton metric={metric} className="absolute -top-2.5 right-3 z-10" /></div>
+      ? <div key={id} data-block={id}><div className="flex justify-end px-3 mb-0.5"><StatsButton metric={metric} /></div>{parts[id]}</div>
       : <div key={id} data-block={id} className="contents">{parts[id]}</div>;
   };
   // A big main button can ask for a block that sits in "More": open it there.

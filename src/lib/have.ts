@@ -1,4 +1,5 @@
 import { guessFood, type Eaten } from "@/lib/body";
+import { EQUIPMENT } from "@/lib/equipment";
 import { howTo } from "@/lib/howto";
 import { MOVES, type Move } from "@/lib/moves";
 import { produceOf } from "@/lib/produce";
@@ -85,11 +86,15 @@ const GEAR: [Gear, RegExp, string][] = [
   ["rings", /\brings?\b/i, "Rings"], ["bike", /bike|cycle|bicycle/i, "Bike"], ["gym", /gym/i, "Gym membership"],
 ];
 export type Kit = Partial<Record<Gear, { count: number; kg: number[]; label: string }>>;
+let byName: Map<string, Gear | null> | null = null;
+const gearByName = () => (byName ??= new Map(EQUIPMENT.map((e) => [e.name, e.gear])));
 export function kitOf(pantry: PantryItem[]): Kit {
   const kit: Kit = {};
   for (const p of pantry) {
     if (p.qty <= 0 || itemKind(p) !== "equipment") continue;
-    const g = GEAR.find(([, re]) => re.test(p.name));
+    // Items from the equipment list carry their real gear (a foam roller isn't an ab wheel).
+    const known = gearByName().get(p.name);
+    const g = known !== undefined ? (known ? GEAR.find(([x]) => x === known) : undefined) : GEAR.find(([, re]) => re.test(p.name));
     if (!g) continue;
     const k = (kit[g[0]] ??= { count: 0, kg: [], label: g[2] });
     k.count += p.qty;
@@ -127,6 +132,11 @@ const SWAP: Partial<Record<Gear, Gear[]>> = { dumbbell: ["kettlebell"], kettlebe
 export const canDo = (m: Move, kit: Kit) => needs(m).every((g) => kit[g] || (SWAP[g] ?? []).some((s) => kit[s]));
 
 export const doable = (kit: Kit) => MOVES.filter((m) => m.kind === "body" && canDo(m, kit));
+// Which gear an item counts as (by its name); "gym" when unknown.
+export const gearOf = (name: string): Gear => {
+  const k = kitOf([{ id: "x", name, emoji: "", qty: 1, unit: "pcs", last_price: null, updated_at: "", kind: "equipment" }]);
+  return (Object.keys(k)[0] ?? "gym") as Gear;
+};
 export const withGear = (kit: Kit, g: Gear) => MOVES.filter((m) => m.kind === "body" && needs(m).includes(g) && canDo(m, kit));
 
 // A full day's workout from what you own: warm-up, one move per body part, a

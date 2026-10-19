@@ -14,7 +14,7 @@ import { loadImage, recognise, smallPhoto } from "@/lib/foodphoto";
 import { aiPhoto, readProduct } from "@/lib/foodai";
 import { GoodsSuggest } from "@/components/GoodsSuggest";
 import type { Good } from "@/lib/goods";
-import { fromPhoto, itemKind, kindOf, KINDS, kitOf, kitText, whenToEat, withGear, type Kind } from "@/lib/have";
+import { fromPhoto, gearOf, itemKind, kindOf, KINDS, kitOf, kitText, whenToEat, withGear, type Kind } from "@/lib/have";
 import { UNITS, useApp, type PantryItem } from "@/lib/store";
 
 // Everything the hero owns, with photos and amounts. The rest of the app reads
@@ -77,11 +77,6 @@ export default function HavePage() {
     </>
   );
 }
-
-const gearOf = (name: string) => {
-  const k = kitOf([{ id: "x", name, emoji: "", qty: 1, unit: "pcs", last_price: null, updated_at: "", kind: "equipment" }]);
-  return (Object.keys(k)[0] ?? "gym") as Parameters<typeof withGear>[1];
-};
 
 function HaveSheet({ item, onClose }: { item: PantryItem | null; onClose: () => void }) {
   const { data, update } = useApp();
