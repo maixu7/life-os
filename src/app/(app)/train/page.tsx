@@ -22,6 +22,7 @@ import { type Pattern } from "@/lib/exercises";
 import { moveOf, MOVES, myMove, variantOf } from "@/lib/moves";
 import type { CustomItem, Log } from "@/lib/store";
 import { today, useApp, useCustomItems, useLogs } from "@/lib/store";
+import { isTraining, TodayList } from "@/components/Collections";
 
 const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
 const PLATE_COLOR: Record<number, string> = { 25: "#ff3b5c", 20: "#3b82ff", 15: "#ffd166", 10: "#22c55e", 5: "#f4f0ff", 2.5: "#888", 1.25: "#555" };
@@ -365,6 +366,7 @@ export default function TrainPage() {
         </>
         ),
       }} />
+      <TodayList title="📋 What I did today" pick={isTraining} empty="No training yet today. Every set and workout lands here; tap one to fix it, ✕ to delete a mistake." />
     </>
   );
 }

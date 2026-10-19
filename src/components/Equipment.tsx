@@ -92,7 +92,7 @@ export function EquipmentSheet({ onClose, file }: { onClose: () => void; file?: 
           </button>
           <input ref={ref} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ""; if (f.length) choose(f); }} />
           {queue[0] && <SnapChoice key={queue.length} photo={queue[0].small} img={queue[0].img} guess={guess} list={picks} what="equipment" kind="equipment" more={queue.length > 1 ? `${queue.length - 1} more after this` : undefined} onClose={() => setQueue((q) => q.slice(1))}
-            onAI={() => snap([queue[0].file])} onPick={(p) => { setPhotos((ps) => [...ps, queue[0].small]); save([{ name: p.name, extra: { photo: queue[0].small } }]); }} />}
+            onAI={() => snap([queue[0].file])} onPick={(p) => { setPhotos((ps) => [...ps, queue[0].small]); save([{ name: p.name, extra: { photo: queue[0].small, ...(p.note ? { note: p.note } : {}) } }]); }} />}
           <textarea className="input flex-1 min-h-14 text-sm" placeholder={"or type it, one per line:\ndumbbell 10 kg ×2\nkettlebell 20 kg\nab wheel"} value={say} onChange={(e) => setSay(e.target.value)} />
         </div>
         <button disabled={busy || !say.trim()} onClick={typed} className="btn-primary w-full !py-1.5 text-sm disabled:opacity-40">{busy ? "Reading…" : "Read & add"}</button>

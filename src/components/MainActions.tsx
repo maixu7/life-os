@@ -8,7 +8,9 @@ import { openFab } from "@/components/hub/Hub";
 import { openReport } from "@/components/Summary";
 import { useRunAction, useTasks } from "@/components/Coach";
 import { atWork, fmt12, hm, hoursIn, phaseNow, sched, studyFrom } from "@/lib/schedule";
-import { useApp } from "@/lib/store";
+import { toDay, useApp } from "@/lib/store";
+import { CollectionHost, openCollection } from "@/components/Collections";
+import { openHub } from "@/components/hub/registry";
 
 // The page's main purpose as big buttons at the very top (Eat / Drink on
 // Food, Start workout on Train…). Everything else sits below them.
@@ -43,6 +45,7 @@ const MAIN: Record<string, Big[]> = {
   "/food": [
     { icon: "🍽️", label: "Eat", sub: "Photo, say it or search", go: () => openSlotSheet({ kind: "meal" }) },
     { icon: "🥤", label: "Drink", sub: "Photo, say it or search", go: () => openSlotSheet({ kind: "drink" }) },
+    { icon: "📷", label: "Upload", sub: "Any photo, now or later", go: () => openHub("later") },
     { icon: "🛒", label: "Shopping", sub: "List, snap, receipt", href: "/shop" },
   ],
   "/train": [
@@ -55,6 +58,37 @@ const MAIN: Record<string, Big[]> = {
     { icon: "📖", label: "Log learning", sub: "Pages, minutes, kanji…", go: () => toBlock("today") },
   ],
 };
+
+// A second row of big buttons: your collections.
+const MORE: Record<string, Big[]> = {
+  "/food": [
+    { icon: "🍱", label: "My food collection", sub: "What I have · what I've eaten", go: () => openCollection("food") },
+    { icon: "🥤", label: "My drink collection", sub: "What I have · what I've drunk", go: () => openCollection("drink") },
+  ],
+  "/train": [
+    { icon: "🏋️", label: "My gym collection", sub: "Photo, description, how many, kg each", go: () => openCollection("gym") },
+  ],
+};
+
+// Base: the two big buttons at the very top.
+export function SleepWakeTiles() {
+  const { data } = useApp();
+  const asleep = [...data.logs].reverse().find((l) => l.kind === "sleep" && !l.data.end);
+  const woke = data.logs.find((l) => l.kind === "wake" && l.day === toDay(new Date()));
+  const t = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return (
+    <div className="grid grid-cols-2 gap-2 mb-4">
+      <button onClick={() => openSlotSheet({ kind: "sleep" })} className={`${BIG_TILE} ${asleep ? "ring-2 ring-indigo-300" : ""}`}>
+        <span className="text-5xl leading-none">😴</span><span className="font-black text-base">Go to sleep</span>
+        <span className="text-[10px] text-muted">{asleep ? `Sleeping since ${t(String(asleep.data.start))}` : "Start your sleep"}</span>
+      </button>
+      <button onClick={() => openSlotSheet({ kind: "wake" })} className={`${BIG_TILE} ${asleep ? "ring-2 ring-amber-300 animate-pulse" : ""}`}>
+        <span className="text-5xl leading-none">🌅</span><span className="font-black text-base">Wake up</span>
+        <span className="text-[10px] text-muted">{woke ? `Woke at ${String(woke.data.time ?? t(woke.created_at))}` : "Log your wake-up"}</span>
+      </button>
+    </div>
+  );
+}
 
 export const BIG_TILE = "rounded-2xl border border-[var(--accent)]/40 bg-gradient-to-br from-[var(--accent)]/25 to-[var(--accent2)]/10 p-3 flex flex-col items-center justify-center gap-1 text-center active:scale-95 min-h-28";
 
@@ -91,6 +125,7 @@ export function MainActions({ page }: { page: string }) {
   return (
     <>
     {equip && <EquipmentSheet onClose={() => setEquip(false)} />}
+    <CollectionHost />
     {fix && (
       <div className="card p-3 mb-3 text-sm border border-amber-400/50">
         ⏰ In About me you wrote you work <b>{fmt12(fix.start)}–{fmt12(fix.end)}</b>, but your schedule says <b>{fmt12(sc.workStart)}–{fmt12(sc.workEnd)}</b>. Tasks follow the schedule.
@@ -103,6 +138,7 @@ export function MainActions({ page }: { page: string }) {
         ? <Link key={b.label} href={b.href} className={cls}>{inner(b)}</Link>
         : <button key={b.label} onClick={b.go} className={cls}>{inner(b)}</button>)}
     </div>
+    {MORE[page] && <div className={`grid ${MORE[page].length > 1 ? "grid-cols-2" : "grid-cols-1"} gap-2 mb-4 -mt-2`}>{MORE[page].map((b) => <button key={b.label} onClick={b.go} className={cls}>{inner(b)}</button>)}</div>}
     </>
   );
 }

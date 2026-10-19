@@ -47,7 +47,7 @@ export const taskOf = (i: CustomItem): MyTask => ({
 export const dueOn = (t: MyTask, d: Date) => (t.date ? t.date === toDay(d) : t.days.includes(d.getDay()));
 
 // How much was done for this area in these logs.
-function measure(area: Area, name: string, ls: Log[], d: Data, day: string): number {
+export function measure(area: Area, name: string, ls: Log[], d: Data, day: string): number {
   const n = (l: Log, k: string) => Number(l.data[k]) || 0;
   switch (area) {
     case "water": return ls.filter((l) => l.kind === "water").reduce((s, l) => s + n(l, "ml"), 0);

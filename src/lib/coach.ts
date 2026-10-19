@@ -9,6 +9,7 @@ import type { CustomItem, Data, Log } from "@/lib/store";
 import { toDay } from "@/lib/store";
 import { kitOf, kitText, todayKit } from "@/lib/have";
 import { myTasks } from "@/lib/mytasks";
+import { collectionTasks } from "@/lib/collect";
 
 // The Sensei looks at the clock and your records and picks what you should do next,
 // with the benefit ("why do it") and the trigger ("why I picked this").
@@ -196,6 +197,8 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
 
   // Tasks you made yourself, in with the rest.
   for (const t of myTasks(d, now)) add(t);
+  // From your collections (food, drinks, gym gear).
+  if (!busy) for (const t of collectionTasks(d, now)) add(t);
   // Photos saved with "Scan later".
   const later = d.items.filter((i) => i.category === "later").length;
   if (later) add({ id: "later", icon: "📥", priority: 38, action: { type: "hub", id: "later" }, title: `Scan ${later} saved photo${later > 1 ? "s" : ""}`, because: "You saved them with Scan later.", why: "Logged food, drinks and things keep your numbers right." });

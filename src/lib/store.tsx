@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Facts } from "@/lib/label";
+import type { RoutineItem } from "@/lib/mission";
 import type { Schedule } from "@/lib/schedule";
 import type { Ui } from "@/lib/ui";
 import type { Slot } from "@/lib/gear";
@@ -21,6 +22,7 @@ export type Settings = {
   currency: string;
   allowances: Record<string, number>; // "2026-10" -> allowance for that month
   schedule?: Partial<Schedule>; // wake/sleep, work hours, breaks, holidays
+  routine?: RoutineItem[]; // your own timed steps in the daily mission (bathroom 5:50, brush 6:45…)
   ui?: Ui; // bottom menu tabs and hidden Base Camp sections
   study_plan?: StudyItem[]; // what to study each day and how much
   study_lock?: boolean; // fun (anime, manga, games…) waits until today's study is done

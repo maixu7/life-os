@@ -17,6 +17,7 @@ import { MyFoodForm, MyFoodsList } from "@/components/FoodPicker";
 import { BottleCard, CaffeineCard, FoodCostCard, FoodIdeas, ProteinCard, UsualMeals } from "@/components/FoodPlus";
 import { energy } from "@/lib/body";
 import { toDay, useApp } from "@/lib/store";
+import { DrinksCard, isIntake, TodayList } from "@/components/Collections";
 
 // Everything about food: today's meals, reading packets, your foods and the
 // last 7 days of calories and protein.
@@ -32,6 +33,7 @@ export default function FoodPage() {
       <MainActions page="/food" />
       <Blocks page="/food" parts={{
         quick: <QuickBar />,
+        drinks: <DrinksCard />,
         usual: <UsualMeals />, protein: <ProteinCard />, coffee: <CaffeineCard />, bottle: <BottleCard />, ideas: <FoodIdeas />, cost: <FoodCostCard />,
         meals: (
         <>
@@ -116,6 +118,7 @@ export default function FoodPage() {
         </>
         ),
       }} />
+      <TodayList title="📋 What I ate and drank today" pick={isIntake} empty="Nothing yet today. Everything you eat and drink lands here; tap one to fix it, ✕ to delete a mistake." />
     </>
   );
 }

@@ -39,7 +39,7 @@ function withProduct(l: LabelRead): LabelRead {
   return { ...l, facts: f, per: `100${ml ? "ml" : "g"}`, kcal: f.kcal, protein: f.protein, fat: f.fat, carbs: f.carbs, sugar: f.sugar, salt: f.salt, contents: l.contents ?? it.contents };
 }
 
-export type Pick = { name: string; emoji: string; sub?: string; ja?: string; mine?: boolean };
+export type Pick = { name: string; emoji: string; sub?: string; ja?: string; mine?: boolean; /** Your own words, typed when nothing else found it. */ note?: string };
 
 /** Names from the list printed in the photo's text (long enough to be real, not OCR noise). */
 export function listHits(list: Pick[], text: string, extra: string[] = [], habit?: Map<string, number>): Pick[] {
@@ -81,6 +81,7 @@ export function SnapChoice({ photo, img, list, what, kind, laterType, more, gues
   const { data, update, session } = useApp();
   const [saving, setSaving] = useState(false);
   const [q, setQ] = useState("");
+  const [own, setOwn] = useState({ name: "", note: "" });
   const [found, setFound] = useState<Pick[] | null>(img ? null : []);
   const [seen, setSeen] = useState<{ sure: (Seen & { barcode?: boolean })[]; maybe: Seen[] }>({ sure: [], maybe: [] });
   const [read, setRead] = useState("");
@@ -159,7 +160,8 @@ export function SnapChoice({ photo, img, list, what, kind, laterType, more, gues
   // Picking teaches the app this photo.
   const choose = (p: Pick, extra?: Product | null) => {
     if (vec || label?.barcode) update((d) => remember(d, kind, p.name, vec, p.emoji, thumb, label?.barcode, col));
-    onClose(); onPick(p, label ? withProduct({ ...label, item: label.item ?? extra }) : undefined);
+    const l = label ? withProduct({ ...label, item: label.item ?? extra }) : undefined;
+    onClose(); onPick(p, p.note ? { ...(l ?? { names: [], text: "", facts: {} }), contents: p.note } : l);
   };
   const facts = label && [
     label.contents && `Contains: ${label.contents}`, !label.item && label.barcode && `🔢 Barcode ${label.barcode} (not in the open food database yet: pick or save it once and it's known forever)`,
@@ -282,6 +284,15 @@ export function SnapChoice({ photo, img, list, what, kind, laterType, more, gues
         {hits.map(row)}
         {q && !hits.length && <p className="text-xs text-muted">Nothing with that name in the list.</p>}
       </div>
+      {/* When the app and AI both miss: write it yourself. */}
+      <details className="rounded-xl bg-white/5 p-2 text-xs">
+        <summary className="cursor-pointer font-semibold">✍️ Type it myself (name and description)</summary>
+        <div className="space-y-1.5 mt-2">
+          <input className="input" placeholder={`Name of this ${what}`} value={own.name} onChange={(e) => setOwn({ ...own, name: e.target.value })} />
+          <textarea className="input min-h-14 text-sm" placeholder="Description: what it is, what it contains, size, anything" value={own.note} onChange={(e) => setOwn({ ...own, note: e.target.value })} />
+          <button disabled={!own.name.trim()} onClick={() => choose({ name: own.name.trim(), emoji: "✍️", note: own.note.trim() || undefined })} className="btn-primary w-full !py-2 disabled:opacity-40">Use this</button>
+        </div>
+      </details>
       <div className="flex gap-2">
         <button onClick={askAI} className="btn-ghost flex-1 !py-2.5 ring-1 ring-[var(--accent)]">🤖 Not in the list? Ask AI</button>
         {imgs.length > 0 && <button onClick={later} disabled={saving} className="btn-ghost !py-2.5 !px-3 text-sm">{saving ? "Saving…" : "⏰ Scan later"}</button>}

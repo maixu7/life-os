@@ -1,6 +1,7 @@
 "use client";
 
-import { MainActions } from "@/components/MainActions";
+import { MainActions, SleepWakeTiles } from "@/components/MainActions";
+import { DailyMission } from "@/components/DailyMission";
 import { GuideCard } from "@/components/Guide";
 import { DoingCard } from "@/components/Doing";
 import { EditLog } from "@/components/EditLog";
@@ -138,12 +139,14 @@ export default function TodayPage() {
         <Link href="/today" aria-label="Today's table" title="Today's table" className="btn-ghost h-10 w-10 !p-0 grid place-items-center text-lg">📋</Link>
       </div>
 
-      {isToday && <MainActions page="/" />}
-      {isToday && <GuideCard />}
+      {isToday && <SleepWakeTiles />}
       {isToday && <DoingCard />}
       {isToday && <Nudges />}
-      <DayScoreChip day={day} />
       <Blocks page="/" parts={{
+        mission: isToday ? <DailyMission /> : null,
+        actions: isToday ? <MainActions page="/" /> : null,
+        guide: isToday ? <GuideCard /> : null,
+        score: <DayScoreChip day={day} />,
         focus: isToday ? <FocusButton /> : null,
         exam: isToday ? <ExamTarget /> : null,
         pins: isToday ? <PinsCard /> : null,

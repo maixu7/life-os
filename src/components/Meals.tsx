@@ -17,6 +17,7 @@ import { allMealSlots, ICONS, MEAL_IDEAS, mealSlots, uid, type MealSlot } from "
 import type { Ui } from "@/lib/ui";
 import { toDay, useApp, type Log } from "@/lib/store";
 import { CookButton, ReceiptButton, usesOf } from "@/components/FoodWays";
+import { pastOf } from "@/lib/past";
 
 export const MEALS: [string, string][] = [["Breakfast", "🍳"], ["Lunch", "🍱"], ["Snack", "🍪"], ["Dinner", "🍛"]];
 // Every meal and drink button, including your own (Control Centre or the ＋ on Food today).
@@ -33,7 +34,7 @@ export const isMealLog = (l: Log, ui?: Ui) => l.kind === "meal" || (l.kind === "
 
 // A meal is any number of foods. Each food has its own photo (shown in the
 // Today table) and its own label photo (read for the calories).
-export function MealSheet({ meal: initial, log, onClose, start, file, at }: { meal?: string; log?: Log; onClose: () => void; start?: string[]; file?: Blob[]; at?: Date }) {
+export function MealSheet({ meal: initial, log, onClose, start, again, file, at }: { meal?: string; log?: Log; onClose: () => void; start?: string[]; again?: Eaten[]; file?: Blob[]; at?: Date }) {
   const { data, profile, logActivity, updateLog, celebrate, update } = useApp();
   const ui = profile.settings.ui;
   const slots = mealSlots(ui);
@@ -43,6 +44,7 @@ export function MealSheet({ meal: initial, log, onClose, start, file, at }: { me
   const [dishes, setDishes] = useState<Dish[]>(() => {
     const had = dishesFrom(log?.data.foods as Eaten[] | undefined);
     if (had.length && log?.data.photo && !had[0].photo) had[0].photo = String(log.data.photo);
+    if (again?.length) return dishesFrom(again);
     return had.length ? had : (start?.length ? start : [""]).map((n) => newDish(n));
   });
   const [contents, setContents] = useState(String(log?.data.note ?? ""));
@@ -68,6 +70,7 @@ export function MealSheet({ meal: initial, log, onClose, start, file, at }: { me
     const usual = [...count.values()].sort((a, b) => b.n - a.n)[0];
     return { y: y?.data.foods as Eaten[] | undefined, usual: usual && usual.n >= 2 ? usual.foods : undefined };
   }, [data.logs, meal, ui, log?.id]);
+  const pastFoods = useMemo(() => pastOf(data.logs, "food").filter((h) => h.food && !dishes.some((d) => d.name === h.name)).slice(0, 16), [data.logs, dishes]);
   const takeFoods = (fs: Eaten[]) => setDishes((ds) => [...ds.filter((x) => x.name.trim() || Number(x.kcal) || x.photo), ...dishesFrom(fs)]);
   const save = () => {
     const first = foods.find((f) => f.photo)?.photo;
@@ -104,6 +107,20 @@ export function MealSheet({ meal: initial, log, onClose, start, file, at }: { me
         {dishes.map((d) => <DishCard key={d.key} d={d} set={set(d.key)} anime={anime} addMore={(ps) => setDishes((ds) => { const i = ds.findIndex((x) => x.key === d.key); return [...ds.slice(0, i + 1), ...ps.map((p) => ({ ...newDish(), ...p })), ...ds.slice(i + 1)]; })} remove={() => setDishes((ds) => (ds.length > 1 ? ds.filter((x) => x.key !== d.key) : [newDish()]))} />)}
       </div>
       <button onClick={() => setDishes([...dishes, newDish()])} className="btn-ghost w-full border border-dashed border-white/25">＋ Add another food</button>
+      {pastFoods.length > 0 && (
+        <div>
+          <div className="text-[10px] text-muted mb-1">Had before: tap to add again</div>
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {pastFoods.map((h) => (
+              <button key={h.name} onClick={() => takeFoods([h.food!])} className="shrink-0 w-16 rounded-xl bg-white/5 p-1 flex flex-col items-center gap-0.5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {h.photo ? <img src={h.photo} alt="" className="h-10 w-10 rounded-lg object-cover" /> : <span className="text-2xl h-10 grid place-items-center">🍽️</span>}
+                <span className="text-[9px] leading-tight text-center line-clamp-2">{h.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {quick.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {quick.map((nm) => <button key={nm} onClick={() => setDishes((ds) => [...ds.filter((x) => x.name || x.kcal || x.photo), newDish(nm)])} className="chip !py-0.5 text-[11px]">+ {nm}</button>)}
@@ -269,7 +286,7 @@ function WholeMeal({ anime, file, onFoods }: { anime: boolean; file?: Blob[]; on
     // A dish you cooked before brings its ingredients (taken off What I have).
     const mine = data.items.find((i) => i.category === "food" && i.name === x.name && Array.isArray(i.config.uses));
     const uses = mine ? (mine.config.uses as { name: string; qty: number }[]).map((u) => ({ name: u.name, qty: +(u.qty / (Number(mine.config.serves) || 1)).toFixed(3) })) : undefined;
-    onFoods([{ name: x.name, photo: ask?.small, auto: !fromLabel, uses, ...(mine?.config.contents ? { contents: String(mine.config.contents) } : {}), ...(fromLabel ?? (n ? { per: n.per, kcal: String(n.kcal), protein: String(n.protein) } : {})) }]);
+    onFoods([{ name: x.name, photo: ask?.small, auto: !fromLabel, uses, ...(x.note ? { contents: x.note } : {}), ...(mine?.config.contents ? { contents: String(mine.config.contents) } : {}), ...(fromLabel ?? (n ? { per: n.per, kcal: String(n.kcal), protein: String(n.protein) } : {})) }]);
     setPic(null); setMsg(`${fromLabel ? "🏷️" : "📋"} ${x.name} (${fromLabel ? "numbers from the label" : "from the list"}). Check the amount below.`);
   };
   // A photo saved with "Scan later" opens straight away.

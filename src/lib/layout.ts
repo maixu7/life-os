@@ -35,12 +35,12 @@ export const customHref = (id: string) => `/custom/${id}`;
 // The built-in blocks of each page, in their default order.
 export const PAGE_SECTIONS: Record<string, [string, string][]> = {
   "/today": [["quick", "⚡ Quick add (top icons)"], ["doing", "▶ In progress"], ["basics", "🗓️ Daily basics table"], ["mytasks", "📝 My tasks"], ["did", "✅ What you did"], ["fix", "🚨 Fix my worst habits"], ["quests", "🎯 App quests & goals"]],
-  "/food": [["quick", "⚡ Quick add"], ["meals", "🍱 Food today"], ["drink", "🥤 Log a drink"], ["next", "🍽️ What to eat next"], ["care", "🩺 Take care of me"], ["have", "🎒 Food you have"], ["packet", "🏷️ New packet food"], ["week", "📅 Last 7 days"], ["mine", "🍽️ My foods"],
+  "/food": [["quick", "⚡ Quick add"], ["meals", "🍱 Food today"], ["drinks", "🥤 Drink today"], ["drink", "🥤 Log a drink"], ["next", "🍽️ What to eat next"], ["care", "🩺 Take care of me"], ["have", "🎒 Food you have"], ["packet", "🏷️ New packet food"], ["week", "📅 Last 7 days"], ["mine", "🍽️ My foods"],
     ["usual", "⭐ One-tap meals"], ["protein", "🥚 Protein today"], ["coffee", "☕ Caffeine"], ["bottle", "🍶 Water bottle"], ["ideas", "🧑‍🍳 Recipes, konbini, eating out"], ["cost", "💴 Food cost this week"]],
   "/train": [["list", "🏋️ My exercises"], ["plan", "📅 Today's full workout"], ["library", "📚 All exercises"], ["move", "🎯 Selected exercise"], ["lift", "📈 Strength forecast"], ["rest", "⏱️ Rest timer"], ["done", "✅ Today's sets"], ["streak", "🔥 Workout streak"], ["muscles", "🗺️ Muscle map"], ["records", "🏆 Personal records"]],
   "/learn": [["plan", "🗓️ Study plan"], ["today", "📖 Learning today"], ["books", "📚 Books you have"], ["library", "📚 Library (read, listen, watch)"], ["skills", "🧠 Skills: noob to expert"],
     ["cards", "🃏 Flashcards"], ["jlpt", "🈶 JLPT kanji"], ["mistakes", "📕 Mistake notebook"], ["papers", "📝 Past papers"]],
-  "/": [["pins", "📌 Pinned actions & camera"], ["routine", "🌅 Morning routine"], ["event", "🎃 Seasonal event"], ["focus", "⏱️ Big focus button"], ["exam", "📝 Exam countdown and today's target"], ["coach", "🥷 Sensei's next tasks"], ["learn", "📖 Learning today"], ["gaps", "🔍 What you're lacking"], ["fix", "🚨 Fix my worst habits"], ["care", "🩺 Take care of me"], ["sleep", "😴 Sleep and wake"],
+  "/": [["mission", "⚔ Daily mission (schedule ✓/✗)"], ["actions", "⚡ Do next, Log, Report"], ["guide", "🧭 Today's guide"], ["score", "🏅 Day score"], ["pins", "📌 Pinned actions & camera"], ["routine", "🌅 Morning routine"], ["event", "🎃 Seasonal event"], ["focus", "⏱️ Big focus button"], ["exam", "📝 Exam countdown and today's target"], ["coach", "🥷 Sensei's next tasks"], ["learn", "📖 Learning today"], ["gaps", "🔍 What you're lacking"], ["fix", "🚨 Fix my worst habits"], ["care", "🩺 Take care of me"], ["sleep", "😴 Sleep and wake"],
     ["meals", "🍱 Food today"], ["gauges", "🎯 Today's gauges"], ["boss", "👹 Weekly boss and chest"], ["missions", "⚔ Daily missions"],
     ["potions", "🧪 Water and milk"], ["quests", "🗺 Side quests"], ["habits", "🔁 Habit quests"], ["library", "📚 Library"], ["pantry", "🎒 Inventory"], ["rival", "⚔️ Rival duel & loot"]],
 };
@@ -50,9 +50,9 @@ export const PAGE_SECTIONS: Record<string, [string, string][]> = {
 // waits in the page's "More" strip, one tap away (the hero can move any block
 // either way). Own blocks stay on screen.
 export const PAGE_MAIN: Record<string, string[]> = {
-  "/": ["pins", "coach", "missions", "sleep"],
+  "/": ["mission"],
   "/today": ["quick", "doing", "basics", "mytasks", "did"],
-  "/food": ["quick", "meals", "next"],
+  "/food": ["quick", "meals", "drinks", "next"],
   "/train": ["plan", "list", "move", "done"],
   "/learn": ["plan", "today"],
 };
