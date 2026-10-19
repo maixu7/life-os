@@ -6,6 +6,9 @@ import { EquipmentSheet } from "@/components/Equipment";
 import { openSlotSheet } from "@/components/Blocks";
 import { openFab } from "@/components/hub/Hub";
 import { openReport } from "@/components/Summary";
+import { useRunAction, useTasks } from "@/components/Coach";
+import { atWork, fmt12, hm, hoursIn, phaseNow, sched, studyFrom } from "@/lib/schedule";
+import { useApp } from "@/lib/store";
 
 // The page's main purpose as big buttons at the very top (Eat / Drink on
 // Food, Start workout on Train…). Everything else sits below them.
@@ -62,13 +65,39 @@ export function MainActions({ page }: { page: string }) {
     window.addEventListener("lifeos-equipment", go);
     return () => window.removeEventListener("lifeos-equipment", go);
   }, []);
-  const list = MAIN[page];
+  const { data, saveSettings } = useApp();
+  const tasks = useTasks();
+  const run = useRunAction();
+  const sc = sched(data.profile.settings.schedule);
+  const n = phaseNow(sc);
+  const work = atWork(n);
+  const study = fmt12(hm(studyFrom(sc)));
+  // The tiles follow your day: at work, Base shows work things and Learn says when study starts.
+  let list = MAIN[page];
   if (!list) return null;
+  const top = tasks[0];
+  if (page === "/") list = [
+    work ? { icon: "💼", label: "At work", sub: `${n.label} · ${fmt12(sc.workEnd)} end`, go: top ? () => run(top.action) : openFab }
+      : n.phase === "study" ? list[0]
+      : top ? { icon: top.icon, label: "Do next", sub: top.title, go: () => run(top.action) } : list[0],
+    ...list.slice(1),
+  ];
+  if (page === "/learn" && work) list = [{ ...list[0], sub: `After work, from ${study}` }, ...list.slice(1)];
+  // You wrote your hours in About me but the schedule says something else: one tap fixes it.
+  const said = hoursIn(data.profile.about);
+  const fix = page === "/" && said && (said.start !== sc.workStart || said.end !== sc.workEnd) ? said : null;
   const cls = BIG_TILE;
   const inner = (b: Big) => <><span className="text-4xl leading-none">{b.icon}</span><span className={`font-black leading-tight ${list.length === 3 ? "text-sm" : "text-base"}`}>{b.label}</span><span className="text-[10px] text-muted leading-tight">{b.sub}</span></>;
   return (
     <>
     {equip && <EquipmentSheet onClose={() => setEquip(false)} />}
+    {fix && (
+      <div className="card p-3 mb-3 text-sm border border-amber-400/50">
+        ⏰ In About me you wrote you work <b>{fmt12(fix.start)}–{fmt12(fix.end)}</b>, but your schedule says <b>{fmt12(sc.workStart)}–{fmt12(sc.workEnd)}</b>. Tasks follow the schedule.
+        <button onClick={() => saveSettings({ schedule: { ...sc, workStart: fix.start, workEnd: fix.end, workType: sc.workType === "none" || sc.workType === "school" ? "job" : sc.workType, workPlace: sc.workType === "school" ? "Work" : sc.workPlace } })} className="btn-primary w-full mt-2 !py-1.5 text-sm">Use {fmt12(fix.start)}–{fmt12(fix.end)}</button>
+      </div>
+    )}
+    {work && (page === "/learn" || page === "/train") && <p className="card p-2.5 mb-3 text-xs">💼 Work hours until {fmt12(sc.workEnd)}. Study and training tasks start after work ({page === "/learn" ? study : fmt12(sc.exercise || sc.workEnd)}).</p>}
     <div className={`grid ${list.length === 3 ? "grid-cols-3" : "grid-cols-2"} gap-2 mb-4`}>
       {list.map((b) => b.href
         ? <Link key={b.label} href={b.href} className={cls}>{inner(b)}</Link>

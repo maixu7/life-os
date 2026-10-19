@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/lib/store";
+import { atWork, phaseNow, sched } from "@/lib/schedule";
 import { allPages, tabOf, tabsOf, type Tab } from "@/lib/ui";
 import { useT } from "@/lib/i18n";
 
@@ -37,9 +38,14 @@ export function Nav() {
       if (sessionStorage.getItem("lifeos-started")) return;
       sessionStorage.setItem("lifeos-started", "1");
     } catch { return; }
+    if (path !== "/" || location.search) return;
+    // Open where your day is: Base Camp at work, Learn in study time, else the leftmost tab.
+    const n = phaseNow(sched(profile.settings.schedule));
+    if (atWork(n)) return;
+    if (n.phase === "study") return router.replace("/learn");
     const first = TABS[0];
     if (ui?.startLeft === false || !first || first.href === "/" || first.items) return;
-    if (path === "/" && !location.search) router.replace(first.href);
+    router.replace(first.href);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Long-press any tab to edit the menu.

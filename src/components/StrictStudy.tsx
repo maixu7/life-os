@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { logKarma } from "@/lib/karma";
-import { sched } from "@/lib/schedule";
+import { atWork, phaseNow, sched, studyFrom } from "@/lib/schedule";
 import { toDay, useApp } from "@/lib/store";
 import { studyGate } from "@/lib/worst";
 
@@ -45,7 +45,7 @@ export function StudyWall() {
   const mins = d.getHours() * 60 + d.getMinutes();
   let snoozed = 0;
   try { snoozed = Number(localStorage.getItem(SNOOZE)) || 0; } catch {}
-  const show = profile.settings.study_wall !== false && gate.locked && mins >= toMin(s.studyStart) && mins < toMin(s.sleep) && now > snoozed && !FREE.test(path);
+  const show = profile.settings.study_wall !== false && gate.locked && mins >= studyFrom(s, d) && mins < toMin(s.sleep) && !atWork(phaseNow(s, d)) && now > snoozed && !FREE.test(path);
   if (!show) return null;
 
   const left = wait ? Math.max(0, Math.ceil((wait - now) / 1000)) : null;

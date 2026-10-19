@@ -87,6 +87,32 @@ export function phaseNow(s: Schedule, d = new Date()): Now {
   return { phase: "free", day, label: isOffDay(day) ? "Free time (day off)" : "Free time" };
 }
 
+// At work right now (work, a work break, or the commute)? Study and fun can wait.
+export const atWork = (n: Now) => n.phase === "work" || n.phase === "break" || n.phase === "commute";
+
+// When study can start today: on a work day not before work ends (plus the commute).
+export function studyFrom(s: Schedule, d = new Date()): number {
+  const day = dayType(s, d);
+  const st = toMin(s.studyStart);
+  if (isOffDay(day)) return st;
+  const free = toMin(day === "half" ? s.halfEnd : s.workEnd) + (s.commute || 0);
+  return Number.isNaN(free) ? st : Math.max(st, free);
+}
+export const hm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+// Work hours written in words ("I work 9 to 6", "job 9am-6pm", "9時から18時"), as HH:MM.
+export function hoursIn(text = ""): { start: string; end: string } | null {
+  const m = /(?:work|job|office|仕事|勤務|duty|shift)[^\d]{0,20}(\d{1,2})(?::(\d{2}))?\s*(am|pm|時)?\s*(?:to|-|–|~|〜|から|till|until)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|時)?/i.exec(text)
+    ?? /(\d{1,2})(?::(\d{2}))?\s*(am|pm|時)?\s*(?:to|-|–|~|〜|から)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm|時)?[^\n]{0,15}(?:work|job|office|仕事|勤務)/i.exec(text);
+  if (!m) return null;
+  let a = Number(m[1]), b = Number(m[4]);
+  if (m[3]?.toLowerCase() === "pm" && a < 12) a += 12;
+  if ((m[6]?.toLowerCase() === "pm" || (!m[6] && b <= a && b + 12 > a)) && b < 12) b += 12;
+  if (a > 23 || b > 23 || a === b) return null;
+  const f = (h: number, mm?: string) => `${String(h).padStart(2, "0")}:${mm ?? "00"}`;
+  return { start: f(a, m[2]), end: f(b, m[5]) };
+}
+
 export const isQuiet = (s: Schedule, d = new Date()) => within(nowMin(d), toMin(s.quietStart), toMin(s.quietEnd));
 
 // What the Sensei says when you open the app in each part of your day.
