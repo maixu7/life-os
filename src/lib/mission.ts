@@ -17,7 +17,7 @@ export type StepKind = "wake" | "sleep" | "meal" | "water" | "work" | "study" | 
 /** One timed step: your own (settings.routine), from the schedule, or added by the app (auto). */
 export type RoutineItem = { id: string; time: string; end?: string; label: string; kind: StepKind; ml?: number; days?: number[]; note?: string; href?: string; auto?: boolean; moves?: PlanRow[]; /** Glued to the start of this step (a warm-up before training). */ before?: string };
 /** Your changes to any step (settings.routineEdit): its times, its name, or hidden. */
-export type StepEdit = { time?: string; end?: string; label?: string; off?: boolean; ml?: number };
+export type StepEdit = { time?: string; end?: string; label?: string; off?: boolean; ml?: number; /** When you saved it: the newest change wins a clash. */ at?: number };
 
 export type Step = {
   id: string; time: string; label: string; icon: string; kind: StepKind; fixed: boolean; ml?: number;
@@ -114,36 +114,47 @@ function lenOf(l?: Log) {
 const GRACE: Record<StepKind, number> = { wake: 120, sleep: 180, meal: 120, water: 90, work: 90, study: 180, code: 180, read: 180, workout: 240, step: 90 };
 
 // Fits the day together so nothing overlaps. Fixed: wake, work, meals, sleep,
-// your own steps and any step whose time you set yourself. Everything else
-// (steps the app added, study and exercise from the schedule) keeps its order
-// and slides to the next free gap, so moving one step moves the rest with it.
+// the bedtime routine and your own steps. A step whose time you changed keeps
+// it (the newest change wins), and the steps before and after it move to fit.
 function reflow(items: (RoutineItem & { mine?: boolean })[], edits: Record<string, StepEdit>, d: Data, date: Date) {
   const s = sched(d.profile.settings.schedule);
   const W = toMin(isOffDay(dayType(s, date)) ? s.weekendWake : s.wake);
   const rel = (t: string) => (toMin(t) - W + 1440) % 1440; // minutes since waking (bedtime after midnight stays last)
   const back = (m: number) => hm((m + W) % 1440);
   const len = (it: RoutineItem) => (it.end ? (toMin(it.end) - toMin(it.time) + 1440) % 1440 : 0);
-  // The bedtime routine is counted back from bedtime, so it stays put too.
+  // Never moved: wake, work, meals, sleep, the bedtime routine (counted back from bedtime) and your own steps.
   const BED = ["a-shower", "a-prep", "a-phone", "a-toilet-pm", "a-sitz-pm", "a-brush-pm", "a-journal"];
-  const hard = (it: RoutineItem & { mine?: boolean }) => !!edits[it.id]?.time || !!it.mine || ["b-wake", "b-work", "b-breakfast", "b-lunch", "b-dinner", "b-sleep", ...BED].includes(it.id);
+  const fixed = (it: RoutineItem & { mine?: boolean }) => !!it.mine || ["b-wake", "b-work", "b-breakfast", "b-lunch", "b-dinner", "b-sleep", "a-listen", ...BED].includes(it.id);
   const sleep = items.find((it) => it.id === "b-sleep");
   const bed = sleep ? rel(sleep.time) : 1440;
   // Water and zero-length steps (phone away) fit alongside anything.
-  const blocks = (it: RoutineItem) => it.kind !== "water" && len(it) > 0 && it.kind !== "sleep" && it.kind !== "wake";
-  const taken: [number, number][] = items.filter((it) => hard(it) && blocks(it)).map((it) => [rel(it.time), rel(it.time) + len(it)]);
+  // Listening on the way rides along with the commute.
+  const blocks = (it: RoutineItem) => it.kind !== "water" && len(it) > 0 && it.kind !== "sleep" && it.kind !== "wake" && it.id !== "a-listen";
+  const taken: [number, number][] = items.filter((it) => fixed(it) && blocks(it)).map((it) => [rel(it.time), rel(it.time) + len(it)]);
   // Your own tasks with a start and an end (＋ My task) are fixed too.
   for (const i of d.items) {
     if (i.category !== "task") continue;
     const t = taskOf(i), end = typeof i.config.end === "string" ? i.config.end : "";
     if (end && dueOn(t, date)) taken.push([rel(t.time), rel(t.time) + ((toMin(end) - toMin(t.time) + 1440) % 1440)]);
   }
-  const flex = items.map((it, i) => ({ it, i })).filter(({ it }) => !hard(it) && blocks(it) && !it.before).sort((a, b) => rel(a.it.time) - rel(b.it.time));
+  // A warm-up moves together with its training, as one block.
+  const warm = new Map<string, number>();
+  items.forEach((it, i) => { if (it.before && !edits[it.id]?.time) warm.set(it.before, i); });
+  // Steps you changed go first (the newest change first, so it wins), each at its time
+  // or right after whatever is already there. Then the steps around them fit in:
+  // a step that starts before a changed one and now runs into it moves earlier (the
+  // ones before it follow), and a step after it moves later (the ones after follow).
+  const order = items.map((it, i) => ({ it, i })).filter(({ it, i }) => !fixed(it) && blocks(it) && ![...warm.values()].includes(i));
+  const pinned = (it: RoutineItem) => (edits[it.id]?.time ? edits[it.id].at ?? 1 : 0);
+  const solid = [...taken]; // wake, work, meals, bedtime, your own steps
   const drop = new Set<number>();
   const free = (t: number, n: number) => t >= 0 && t + n <= bed && !taken.some(([a, b]) => t < b && t + n > a);
-  for (const { it, i } of flex) {
-    const n = len(it), want = rel(it.time);
+  const size = (it: RoutineItem) => { const wi = warm.get(it.id); return { wi, w: wi != null ? len(items[wi]) + 1 : 0 }; };
+  const later = ({ it, i }: { it: RoutineItem; i: number }) => {
+    const { wi, w } = size(it);
+    const n = len(it) + w, want = rel(it.time) - w;
     let t = want;
-    for (let guard = 0; guard < 60; guard++) {
+    for (let guard = 0; guard < 80; guard++) {
       const hit = taken.find(([a, b]) => t < b && t + n > a);
       if (!hit) break;
       t = hit[1] + 2;
@@ -154,7 +165,6 @@ function reflow(items: (RoutineItem & { mine?: boolean })[], edits: Record<strin
       for (const [, b] of [...taken].sort((x, y) => y[1] - x[1])) if (b + 2 < want && free(b + 2, n)) { t = b + 2; break; }
       // Study and exercise from your schedule never drop out: they shrink into the biggest gap left.
       if (t < 0 && it.id.startsWith("b-")) {
-        // Join what's taken into one list of busy stretches, then look at the gaps between them.
         const busy: [number, number][] = [];
         for (const [a, b] of [...taken].sort((x, y) => x[0] - y[0])) { const last = busy[busy.length - 1]; if (last && a <= last[1]) last[1] = Math.max(last[1], b); else busy.push([a, b]); }
         let best: [number, number] = [0, 0];
@@ -162,22 +172,80 @@ function reflow(items: (RoutineItem & { mine?: boolean })[], edits: Record<strin
           const a = busy[k][1] + 2, b = Math.min(bed, busy[k + 1]?.[0] ?? bed) - 2;
           if (b - a > best[1] - best[0]) best = [a, b];
         }
-        if (best[1] - best[0] >= 20) { const m = Math.min(n, best[1] - best[0]); taken.push([best[0], best[0] + m]); items[i] = { ...it, time: back(best[0]), end: it.end ? back(best[0] + m) : undefined }; continue; }
+        if (best[1] - best[0] >= 20 + w) { const m = Math.min(n, best[1] - best[0]); taken.push([best[0], best[0] + m]); place(i, wi, best[0], w, m - w); return; }
       }
-      if (t < 0) { drop.add(i); continue; }
+      if (t < 0) { drop.add(i); if (wi != null) drop.add(wi); return; }
     }
     taken.push([t, t + n]);
-    items[i] = { ...it, time: back(t), end: it.end ? back(t + n) : undefined };
+    place(i, wi, t, w, len(it));
+  };
+  // Moves a step earlier so it ends before what it runs into (the ones before it are
+  // already fitted the same way), but never past the fixed step before it: then it
+  // goes after instead. Study and exercise from your schedule get shorter that day.
+  const earlier = (x: { it: RoutineItem; i: number }) => {
+    const { wi, w } = size(x.it);
+    const n = len(x.it) + w;
+    let base = rel(x.it.time) - w;
+    for (let guard = 0; guard < 80; guard++) { const h = taken.find(([a, b]) => a <= base && base < b); if (!h) break; base = h[1] + 2; }
+    const floor = Math.max(0, ...solid.filter(([, b]) => b <= base).map(([, b]) => b + 2));
+    const busy: [number, number][] = [];
+    for (const [a, b] of [...taken].sort((p, q) => p[0] - q[0])) { const last = busy[busy.length - 1]; if (last && a <= last[1] + 2) last[1] = Math.max(last[1], b); else busy.push([a, b]); }
+    const gaps: [number, number][] = [];
+    let from = 0;
+    for (const [a, b] of busy) { if (a - 2 > from) gaps.push([from, a - 2]); from = Math.max(from, b + 2); }
+    if (bed > from) gaps.push([from, bed]);
+    for (const [g0, g1] of gaps.filter(([g0, g1]) => g0 <= base && g1 > floor).reverse()) {
+      const t = Math.min(base, g1 - n);
+      if (t >= g0 && t >= floor) { taken.push([t, t + n]); place(x.i, wi, t, w, len(x.it)); return; }
+    }
+    const here = gaps.find(([g0, g1]) => g0 <= base && base < g1);
+    if (x.it.id.startsWith("b-") && here && here[1] - Math.max(here[0], floor) >= 20 + w) {
+      const t = Math.max(here[0], floor), m = Math.min(n, here[1] - t);
+      taken.push([t, t + m]); place(x.i, wi, t, w, m - w); return;
+    }
+    later(x);
+  };
+  // Only its end runs into the next step: start a little earlier instead of jumping past it.
+  const tail = (it: RoutineItem) => {
+    const w = size(it).w, t = rel(it.time) - w, n = len(it) + w;
+    const hit = taken.find(([a, b]) => t < b && t + n > a);
+    return !!hit && hit[0] > t;
+  };
+  // Changed steps compare the times you gave them; the rest compare where the changed steps ended up.
+  const wants: number[] = [], spans: number[] = [];
+  const ahead = (list: number[], it: RoutineItem) => {
+    const s0 = rel(it.time);
+    return list.some((p) => p > s0 && !solid.some(([a, b]) => a >= s0 && b <= p));
+  };
+  const before = (it: RoutineItem) => ahead(spans, it);
+  // Older changes give way to newer ones the same way.
+  for (const x of order.filter(({ it }) => pinned(it)).sort((a, b) => pinned(b.it) - pinned(a.it))) {
+    const want = rel(x.it.time) - size(x.it).w;
+    (ahead(wants, x.it) || tail(x.it) ? earlier : later)(x);
+    wants.push(want);
+    if (!drop.has(x.i)) spans.push(rel(items[x.i].time) - size(x.it).w);
+  }
+  const rest = order.filter(({ it }) => !pinned(it)).sort((a, b) => rel(a.it.time) - rel(b.it.time));
+  // Study and exercise from your schedule get their place before the steps the app added.
+  const sched1 = (x: { it: RoutineItem }) => (x.it.id.startsWith("b-") ? 0 : 1);
+  [...rest].reverse().filter(({ it }) => before(it)).sort((a, b) => sched1(a) - sched1(b)).forEach(earlier);
+  rest.filter(({ it }) => !before(it)).sort((a, b) => sched1(a) - sched1(b)).forEach((x) => (tail(x.it) ? earlier : later)(x));
+  function place(i: number, wi: number | undefined, t: number, w: number, n: number) {
+    if (wi != null) { const x = items[wi]; items[wi] = { ...x, time: back(t), end: x.end ? back(t + w - 1) : undefined }; }
+    const it = items[i];
+    items[i] = { ...it, time: back(t + w), end: it.end ? back(t + w + n) : undefined };
   }
   for (const i of [...drop].sort((a, b) => b - a)) items.splice(i, 1);
-  // A warm-up sits right before its training, wherever that moved.
-  items.forEach((it, i) => {
-    if (!it.before || edits[it.id]?.time) return;
-    const target = items.find((x) => x.id === it.before);
-    if (!target) return;
-    const n = len(it), t = rel(target.time) - n - 1;
-    items[i] = { ...it, time: back(t), end: it.end ? back(t + n) : undefined };
-  });
+}
+
+// A new start whose saved end is now before it (only the start was changed):
+// keep the step's own length instead of stretching it round the clock.
+function keepLen(it: RoutineItem, e: StepEdit) {
+  const end = e.end !== undefined ? e.end : it.end;
+  if (!e.time || !end || !it.end) return undefined;
+  const t = toMin(e.time), back = t - toMin(end);
+  if (back < 0 || back > 12 * 60) return undefined;
+  return { end: hm((t + ((toMin(it.end) - toMin(it.time) + 1440) % 1440)) % 1440) };
 }
 
 /** The day's timeline, each step checked against your logs. */
@@ -187,7 +255,7 @@ export function steps(d: Data, day: string, now = new Date()): Step[] {
   const edits = d.profile.settings.routineEdit ?? {};
   // Your changes win: new times, a new name, or a step you hid (schedule steps can't be hidden).
   const items = [...builtIn(d, date), ...autoSteps(d, date), ...own]
-    .map((it) => { const e = edits[it.id]; return e ? { ...it, ...(e.time ? { time: e.time } : {}), ...(e.end !== undefined ? { end: e.end || undefined } : {}), ...(e.label ? { label: e.label } : {}), ...(e.ml ? { ml: e.ml, ...(it.kind === "water" && !e.label ? { label: it.label.replace(/\d+\s*ml/i, `${e.ml} ml`) } : {}) } : {}), off: !!e.off && !it.id.startsWith("b-") } : it; })
+    .map((it) => { const e = edits[it.id]; return e ? { ...it, ...(e.time ? { time: e.time } : {}), ...(e.end !== undefined ? { end: e.end || undefined } : {}), ...(keepLen(it, e) ?? {}), ...(e.label ? { label: e.label } : {}), ...(e.ml ? { ml: e.ml, ...(it.kind === "water" && !e.label ? { label: it.label.replace(/\d+\s*ml/i, `${e.ml} ml`) } : {}) } : {}), off: !!e.off && !it.id.startsWith("b-") } : it; })
     .filter((it) => !("off" in it && it.off));
   reflow(items, edits, d, date);
   const logs = logsOn(d, day);

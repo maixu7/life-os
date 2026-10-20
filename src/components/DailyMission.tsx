@@ -8,7 +8,7 @@ import { useRunAction } from "@/components/Coach";
 import { lateText, lenText, tooLong, missionStats, ownTasks, picks, steps, type RoutineItem, type Step, type StepEdit, type StepKind } from "@/lib/mission";
 import { EditLog } from "@/components/EditLog";
 import { AREAS, type Area } from "@/lib/mytasks";
-import { fmt12, sched, toMin, type Schedule } from "@/lib/schedule";
+import { fmt12, hm, sched, toMin, type Schedule } from "@/lib/schedule";
 import { setsText } from "@/lib/have";
 import { useRouter } from "next/navigation";
 import { uid } from "@/lib/layout";
@@ -162,15 +162,17 @@ function StepSheet({ s, onClose, onGo, onDone }: { s: Step; onClose: () => void;
     return x;
   };
   const savePlan = () => {
+    // Only the start changed: keep the same length, so the end moves with it.
+    const stop = s.end && end === s.end && time !== s.time ? hm((toMin(s.end) + toMin(time) - toMin(s.time) + 1440) % 1440) : end;
     const routine = profile.settings.routine ?? [];
     const own = routine.find((r) => r.id === s.id);
-    if (own) return saveSettings({ routine: routine.map((r) => (r.id === s.id ? { ...r, time, end: end || undefined, label: label.trim() || r.label, ml: s.kind === "water" ? mlNum(ml, r.ml ?? 250) : r.ml } : r)) });
+    if (own) return saveSettings({ routine: routine.map((r) => (r.id === s.id ? { ...r, time, end: stop || undefined, label: label.trim() || r.label, ml: s.kind === "water" ? mlNum(ml, r.ml ?? 250) : r.ml } : r)) });
     // Schedule steps also move the schedule, so the rest of the app follows.
     const sch: Partial<Schedule> = {};
-    if (s.id === "b-work") Object.assign(sch, { workStart: time, ...(end ? { workEnd: end } : {}) });
-    else if (s.id === "b-study") Object.assign(sch, { studyStart: time, ...(end ? { studyEnd: end } : {}) });
+    if (s.id === "b-work") Object.assign(sch, { workStart: time, ...(stop ? { workEnd: stop } : {}) });
+    else if (s.id === "b-study") Object.assign(sch, { studyStart: time, ...(stop ? { studyEnd: stop } : {}) });
     else if (FIELD[s.id]) Object.assign(sch, { [FIELD[s.id]]: time });
-    const e: StepEdit = { ...edits[s.id], ...(FIELD[s.id] && !["b-study", "b-exercise"].includes(s.id) ? {} : { time }), end, ...(label.trim() && label !== s.label ? { label: label.trim() } : {}), ...(s.kind === "water" ? { ml: mlNum(ml, s.ml ?? 250) } : {}) };
+    const e: StepEdit = { ...edits[s.id], ...(FIELD[s.id] && !["b-study", "b-exercise"].includes(s.id) ? {} : time !== s.time || stop !== (s.end ?? "") || edits[s.id]?.time ? { time, at: Date.now() } : {}), end: stop, ...(label.trim() && label !== s.label ? { label: label.trim() } : {}), ...(s.kind === "water" ? { ml: mlNum(ml, s.ml ?? 250) } : {}) };
     saveSettings({ ...(Object.keys(sch).length ? { schedule: { ...sc, ...sch } } : {}), routineEdit: { ...edits, [s.id]: e } });
   };
   const hide = () => {
