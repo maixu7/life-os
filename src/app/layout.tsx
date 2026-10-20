@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Exo_2, Orbitron } from "next/font/google";
 import { RegisterSW } from "@/components/RegisterSW";
+import { Protect } from "@/components/Protect";
 import "./globals.css";
 
 const body = Exo_2({ variable: "--font-body", subsets: ["latin"] });
@@ -12,7 +13,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Life OS", statusBarStyle: "black-translucent" },
   icons: { icon: "/icons/icon.svg", apple: "/icons/icon-192.png" },
-  robots: { index: false, follow: false },
+  robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false, noimageindex: true } },
+  formatDetection: { telephone: false, email: false, address: false },
 };
 
 export const viewport: Viewport = {
@@ -28,6 +30,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${body.variable} ${display.variable} font-sans antialiased`}>
         {children}
         <RegisterSW />
+        <Protect />
       </body>
     </html>
   );

@@ -5,10 +5,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { openSlotSheet } from "@/components/Blocks";
 import { useRunAction } from "@/components/Coach";
-import { lateText, missionStats, ownTasks, picks, steps, type RoutineItem, type Step, type StepEdit, type StepKind } from "@/lib/mission";
+import { lateText, lenText, tooLong, missionStats, ownTasks, picks, steps, type RoutineItem, type Step, type StepEdit, type StepKind } from "@/lib/mission";
 import { EditLog } from "@/components/EditLog";
 import { AREAS, type Area } from "@/lib/mytasks";
 import { fmt12, sched, toMin, type Schedule } from "@/lib/schedule";
+import { setsText } from "@/lib/have";
+import { useRouter } from "next/navigation";
 import { uid } from "@/lib/layout";
 import { toDay, useApp } from "@/lib/store";
 
@@ -22,6 +24,7 @@ const COLOR = { done: "text-emerald-400 bg-emerald-500/15", missed: "text-rose-4
 export function DailyMission() {
   const { data, logActivity } = useApp();
   const run = useRunAction();
+  const router = useRouter();
   const [, tick] = useState(0);
   useEffect(() => { const t = setInterval(() => tick((n) => n + 1), 60_000); return () => clearInterval(t); }, []);
   const [edit, setEdit] = useState(false);
@@ -37,12 +40,13 @@ export function DailyMission() {
   const total = list.length + own.length + pk.length;
   // Tick a step: wake/sleep/meals open their own sheet; the rest is logged now.
   // A step with a start and an end that is already over asks for the real times first.
-  const tickStep = (s: Step, at = new Date(), end?: Date, ask = true) => {
+  const tickStep = (s: Step, at = new Date(), end?: Date, ask = true, ml?: number) => {
+    if (ask && s.moves?.length) return router.push("/train");
     if (s.kind === "wake") return openSlotSheet({ kind: "wake" });
     if (s.kind === "sleep") return openSlotSheet({ kind: "sleep" });
     if (s.kind === "meal") return openSlotSheet({ kind: "meal", name: s.label });
     if (ask && s.end && s.state === "missed") return setOpen(s);
-    if (s.kind === "water") { logActivity("water", { ml: s.ml ?? 250, name: s.label.replace(/\s*\d+\s*ml$/i, "") || "Water", routine: s.id }, at); return; }
+    if (s.kind === "water") { logActivity("water", { ml: ml ?? s.ml ?? 250, name: s.label.replace(/\s*\d+\s*ml$/i, "") || "Water", routine: s.id }, at); return; }
     const kind = s.kind === "code" ? "coding" : "activity";
     const minutes = end ? Math.max(1, Math.round((end.getTime() - at.getTime()) / 60_000)) : undefined;
     logActivity(kind, { name: s.label, routine: s.id, ...(end ? { start: at.toISOString(), end: end.toISOString(), minutes } : {}) }, at);
@@ -93,7 +97,7 @@ export function DailyMission() {
       {edit && <RoutineSheet onClose={() => setEdit(false)} />}
       {add && <OwnTaskSheet onClose={() => setAdd(false)} />}
       {report && <MissionReport onClose={() => setReport(false)} />}
-      {open && <StepSheet s={open} onClose={() => setOpen(null)} onGo={() => { if (!open.href) run(open.action); }} onDone={(at, end) => { tickStep(open, at, end, false); setOpen(null); }} />}
+      {open && <StepSheet s={open} onClose={() => setOpen(null)} onGo={() => { if (!open.href) run(open.action); }} onDone={(at, end, ml) => { tickStep(open, at, end, false, ml); setOpen(null); }} />}
     </section>
   );
 }
@@ -101,37 +105,55 @@ export function DailyMission() {
 const atHM = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 function StepRow({ s, onTick, onOpen }: { s: Step; onTick: () => void; onOpen: () => void }) {
-  const sub = s.state === "done" ? `done ${atHM(s.at!)}${s.doneEnd ? `–${fmt12(s.doneEnd)}` : ""} · ${lateText(s.diff)}`
-    : s.state === "missed" ? "didn't happen" : s.state === "due" ? "now" : s.end ? `${Math.round(((toMin(s.end) - toMin(s.time) + 1440) % 1440))} min` : "";
+  const long = lenText(s);
+  const sub = s.state === "done" ? `done ${atHM(s.at!)}${s.doneEnd ? `–${fmt12(s.doneEnd)}` : ""} · ${lateText(s.diff)}${s.gotMl ? ` · ${s.gotMl} ml` : ""}${long ? ` · ${long}` : ""}`
+    : s.state === "missed" ? `didn't happen${s.progress?.done ? ` · ${s.progress.done}/${s.progress.total} moves done` : ""}`
+    : s.state === "due" ? `now${s.progress ? ` · ${s.progress.done}/${s.progress.total} moves` : ""}`
+    : s.end ? `${Math.round(((toMin(s.end) - toMin(s.time) + 1440) % 1440))} min${s.progress ? ` · ${s.progress.done}/${s.progress.total} moves` : ""}` : "";
+  const bad = (s.diff ?? 0) > 15 || tooLong(s) > 0;
   return (
-    <li className="flex items-center gap-1.5 rounded-xl bg-white/5 px-2 py-1.5">
-      <button onClick={onOpen} className="flex flex-1 min-w-0 items-center gap-2 text-left">
-        <span className={`h-7 w-7 shrink-0 rounded-full grid place-items-center font-black ${COLOR[s.state]}`}>{MARK[s.state]}</span>
-        <span className="w-[4.5rem] text-[11px] leading-tight text-muted shrink-0">{fmt12(s.time)}{s.end && <span className="block text-[9px]">to {fmt12(s.end)}</span>}</span>
-        <span className="flex-1 min-w-0 text-sm truncate">{s.icon} {s.label}
-          <span className={`block text-[10px] truncate ${s.state === "done" ? ((s.diff ?? 0) > 15 ? "text-amber-300" : (s.diff ?? 0) < -15 ? "text-sky-300" : "text-emerald-400") : s.state === "missed" ? "text-rose-400" : "text-muted"}`}>{sub}{s.note && s.state !== "done" ? `${sub ? " · " : ""}${s.note}` : ""}</span>
-        </span>
-      </button>
-      {s.state !== "done" && <button onClick={onTick} aria-label="Done" className="chip !px-2 !py-0.5 text-[11px] shrink-0">✓</button>}
+    <li className="rounded-xl bg-white/5 px-2 py-1.5">
+      <div className="flex items-center gap-1.5">
+        <button onClick={onOpen} className="flex flex-1 min-w-0 items-center gap-2 text-left">
+          <span className={`h-7 w-7 shrink-0 rounded-full grid place-items-center font-black ${COLOR[s.state]}`}>{MARK[s.state]}</span>
+          <span className="w-[4.5rem] text-[11px] leading-tight text-muted shrink-0">{fmt12(s.time)}{s.end && <span className="block text-[9px]">to {fmt12(s.end)}</span>}</span>
+          <span className="flex-1 min-w-0 text-sm truncate">{s.icon} {s.label}
+            <span className={`block text-[10px] truncate ${s.state === "done" ? (bad ? "text-amber-300" : (s.diff ?? 0) < -15 ? "text-sky-300" : "text-emerald-400") : s.state === "missed" ? "text-rose-400" : "text-muted"}`}>{sub}{s.note && s.state !== "done" ? `${sub ? " · " : ""}${s.note}` : ""}</span>
+          </span>
+        </button>
+        {s.state !== "done" && <button onClick={onTick} aria-label={s.moves?.length ? "Open workout" : "Done"} className="chip !px-2 !py-0.5 text-[11px] shrink-0">{s.moves?.length ? "▶" : "✓"}</button>}
+      </div>
+      {s.moves && s.moves.length > 0 && s.state !== "done" && (
+        <ul className="mt-1 ml-9 flex flex-wrap gap-1">
+          {s.moves.map((m) => (
+            <li key={m.part + m.name} className={`rounded-md px-1.5 py-0.5 text-[10px] ${m.done >= m.sets ? "bg-emerald-500/15 text-emerald-300 line-through" : "bg-white/5 text-muted"}`}>
+              {m.done >= m.sets ? "✓ " : ""}{m.name} · {setsText(m.sets, m.reps).replace(/ of /, " × ")}{m.kg ? ` · ${m.kg} kg` : ""}
+            </li>
+          ))}
+        </ul>
+      )}
     </li>
   );
 }
 
 // Tap any step: change its time (start and end) and name, mark it done with the
 // real start and end, fix the times of a step already done, or hide it.
-function StepSheet({ s, onClose, onGo, onDone }: { s: Step; onClose: () => void; onGo: () => void; onDone: (at: Date, end?: Date) => void }) {
+function StepSheet({ s, onClose, onGo, onDone }: { s: Step; onClose: () => void; onGo: () => void; onDone: (at: Date, end?: Date, ml?: number) => void }) {
   const { data, profile, saveSettings, updateLog } = useApp();
   const sc = sched(profile.settings.schedule);
   const edits = profile.settings.routineEdit ?? {};
   const [time, setTime] = useState(s.time);
   const [end, setEnd] = useState(s.end ?? "");
   const [label, setLabel] = useState(s.label);
-  const [ml, setMl] = useState(s.ml ?? 250);
+  // Kept as text so the box can be cleared while typing (450 used to snap back to 250).
+  const [ml, setMl] = useState(String(s.ml ?? 250));
   const done = s.state === "done";
   const [from, setFrom] = useState(done && s.at ? new Date(s.at).toTimeString().slice(0, 5) : s.time);
   const [to, setTo] = useState(s.doneEnd ?? s.end ?? "");
   const [rec, setRec] = useState(false);
   const log = s.logId ? data.logs.find((l) => l.id === s.logId) : undefined;
+  const [drank, setDrank] = useState(String((log && Number(log.data.ml)) || s.ml || 250));
+  const mlNum = (t: string, dflt: number) => { const n = Math.round(Number(t)); return n > 0 && n <= 5000 ? n : dflt; };
   const timed = !["wake", "sleep", "meal"].includes(s.kind);
   const dayOf = (hhmm: string, after?: Date) => {
     const base = log ? new Date(log.created_at) : new Date();
@@ -142,13 +164,13 @@ function StepSheet({ s, onClose, onGo, onDone }: { s: Step; onClose: () => void;
   const savePlan = () => {
     const routine = profile.settings.routine ?? [];
     const own = routine.find((r) => r.id === s.id);
-    if (own) return saveSettings({ routine: routine.map((r) => (r.id === s.id ? { ...r, time, end: end || undefined, label: label.trim() || r.label, ml: s.kind === "water" ? ml : r.ml } : r)) });
+    if (own) return saveSettings({ routine: routine.map((r) => (r.id === s.id ? { ...r, time, end: end || undefined, label: label.trim() || r.label, ml: s.kind === "water" ? mlNum(ml, r.ml ?? 250) : r.ml } : r)) });
     // Schedule steps also move the schedule, so the rest of the app follows.
     const sch: Partial<Schedule> = {};
     if (s.id === "b-work") Object.assign(sch, { workStart: time, ...(end ? { workEnd: end } : {}) });
     else if (s.id === "b-study") Object.assign(sch, { studyStart: time, ...(end ? { studyEnd: end } : {}) });
     else if (FIELD[s.id]) Object.assign(sch, { [FIELD[s.id]]: time });
-    const e: StepEdit = { ...edits[s.id], ...(FIELD[s.id] ? {} : { time }), end, ...(label.trim() && label !== s.label ? { label: label.trim() } : {}), ...(s.kind === "water" ? { ml } : {}) };
+    const e: StepEdit = { ...edits[s.id], ...(FIELD[s.id] ? {} : { time }), end, ...(label.trim() && label !== s.label ? { label: label.trim() } : {}), ...(s.kind === "water" ? { ml: mlNum(ml, s.ml ?? 250) } : {}) };
     saveSettings({ ...(Object.keys(sch).length ? { schedule: { ...sc, ...sch } } : {}), routineEdit: { ...edits, [s.id]: e } });
   };
   const hide = () => {
@@ -159,10 +181,11 @@ function StepSheet({ s, onClose, onGo, onDone }: { s: Step; onClose: () => void;
   };
   const markDone = () => {
     const a = dayOf(from), b = to ? dayOf(to, a) : undefined;
+    const water = s.kind === "water" ? { ml: mlNum(drank, s.ml ?? 250) } : {};
     if (log) {
-      updateLog(log.id, { at: a, data: b ? { start: a.toISOString(), end: b.toISOString(), minutes: Math.round((b.getTime() - a.getTime()) / 60_000) } : {} });
+      updateLog(log.id, { at: a, data: { ...water, ...(b ? { start: a.toISOString(), end: b.toISOString(), minutes: Math.round((b.getTime() - a.getTime()) / 60_000) } : {}) } });
       onClose();
-    } else onDone(a, b);
+    } else onDone(a, b, s.kind === "water" ? water.ml : undefined);
   };
   const len = (a: string, b: string) => { const m = (toMin(b) - toMin(a) + 1440) % 1440; return m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}` : `${m} min`; };
   return (
@@ -176,7 +199,7 @@ function StepSheet({ s, onClose, onGo, onDone }: { s: Step; onClose: () => void;
         </div>
         {end && <p className="text-[11px] text-muted">{len(time, end)}</p>}
         {!["wake", "sleep"].includes(s.kind) && <label className="text-xs text-muted">Name<input className="input mt-1" value={label} onChange={(e) => setLabel(e.target.value)} /></label>}
-        {s.kind === "water" && <label className="text-xs text-muted">Amount (ml)<input className="input mt-1" inputMode="numeric" value={ml} onChange={(e) => setMl(Number(e.target.value) || 250)} /></label>}
+        {s.kind === "water" && <label className="text-xs text-muted">Planned amount (ml)<input className="input mt-1" inputMode="numeric" value={ml} onChange={(e) => setMl(e.target.value.replace(/\D/g, ""))} /></label>}
         <button onClick={() => { savePlan(); onClose(); }} className="btn-ghost w-full border border-white/15 !py-1.5 text-sm">💾 Save plan (every day)</button>
       </div>
       {timed || log ? (
@@ -186,7 +209,8 @@ function StepSheet({ s, onClose, onGo, onDone }: { s: Step; onClose: () => void;
             <label className="text-xs text-muted">From<input type="time" className="input mt-1" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
             <label className="text-xs text-muted">To<input type="time" className="input mt-1" value={to} onChange={(e) => setTo(e.target.value)} /></label>
           </div>
-          {to && <p className="text-[11px] text-muted">{len(from, to)}</p>}
+          {s.kind === "water" && <label className="text-xs text-muted">How much I drank (ml)<input className="input mt-1" inputMode="numeric" value={drank} onChange={(e) => setDrank(e.target.value.replace(/\D/g, ""))} /></label>}
+          <Verdict s={s} from={from} to={to} />
           <button onClick={markDone} className="btn-primary w-full">{done ? "Save times" : "✓ Done"}</button>
           {log && <button onClick={() => setRec(true)} className="text-xs text-[var(--accent2)]">Open the whole record ›</button>}
         </div>
@@ -199,6 +223,22 @@ function StepSheet({ s, onClose, onGo, onDone }: { s: Step; onClose: () => void;
       </div>
       {rec && log && <EditLog log={log} onClose={() => { setRec(false); onClose(); }} />}
     </Sheet>
+  );
+}
+
+// Live check while you type the real times: start early/late, and whether it took too long.
+function Verdict({ s, from, to }: { s: Step; from: string; to: string }) {
+  if (!/^\d\d:\d\d$/.test(from)) return null;
+  const diff = toMin(from) - toMin(s.time);
+  const took = /^\d\d:\d\d$/.test(to) ? (toMin(to) - toMin(from) + 1440) % 1440 : undefined;
+  const long = lenText({ planLen: s.planLen, doneLen: took });
+  const late = Math.abs(diff) > 5 ? lateText(diff) : "on time";
+  const fmt = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}` : `${m} min`);
+  const bad = diff > 15 || tooLong({ planLen: s.planLen, doneLen: took }) > 0;
+  return (
+    <p className={`text-[11px] ${bad ? "text-amber-300" : "text-emerald-400"}`}>
+      Start: {late}{took != null ? ` · took ${fmt(took)}${s.planLen ? ` (plan ${fmt(s.planLen)})` : ""}` : ""}{long ? ` · ⚠ ${long}` : took != null && s.planLen ? " · ✓ right length" : ""}
+    </p>
   );
 }
 

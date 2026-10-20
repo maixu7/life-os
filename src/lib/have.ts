@@ -214,3 +214,20 @@ export function dayPlan(kit: Kit, day = new Date(), hard = false): PlanRow[] {
     stretches.length ? { part: "Cool-down", name: pick(stretches).name, sets: 1, reps: "60 s" } : { part: "Cool-down", name: "Hamstring stretch", sets: 1, reps: "60 s" },
   ].filter((x): x is PlanRow => !!x);
 }
+
+/** Today's workout cut in two: a short morning part (warm-up + first moves)
+ *  and an after-work part (the rest + cool-down), so the whole plan gets done
+ *  in one day. Both halves come from the same plan the Train page shows. */
+export function splitPlan(plan: PlanRow[]): { am: PlanRow[]; pm: PlanRow[] } {
+  const warm = plan.filter((r) => r.part === "Warm-up");
+  const cool = plan.filter((r) => r.part === "Cool-down");
+  const main = plan.filter((r) => r.part !== "Warm-up" && r.part !== "Cool-down");
+  const k = Math.floor(main.length / 2); // morning is the shorter half
+  return { am: [...warm, ...main.slice(0, k)], pm: [...main.slice(k), ...cool] };
+}
+/** About how long some plan rows take: ~45 s work + ~1 min rest per set. */
+export const planMinutes = (rows: PlanRow[]) => Math.max(10, Math.round(rows.reduce((a, r) => a + r.sets * 1.75, 0) / 5) * 5);
+/** The two halves of today's workout for this pantry and day. */
+export function workoutHalves(pantry: PantryItem[], date: Date, hard: boolean) {
+  return splitPlan(dayPlan(kitOf(pantry), date, hard));
+}

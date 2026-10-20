@@ -15,7 +15,7 @@ import { personalBest } from "@/lib/fitness";
 import { Sheet } from "@/components/Sheet";
 import { PoseDemo, type Prop } from "@/components/PoseDemo";
 import { howTo, variantFromName } from "@/lib/howto";
-import { canDo, dayPlan, kitOf, kitText, setsText, todayKit, type PlanRow } from "@/lib/have";
+import { canDo, dayPlan, kitOf, kitText, setsText, splitPlan, todayKit, type PlanRow } from "@/lib/have";
 import { dayType, isOffDay, sched } from "@/lib/schedule";
 import Link from "next/link";
 import { type Pattern } from "@/lib/exercises";
@@ -132,6 +132,7 @@ export default function TrainPage() {
   const kit = kitOf(data.pantry);
   const hard = isOffDay(dayType(sched(data.profile.settings.schedule)));
   const plan = dayPlan(kit, new Date(), hard);
+  const morning = new Set(splitPlan(plan).am.map((r) => r.name));
   const tools = todayKit(kit);
   const vr = variantOf(move, variant ?? (ex ? variantFromName(move, ex.name) : undefined));
   const pick = (name: string, t?: string, row?: PlanRow) => {
@@ -220,7 +221,7 @@ export default function TrainPage() {
       <details className="card p-3 mb-3" open={Object.keys(kit).length > 0 || !items.length}>
         <summary className="text-sm font-semibold cursor-pointer">📅 Today&apos;s full workout (made from what you have)</summary>
         <p className="text-xs text-muted mt-2">{hard && <b className="text-amber-300">🔥 Day off: hard mode (an extra set, more reps, 2 extra moves). </b>}{Object.keys(kit).length ? <>Today&apos;s tools: <b>{kitText(tools)}</b> plus bodyweight moves.{Object.keys(tools).length < Object.keys(kit).length ? " Your other gear comes on other days." : ""}</> : <>No equipment yet, so this is bodyweight only. <Link href="/have" className="text-[var(--accent2)] underline">Add your dumbbells, kettlebell or pull-up bar</Link> and it changes.</>} A new random plan each day.</p>
-        <p className="text-[11px] text-muted mt-1">How to read it: <b>3 sets of 8–12 reps</b> = do the move 8 to 12 times, rest about 1 minute, and do that 3 times. Tap ▶ Start: it times every set and rest for you and ticks the move when it&apos;s done.</p>
+        <p className="text-[11px] text-muted mt-1">How to read it: <b>3 sets of 8–12 reps</b> = do the move 8 to 12 times, rest about 1 minute, and do that 3 times. Tap ▶ Start: it times every set and rest for you and ticks the move when it&apos;s done. It&apos;s split in two on your Daily mission: 🌅 part 1 in the morning, 🌙 part 2 after work.</p>
         <ul className="mt-2 space-y-1.5">
           {plan.map((r) => {
             const done = setsDone(r.name);
@@ -229,7 +230,7 @@ export default function TrainPage() {
             return (
               <li key={r.part} className={`rounded-xl px-2.5 py-2 flex items-center gap-2 ${full ? "bg-emerald-500/15 ring-1 ring-emerald-400/40" : "bg-white/[.04]"}`}>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[10px] uppercase tracking-wide text-muted">{r.part}</div>
+                  <div className="text-[10px] uppercase tracking-wide text-muted">{r.part} · {morning.has(r.name) ? "🌅 part 1 (morning)" : "🌙 part 2 (after work)"}</div>
                   <button onClick={() => pick(r.name, MOVES.find((m) => m.name === r.name)?.type, r)} className={`text-sm font-semibold text-left underline decoration-white/20 ${full ? "line-through decoration-emerald-300/60" : ""}`}>{r.name}</button>
                   <div className="text-xs text-muted">{setsText(r.sets, r.reps)}{r.kg ? ` · ${r.kg} kg` : ""}{done > 0 && !full ? ` · ${done} of ${r.sets} done` : ""}{going ? " · ▶ in progress" : ""}</div>
                 </div>

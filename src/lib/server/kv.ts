@@ -64,3 +64,15 @@ export async function login(user: string, auth: string): Promise<{ slot: number 
   await kv.set(failKey, { tries, until: tries >= 5 ? Date.now() + 30_000 * 2 ** (tries - 5) : 0 });
   return { error: tries >= 5 ? "Too many wrong tries." : "Wrong username or password.", status: 401 };
 }
+
+/** Simple rate limit: true when `key` was used more than `max` times in `windowMs`. */
+export async function limited(key: string, max: number, windowMs: number): Promise<boolean> {
+  if (!kv) return false;
+  const k = `rate:${key}`, now = Date.now();
+  const cur = (await kv.get<{ n: number; reset: number }>(k)) ?? { n: 0, reset: now + windowMs };
+  const next = cur.reset < now ? { n: 1, reset: now + windowMs } : { n: cur.n + 1, reset: cur.reset };
+  await kv.set(k, next);
+  return next.n > max;
+}
+/** The caller's IP address (from Vercel's proxy headers). */
+export const ipOf = (req: Request) => (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || req.headers.get("x-real-ip") || "unknown";
