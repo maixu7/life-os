@@ -15,7 +15,7 @@ import { toDay, type Data, type Log } from "@/lib/store";
 
 export type StepKind = "wake" | "sleep" | "meal" | "water" | "work" | "study" | "code" | "read" | "workout" | "step";
 /** One timed step: your own (settings.routine), from the schedule, or added by the app (auto). */
-export type RoutineItem = { id: string; time: string; end?: string; label: string; kind: StepKind; ml?: number; days?: number[]; note?: string; href?: string; auto?: boolean; moves?: PlanRow[]; /** Glued to the start of this step (a warm-up before training). */ before?: string };
+export type RoutineItem = { id: string; time: string; end?: string; label: string; kind: StepKind; ml?: number; days?: number[]; note?: string; href?: string; auto?: boolean; moves?: PlanRow[]; /** Glued to the start of this step (a warm-up before training). */ before?: string; /** When you last changed it: the newest change wins a clash. */ at?: number };
 /** Your changes to any step (settings.routineEdit): its times, its name, or hidden. */
 export type StepEdit = { time?: string; end?: string; label?: string; off?: boolean; ml?: number; /** When you saved it: the newest change wins a clash. */ at?: number };
 
@@ -27,6 +27,9 @@ export type Step = {
   /** Planned minutes (start→end) and how long it really took, when both are known. */
   planLen?: number; doneLen?: number;
   /** Water: how much you really drank. */ gotMl?: number;
+  /** Finished early (−) or late (+) against the planned end. */ endDiff?: number;
+  /** Work: planned break minutes inside it (planLen and doneLen already leave them out). */ brk?: number;
+  /** Start/Finish work rows: the whole work step they belong to. */ whole?: Step;
   /** Workout steps: the moves of today's plan in this part, and how many are finished. */
   moves?: (PlanRow & { done: number })[]; progress?: { done: number; total: number };
 };
@@ -116,27 +119,22 @@ const GRACE: Record<StepKind, number> = { wake: 120, sleep: 180, meal: 120, wate
 // Fits the day together so nothing overlaps. Fixed: wake, work, meals, sleep,
 // the bedtime routine and your own steps. A step whose time you changed keeps
 // it (the newest change wins), and the steps before and after it move to fit.
-function reflow(items: (RoutineItem & { mine?: boolean })[], edits: Record<string, StepEdit>, d: Data, date: Date) {
+function reflow(items: (RoutineItem & { mine?: boolean })[], edits: Record<string, StepEdit>, d: Data, date: Date, hold = new Set<string>()) {
   const s = sched(d.profile.settings.schedule);
   const W = toMin(isOffDay(dayType(s, date)) ? s.weekendWake : s.wake);
   const rel = (t: string) => (toMin(t) - W + 1440) % 1440; // minutes since waking (bedtime after midnight stays last)
   const back = (m: number) => hm((m + W) % 1440);
   const len = (it: RoutineItem) => (it.end ? (toMin(it.end) - toMin(it.time) + 1440) % 1440 : 0);
-  // Never moved: wake, work, meals, sleep, the bedtime routine (counted back from bedtime) and your own steps.
+  // Never moved: wake, work, meals, sleep, and what you already did (at its real time).
+  // The bedtime routine is counted back from bedtime: it only ever moves earlier.
   const BED = ["a-shower", "a-prep", "a-phone", "a-toilet-pm", "a-sitz-pm", "a-brush-pm", "a-journal"];
-  const fixed = (it: RoutineItem & { mine?: boolean }) => !!it.mine || ["b-wake", "b-work", "b-breakfast", "b-lunch", "b-dinner", "b-sleep", "a-listen", ...BED].includes(it.id);
+  const fixed = (it: RoutineItem & { mine?: boolean }) => hold.has(it.id) || ["b-wake", "b-work", "b-breakfast", "b-lunch", "b-dinner", "b-sleep", "a-listen"].includes(it.id);
   const sleep = items.find((it) => it.id === "b-sleep");
   const bed = sleep ? rel(sleep.time) : 1440;
   // Water and zero-length steps (phone away) fit alongside anything.
   // Listening on the way rides along with the commute.
   const blocks = (it: RoutineItem) => it.kind !== "water" && len(it) > 0 && it.kind !== "sleep" && it.kind !== "wake" && it.id !== "a-listen";
   const taken: [number, number][] = items.filter((it) => fixed(it) && blocks(it)).map((it) => [rel(it.time), rel(it.time) + len(it)]);
-  // Your own tasks with a start and an end (＋ My task) are fixed too.
-  for (const i of d.items) {
-    if (i.category !== "task") continue;
-    const t = taskOf(i), end = typeof i.config.end === "string" ? i.config.end : "";
-    if (end && dueOn(t, date)) taken.push([rel(t.time), rel(t.time) + ((toMin(end) - toMin(t.time) + 1440) % 1440)]);
-  }
   // A warm-up moves together with its training, as one block.
   const warm = new Map<string, number>();
   items.forEach((it, i) => { if (it.before && !edits[it.id]?.time) warm.set(it.before, i); });
@@ -145,7 +143,8 @@ function reflow(items: (RoutineItem & { mine?: boolean })[], edits: Record<strin
   // a step that starts before a changed one and now runs into it moves earlier (the
   // ones before it follow), and a step after it moves later (the ones after follow).
   const order = items.map((it, i) => ({ it, i })).filter(({ it, i }) => !fixed(it) && blocks(it) && ![...warm.values()].includes(i));
-  const pinned = (it: RoutineItem) => (edits[it.id]?.time ? edits[it.id].at ?? 1 : 0);
+  // Your own steps and tasks count as changed by you (when you saved them).
+  const pinned = (it: RoutineItem & { mine?: boolean }) => (edits[it.id]?.time ? edits[it.id].at ?? 1 : it.mine ? it.at ?? 1 : 0);
   const solid = [...taken]; // wake, work, meals, bedtime, your own steps
   const drop = new Set<number>();
   const free = (t: number, n: number) => t >= 0 && t + n <= bed && !taken.some(([a, b]) => t < b && t + n > a);
@@ -167,10 +166,11 @@ function reflow(items: (RoutineItem & { mine?: boolean })[], edits: Record<strin
       if (t < 0 && it.id.startsWith("b-")) {
         const busy: [number, number][] = [];
         for (const [a, b] of [...taken].sort((x, y) => x[0] - y[0])) { const last = busy[busy.length - 1]; if (last && a <= last[1]) last[1] = Math.max(last[1], b); else busy.push([a, b]); }
+        // The free gap nearest its own time that still fits 20 minutes.
         let best: [number, number] = [0, 0];
         for (let k = 0; k < busy.length; k++) {
           const a = busy[k][1] + 2, b = Math.min(bed, busy[k + 1]?.[0] ?? bed) - 2;
-          if (b - a > best[1] - best[0]) best = [a, b];
+          if (b - a >= 20 + w && (best[1] - best[0] < 20 + w || Math.abs(a - want) < Math.abs(best[0] - want))) best = [a, b];
         }
         if (best[1] - best[0] >= 20 + w) { const m = Math.min(n, best[1] - best[0]); taken.push([best[0], best[0] + m]); place(i, wi, best[0], w, m - w); return; }
       }
@@ -217,7 +217,7 @@ function reflow(items: (RoutineItem & { mine?: boolean })[], edits: Record<strin
     const s0 = rel(it.time);
     return list.some((p) => p > s0 && !solid.some(([a, b]) => a >= s0 && b <= p));
   };
-  const before = (it: RoutineItem) => ahead(spans, it);
+  const before = (it: RoutineItem) => BED.includes(it.id) || ahead(spans, it);
   // Older changes give way to newer ones the same way.
   for (const x of order.filter(({ it }) => pinned(it)).sort((a, b) => pinned(b.it) - pinned(a.it))) {
     const want = rel(x.it.time) - size(x.it).w;
@@ -226,10 +226,14 @@ function reflow(items: (RoutineItem & { mine?: boolean })[], edits: Record<strin
     if (!drop.has(x.i)) spans.push(rel(items[x.i].time) - size(x.it).w);
   }
   const rest = order.filter(({ it }) => !pinned(it)).sort((a, b) => rel(a.it.time) - rel(b.it.time));
-  // Study and exercise from your schedule get their place before the steps the app added.
+  // From the last step back: a step whose end now runs into what comes after it moves
+  // earlier, and so does the one before it if that one now runs into it (the bedtime
+  // routine always fits back from bedtime). Everything else then goes forward, study
+  // and exercise from your schedule first, each at its time or pushed later.
   const sched1 = (x: { it: RoutineItem }) => (x.it.id.startsWith("b-") ? 0 : 1);
-  [...rest].reverse().filter(({ it }) => before(it)).sort((a, b) => sched1(a) - sched1(b)).forEach(earlier);
-  rest.filter(({ it }) => !before(it)).sort((a, b) => sched1(a) - sched1(b)).forEach((x) => (tail(x.it) ? earlier : later)(x));
+  const back1 = new Set<number>();
+  for (const x of [...rest].reverse()) if (BED.includes(x.it.id) || (before(x.it) && tail(x.it))) { earlier(x); back1.add(x.i); }
+  rest.filter((x) => !back1.has(x.i)).sort((a, b) => sched1(a) - sched1(b)).forEach((x) => (tail(x.it) ? earlier : later)(x));
   function place(i: number, wi: number | undefined, t: number, w: number, n: number) {
     if (wi != null) { const x = items[wi]; items[wi] = { ...x, time: back(t), end: x.end ? back(t + w - 1) : undefined }; }
     const it = items[i];
@@ -248,15 +252,34 @@ function keepLen(it: RoutineItem, e: StepEdit) {
   return { end: hm((t + ((toMin(it.end) - toMin(it.time) + 1440) % 1440)) % 1440) };
 }
 
-/** The day's timeline, each step checked against your logs. */
-export function steps(d: Data, day: string, now = new Date()): Step[] {
+/** Minutes of break inside a stretch of work: the schedule's breaks, or a 30 min lunch if none are set. */
+export function breakIn(d: Data, from: number, to: number) {
+  const s = sched(d.profile.settings.schedule);
+  const list: [number, number][] = s.breaks?.length ? s.breaks.map((b) => [toMin(b.start), toMin(b.end)]) : s.lunch ? [[toMin(s.lunch), toMin(s.lunch) + 30]] : [];
+  return list.reduce((n, [a, b]) => n + Math.max(0, Math.min(b, to) - Math.max(a, from)), 0);
+}
+
+type Planned = { items: (RoutineItem & { mine?: boolean })[]; got: Map<string, Log>; tasks: Map<string, { time: string; end?: string }> };
+const planned = new WeakMap<Data, Map<string, Planned>>();
+
+// The day fitted together: your changes, the app's steps around them, and then
+// real-time tracking: what you already did sits at its real times, and the steps
+// you haven't done yet move to fit around it (started work late → the evening moves too).
+function plan(d: Data, day: string): Planned {
+  const hit = planned.get(d)?.get(day);
+  if (hit) return hit;
   const date = new Date(`${day}T12:00:00`);
   const own = (d.profile.settings.routine ?? []).filter((r) => !r.days?.length || r.days.includes(date.getDay())).map((r) => ({ ...r, mine: true }));
   const edits = d.profile.settings.routineEdit ?? {};
+  // Your own tasks (＋ My task) fit in like your own steps.
+  const tasks = d.items.filter((i) => i.category === "task").map((i) => ({ i, t: taskOf(i) })).filter(({ t }) => dueOn(t, date))
+    .map(({ i, t }) => ({ id: `t-${i.id}`, time: t.time, end: typeof i.config.end === "string" && i.config.end ? i.config.end : undefined, label: i.name, kind: "step" as StepKind, mine: true, at: typeof i.config.at === "number" ? i.config.at : undefined }));
   // Your changes win: new times, a new name, or a step you hid (schedule steps can't be hidden).
-  const items = [...builtIn(d, date), ...autoSteps(d, date), ...own]
+  const raw = [...builtIn(d, date), ...autoSteps(d, date), ...own]
     .map((it) => { const e = edits[it.id]; return e ? { ...it, ...(e.time ? { time: e.time } : {}), ...(e.end !== undefined ? { end: e.end || undefined } : {}), ...(keepLen(it, e) ?? {}), ...(e.label ? { label: e.label } : {}), ...(e.ml ? { ml: e.ml, ...(it.kind === "water" && !e.label ? { label: it.label.replace(/\d+\s*ml/i, `${e.ml} ml`) } : {}) } : {}), off: !!e.off && !it.id.startsWith("b-") } : it; })
     .filter((it) => !("off" in it && it.off));
+  const all = [...raw, ...tasks];
+  let items = all.map((x) => ({ ...x }));
   reflow(items, edits, d, date);
   const logs = logsOn(d, day);
   // Who gets which log: a log ticked from a step belongs to that step; any other
@@ -266,7 +289,7 @@ export function steps(d: Data, day: string, now = new Date()): Step[] {
   for (const it of items) { const l = logs.find((x) => x.data.routine === it.id); if (l) { got.set(it.id, l); taken.add(l.id); } }
   const pairs: { id: string; l: Log; dist: number }[] = [];
   for (const it of items) {
-    if (got.has(it.id)) continue;
+    if (got.has(it.id) || it.id.startsWith("t-")) continue;
     for (const l of matches(it, logs, d.logs, day)) {
       if (taken.has(l.id) || (l.data.routine && ids.has(String(l.data.routine)))) continue;
       pairs.push({ id: it.id, l, dist: it.kind === "sleep" || it.kind === "wake" ? 0 : Math.abs(mins(l.created_at) - toMin(it.time)) });
@@ -274,6 +297,31 @@ export function steps(d: Data, day: string, now = new Date()): Step[] {
   }
   pairs.sort((a, b) => a.dist - b.dist);
   for (const p of pairs) if (!got.has(p.id) && !taken.has(p.l.id)) { got.set(p.id, p.l); taken.add(p.l.id); }
+  // Real-time: a step with a real start sits where it really happened (to its real end,
+  // or its planned length while it's still going), and the rest fit around it.
+  const real = new Map<string, [string, string]>();
+  for (const it of items) {
+    const l = got.get(it.id);
+    if (!l?.data.start || !it.end) continue;
+    const a = mins(String(l.data.start)), b = l.data.end ? mins(String(l.data.end)) : a + ((toMin(it.end) - toMin(it.time) + 1440) % 1440);
+    real.set(it.id, [hm(a), hm(b % 1440)]);
+  }
+  if (real.size) {
+    const again = all.map((x) => (real.has(x.id) ? { ...x, time: real.get(x.id)![0], end: real.get(x.id)![1] } : { ...x }));
+    reflow(again, edits, d, date, new Set(real.keys()));
+    const where = new Map(again.map((x) => [x.id, x]));
+    items = items.filter((x) => where.has(x.id)).map((x) => (real.has(x.id) ? x : { ...x, time: where.get(x.id)!.time, end: where.get(x.id)!.end }));
+  }
+  const out: Planned = { items: items.filter((x) => !x.id.startsWith("t-")), got, tasks: new Map(items.filter((x) => x.id.startsWith("t-")).map((x) => [x.id.slice(2), { time: x.time, end: x.end }])) };
+  if (!planned.has(d)) planned.set(d, new Map());
+  planned.get(d)!.set(day, out);
+  return out;
+}
+
+/** The day's timeline, each step checked against your logs. */
+export function steps(d: Data, day: string, now = new Date()): Step[] {
+  const { items, got } = plan(d, day);
+  const logs = logsOn(d, day);
   const isToday = day === toDay(now), past = day < toDay(now);
   const nowM = now.getHours() * 60 + now.getMinutes();
   return items.map((it) => {
@@ -295,9 +343,30 @@ export function steps(d: Data, day: string, now = new Date()): Step[] {
     const href = it.href ?? HREF[it.kind];
     const action: Action = it.kind === "wake" ? { type: "wake" } : it.kind === "sleep" ? { type: "sleep" } : it.kind === "water" ? { type: "water" } : href ? { type: "href", href } : { type: "activity", name: it.label };
     const doneEnd = log?.data.end ? hhmm(new Date(String(log.data.end))) : undefined;
-    const planLen = it.end ? (toMin(it.end) - plan + 1440) % 1440 || undefined : undefined;
-    return { planLen, doneLen: lenOf(matched), gotMl: it.kind === "water" ? Number(matched?.data.ml) || undefined : undefined, moves: wp?.rows, progress: wp?.progress, id: it.id, time: it.time, end: it.end, note: it.note, auto: it.auto, own: "mine" in it, label: it.label, icon: iconOf(it), kind: it.kind, fixed: it.id.startsWith("b-"), ml: it.ml, action, href, state, at, diff, logId: matched?.id, doneEnd: doneEnd ?? (matched?.data.end ? hhmm(new Date(String(matched.data.end))) : undefined) };
-  }).sort((a, b) => toMin(a.time) - toMin(b.time));
+    let planLen = it.end ? (toMin(it.end) - plan + 1440) % 1440 || undefined : undefined;
+    let doneLen = lenOf(matched);
+    const realEnd = doneEnd ?? (matched?.data.end ? hhmm(new Date(String(matched.data.end))) : undefined);
+    // Finished early or late, against the planned end.
+    const endDiff = realEnd && it.end ? ((toMin(realEnd) - toMin(it.end) + 2160) % 1440) - 720 : undefined;
+    // Work time is the time there minus the breaks inside it.
+    let brk: number | undefined;
+    if (it.kind === "work" && it.end) {
+      brk = breakIn(d, plan, toMin(it.end));
+      if (planLen) planLen -= brk;
+      if (doneLen != null && matched?.data.start) { const a = mins(String(matched.data.start)); doneLen -= breakIn(d, a, a + doneLen); }
+    }
+    return { brk, endDiff, planLen, doneLen, gotMl: it.kind === "water" ? Number(matched?.data.ml) || undefined : undefined, moves: wp?.rows, progress: wp?.progress, id: it.id, time: it.time, end: it.end, note: it.note, auto: it.auto, own: "mine" in it, label: it.label, icon: iconOf(it), kind: it.kind, fixed: it.id.startsWith("b-"), ml: it.ml, action, href, state, at, diff, logId: matched?.id, doneEnd: realEnd } as Step;
+  }).flatMap((x) => (x.id === "b-work" && x.end ? workRows(x, isToday, past, nowM) : [x])).sort((a, b) => toMin(a.time) - toMin(b.time));
+}
+
+// Work shows as two steps: "Start Job" at the start time and "Finish Job" at the end
+// time, each checked on its own. Both open the whole work plan.
+function workRows(w: Step, isToday: boolean, past: boolean, nowM: number): Step[] {
+  const endM = toMin(w.end!);
+  const fin: Step["state"] = w.doneEnd ? "done" : past || (isToday && nowM > endM + GRACE.work) ? "missed" : isToday && nowM >= endM - 30 ? "due" : "later";
+  const start: Step = { ...w, label: `Start ${w.label}`, end: undefined, doneEnd: undefined, planLen: undefined, doneLen: undefined, endDiff: undefined, whole: w };
+  const finish: Step = { ...w, id: "b-work-end", label: `Finish ${w.label}`, time: w.end!, end: undefined, state: fin, at: w.doneEnd ? w.at : undefined, diff: w.endDiff, endDiff: undefined, whole: w };
+  return [start, finish];
 }
 
 /** "on time", "5 min late", "1 h early". */
@@ -307,6 +376,20 @@ export function lateText(diff?: number) {
   if (a <= 5) return "on time";
   const t = a >= 60 ? `${Math.floor(a / 60)} h${a % 60 ? ` ${a % 60} min` : ""}` : `${a} min`;
   return `${t} ${diff > 0 ? "late" : "early"}`;
+}
+
+/** Start and end both count: "started on time · finished 23 min late", "inside the planned time · …". */
+export function timeText(diff?: number, endDiff?: number) {
+  if (endDiff == null) return diff == null ? "" : `started ${lateText(diff)}`;
+  if (diff == null) return `finished ${lateText(endDiff)}`;
+  if (Math.abs(diff) <= 5 && Math.abs(endDiff) <= 5) return "started and finished on time";
+  const inside = diff >= -5 && endDiff <= 5;
+  return `${inside ? "inside the planned time · " : ""}started ${lateText(diff)} · finished ${lateText(endDiff)}`;
+}
+/** Late start, late finish or too long counts as late; an early start (15+ min) as early. */
+export function tone(s: Pick<Step, "diff" | "endDiff" | "planLen" | "doneLen">): "late" | "early" | "ok" {
+  if ((s.diff ?? 0) > 15 || (s.endDiff ?? 0) > 15 || tooLong(s) > 0) return "late";
+  return (s.diff ?? 0) < -15 ? "early" : "ok";
 }
 
 /** How the real length compares with the plan: "45 min too long", "10 min short", or "". */
@@ -320,8 +403,10 @@ export function lenText(s: Pick<Step, "planLen" | "doneLen">) {
 export function tooLong(s: Pick<Step, "planLen" | "doneLen">) {
   if (s.planLen == null || s.doneLen == null) return 0;
   const over = s.doneLen - s.planLen;
-  if (over > Math.max(10, s.planLen * 0.3)) return over;
-  if (s.planLen >= 10 && -over >= Math.max(5, s.planLen * 0.5)) return over;
+  // A little either way is fine: 20% of the plan, at least 5 and at most 15 minutes.
+  const ok = Math.min(15, Math.max(5, s.planLen * 0.2));
+  if (over > ok) return over;
+  if (s.planLen >= 10 && -over > ok) return over;
   return 0;
 }
 
@@ -341,7 +426,7 @@ export function discipline(d: Data, now = new Date(), days = 7) {
   for (let i = 1; i <= days; i++) {
     const day = toDay(new Date(now.getTime() - i * 86_400_000));
     if (!logsOn(d, day).length) continue;
-    for (const s of steps(d, day, now)) { if (s.state === "done") { done++; if ((s.diff ?? 0) <= 15 && tooLong(s) <= 0) onTime++; } else if (s.state === "missed") missed++; }
+    for (const s of steps(d, day, now)) { if (s.state === "done") { done++; if ((s.diff ?? 0) <= 15 && (s.endDiff ?? 0) <= 15 && tooLong(s) <= 0) onTime++; } else if (s.state === "missed") missed++; }
   }
   const total = done + missed;
   return { done, onTime, missed, rate: total ? (onTime + (done - onTime) * 0.5) / total : 0.7 };
@@ -378,11 +463,13 @@ export function picks(d: Data, day: string, now = new Date(), rate = discipline(
 export function ownTasks(d: Data, day: string, now = new Date()) {
   const date = new Date(`${day}T12:00:00`);
   const logs = logsOn(d, day);
+  const fit = plan(d, day).tasks; // where your task sits after the day is fitted together
   return d.items.filter((i) => i.category === "task").map((i) => ({ i, t: taskOf(i) })).filter(({ t }) => dueOn(t, date)).map(({ i, t }) => {
     const want = targetOf(t, d, now) ?? 1;
     const since = new Date(`${day}T${t.time}:00`).getTime();
     const got = measure(t.area, i.name, logs.filter((l) => new Date(l.created_at).getTime() >= since - 3_600_000), d, day);
-    return { id: i.id, time: t.time, end: typeof i.config.end === "string" && i.config.end ? i.config.end : undefined, label: i.name, icon: AREAS[t.area].icon, area: t.area, done: got >= want, want, got };
+    const at = fit.get(i.id);
+    return { id: i.id, time: at?.time ?? t.time, end: at ? at.end : typeof i.config.end === "string" && i.config.end ? i.config.end : undefined, label: i.name, icon: AREAS[t.area].icon, area: t.area, done: got >= want, want, got };
   });
 }
 
@@ -396,7 +483,7 @@ export function missionStats(d: Data, from: string, to: string, now = new Date()
     const p = picks(d, day, now, rate), o = ownTasks(d, day, now);
     const done = s.filter((x) => x.state === "done").length + p.filter((x) => x.done).length + o.filter((x) => x.done).length;
     const missed = s.filter((x) => x.state === "missed").length + (day < toDay(now) ? p.filter((x) => !x.done).length + o.filter((x) => !x.done).length : 0);
-    rows.push({ day, done, missed, late: s.filter((x) => (x.diff ?? 0) > 15 || tooLong(x) > 0).length, total: s.length + p.length + o.length });
+    rows.push({ day, done, missed, late: s.filter((x) => (x.diff ?? 0) > 15 || (x.endDiff ?? 0) > 15 || tooLong(x) > 0).length, total: s.length + p.length + o.length });
   }
   const done = rows.reduce((a, r) => a + r.done, 0), missed = rows.reduce((a, r) => a + r.missed, 0), late = rows.reduce((a, r) => a + r.late, 0);
   const score = pathScore(done - late * 0.5, missed + late * 0.5);
