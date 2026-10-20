@@ -5,6 +5,7 @@ import type { Facts } from "@/lib/label";
 import type { RoutineItem, StepEdit } from "@/lib/mission";
 import type { Schedule } from "@/lib/schedule";
 import type { Ui } from "@/lib/ui";
+import type { Look } from "@/lib/look";
 import type { Slot } from "@/lib/gear";
 import { emojiFor } from "@/lib/emoji";
 import { realityCheck } from "@/lib/reality";
@@ -36,6 +37,7 @@ export type Settings = {
   cat_budgets?: Record<string, number>; // monthly budget per spending category
   payday?: Payday; // allowance day and "pay yourself first"
   grocery_skip?: string[]; // names the auto grocery list should stop suggesting
+  look?: Look; // ✏️ edit mode: your words, pictures, colours, order, hidden items, new buttons, automatic features off
   hub?: { pins?: string[]; lang?: "en" | "ja" }; // Hero hub: actions pinned on Base Camp, menu language
 };
 export type Payday = { day: number; pct: number; amount?: number; jar?: string; auto: boolean };

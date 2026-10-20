@@ -215,3 +215,9 @@ html.app-hidden body { filter: blur(24px); }
   body { display: none !important; }
   html::after { content: "Life OS is private and can't be printed."; display: block; padding: 2rem; font: 16px sans-serif; }
 }
+
+/* ✏️ Edit mode (components/EditLayer.tsx) */
+html:not(.lo-editing) [data-lo-hide] { display: none !important; }
+html.lo-editing [data-lo-hide] { opacity: 0.3 !important; outline: 2px dashed #f43f5e !important; }
+html.lo-editing [data-lo-sel] { outline: 3px solid #facc15 !important; outline-offset: 2px; }
+html.lo-editing body { padding-top: 2.5rem; }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { MenuEditor } from "@/components/Customize";
+import { openAutos, startEdit } from "@/components/EditLayer";
 import { MealSlotSheet } from "@/components/Meals";
 import { Sheet } from "@/components/Sheet";
 import {
@@ -31,6 +32,11 @@ export default function ControlPage() {
   return (
     <>
       <XpHeader title="Control Centre" icon="🎛️" subtitle="Move, add, rename and hide anything. Changes apply everywhere at once." />
+      <section className="card p-3 mb-3 flex flex-wrap items-center gap-2">
+        <p className="text-xs text-muted w-full">✏️ Edit mode: tap any word, icon, picture, tile, report or pop-up in the app to rename it, change its picture or colour, move it, remove it or add a new button next to it.</p>
+        <button onClick={startEdit} className="btn-gold !py-2 text-sm flex-1">✏️ Edit anything</button>
+        <button onClick={openAutos} className="chip !py-2 text-sm">⚙️ Automatic or manual</button>
+      </section>
       <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3 -mx-1 px-1">
         {TABS.map(([id, l]) => <button key={id} onClick={() => { setTab(id); setPage(null); }} className={`chip shrink-0 !py-1.5 text-xs ${tab === id ? "chip-on" : ""}`}>{l}</button>)}
       </div>
