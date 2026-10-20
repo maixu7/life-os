@@ -129,7 +129,7 @@ export function autoSteps(d: Data, date: Date): RoutineItem[] {
   out.sort((a, b) => toMin(a.time) - toMin(b.time));
   for (let i = 1; i < out.length; i++) {
     const p = toMin(out[i - 1].time), m = toMin(out[i].time);
-    if (m <= p) out[i] = { ...out[i], time: hm(p + 3) };
+    if (m <= p) out[i] = { ...out[i], time: hm(p + 3), end: out[i].end ? hm(toMin(out[i].end!) + p + 3 - m) : undefined };
   }
   return out.map((x) => ({ ...x, time: hm(toMin(x.time) % 1440), end: x.end ? hm(toMin(x.end) % 1440) : undefined }));
 }
