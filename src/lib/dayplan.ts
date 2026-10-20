@@ -1,4 +1,4 @@
-import { dayPlan, itemKind, kitOf, setsText } from "@/lib/have";
+import { itemKind, planMinutes, workoutHalves, type PlanRow } from "@/lib/have";
 import { myKit } from "@/lib/learnkit";
 import type { RoutineItem } from "@/lib/mission";
 import { dayType, goalsOn, hm, isOffDay, sched, sleepTimes, toMin } from "@/lib/schedule";
@@ -42,13 +42,14 @@ export function autoSteps(d: Data, date: Date): RoutineItem[] {
   const noTraining = !logsIn(last).some((l) => l.kind === "workout");
 
   // ---- Morning ----
-  add("toilet-am", W + 5, 10, "Toilet", "step");
-  add("sitz-am", W + 15, 15, "Sitz bath (after toilet)", "step");
-  add("water-wake", W + 32, 0, "Water 250 ml", "water", { ml: 250 });
-  add("brush-am", W + 35, 5, "Brush teeth", "step");
-  add("wash-am", W + 40, 10, "Wash face, get ready", "step");
-  // A few minutes of movement before the day starts.
-  add("stretch-am", W + 50, 10, pick(["Morning stretch 10 min", "Sun salutation 5 rounds", "Walk outside 10 min", "Neck and back stretch 10 min"], "st"), "step", { href: "/train" });
+  add("toilet-am", W + 5, 25, "Toilet", "step");
+  add("sitz-am", W + 30, 15, "Sitz bath (after toilet)", "step");
+  add("water-wake", W + 47, 0, "Water 250 ml", "water", { ml: 250 });
+  add("brush-am", W + 50, 5, "Brush teeth", "step");
+  add("wash-am", W + 55, 10, "Wash face, get ready", "step");
+  // Part 1 of today's workout (the same plan as Train › Today's full workout).
+  const { am, pm } = workoutHalves(d.pantry, date, off);
+  add("train-am", W + 65, planMinutes(am), workoutLabel(1, am), "workout", { moves: am, href: "/train" });
 
   // ---- Learning from your collection ----
   const kit = myKit(d);
@@ -69,7 +70,7 @@ export function autoSteps(d: Data, date: Date): RoutineItem[] {
   const every = Math.max(60, (s.waterEvery || 120) - (yWater && yWater < goal * 0.7 ? 30 : 0));
   const drinks = d.pantry.filter((p) => p.qty > 0 && itemKind(p) === "drink" && !/beer|sake|wine|chuhai|cola|energy|coffee/i.test(p.name));
   const slots: number[] = [];
-  for (let m = W + 32 + every; m < S - 60; m += every) if (!busy(m)) slots.push(m);
+  for (let m = W + 47 + every; m < S - 60; m += every) if (!busy(m)) slots.push(m);
   const ml = Math.max(150, Math.min(500, Math.round((goal - 250) / Math.max(1, slots.length + 2) / 50) * 50));
   slots.forEach((m, i) => {
     // Now and then one from your drink collection instead of plain water.
@@ -83,15 +84,12 @@ export function autoSteps(d: Data, date: Date): RoutineItem[] {
   const snackAt = !Number.isNaN(tea) && !busy(tea) ? tea : free + 15;
   add("snack", snackAt, 10, "Snack", "meal", { note: fruit.length ? `Have ${pick(fruit, "f").name} (you have it at home)` : "Fruit, nuts or yoghurt, not sweets", href: "/food" });
 
-  // ---- Training with your gear ----
+  // ---- Training: part 2 of today's workout, after work ----
   const ex = toMin(s.exercise);
-  const plan = dayPlan(kitOf(d.pantry), date, off);
   const exAt = !Number.isNaN(ex) && !busy(ex, 45) ? ex : free + (noTraining ? 20 : 60);
-  const note = plan.slice(0, 4).map((r) => `${r.name} ${setsText(r.sets, r.reps)}${r.kg ? ` (${r.kg} kg)` : ""}`).join(" · ");
-  // The schedule already has Exercise at its time; if it's set, this is the warm-up and cool-down.
-  if (Number.isNaN(ex) || busy(ex, 45)) add("train", exAt, off ? 60 : 45, `Training${noTraining ? " (no training for 3 days)" : ""}`, "workout", { note, href: "/train" });
-  add("warmup", exAt - 10, 10, "Warm up before training", "step", { href: "/train" });
-  add("cooldown", exAt + (off ? 60 : 45), 10, "Cool down and stretch", "step", { href: "/train" });
+  // The schedule already has Exercise (part 2) at its time; otherwise the app adds it.
+  if (Number.isNaN(ex) || busy(ex, 45)) add("train", exAt, planMinutes(pm), `${workoutLabel(2, pm)}${noTraining ? " (no training for 3 days)" : ""}`, "workout", { moves: pm, href: "/train" });
+  add("warmup", exAt - 5, 5, "Warm up 5 min before part 2", "step", { href: "/train" });
 
   // ---- Evening learning ----
   const st = toMin(s.studyStart), se = toMin(s.studyEnd);
@@ -134,4 +132,10 @@ export function autoSteps(d: Data, date: Date): RoutineItem[] {
     if (m <= p) out[i] = { ...out[i], time: hm(p + 3) };
   }
   return out.map((x) => ({ ...x, time: hm(toMin(x.time) % 1440), end: x.end ? hm(toMin(x.end) % 1440) : undefined }));
+}
+
+/** "Workout 1/2: Step-ups, Floor press, Towel row" */
+export function workoutLabel(part: 1 | 2, rows: PlanRow[]) {
+  const names = rows.filter((r) => r.part !== "Warm-up" && r.part !== "Cool-down").map((r) => r.name);
+  return `Workout ${part}/2: ${names.join(", ") || "stretch"}`;
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authHash, kv, login, validAuth, validUser, type Account, type Cipher, type VaultDoc } from "@/lib/server/kv";
+import { authHash, ipOf, kv, limited, login, validAuth, validUser, type Account, type Cipher, type VaultDoc } from "@/lib/server/kv";
 
 export const runtime = "nodejs";
 
@@ -14,7 +14,10 @@ export async function POST(req: Request) {
   const { action, user, auth } = body ?? {};
   if (!validUser(user) || !validAuth(auth)) return bad("Invalid request.");
 
+  // Any one address gets at most 30 tries a minute, whoever it tries to open.
+  if (await limited(`ip:${ipOf(req)}`, 30, 60_000)) return bad("Too many requests. Wait a minute.", 429);
   if (action === "register") {
+    if (await limited(`reg:${ipOf(req)}`, 3, 3_600_000)) return bad("Too many new accounts from here. Try later.", 429);
     const existing = await kv.get<Account>(`acct:${user}`);
     if (existing) return bad("That username is taken.", 409);
     if (!isCipher(body.vault)) return bad("Invalid request.");

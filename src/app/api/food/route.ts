@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { kv, login, validAuth, validUser } from "@/lib/server/kv";
+import { kv, limited, login, validAuth, validUser } from "@/lib/server/kv";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -85,6 +85,7 @@ export async function POST(req: Request) {
 
   const res = await login(user, auth);
   if ("error" in res) return bad(res.error, res.status);
+  if (await limited(`foodmin:${user}`, 10, 60_000)) return bad("Too many scans at once. Wait a minute.", 429);
   // A daily cap per account keeps the API bill small.
   const key = `foodai:${user}:${new Date().toISOString().slice(0, 10)}`;
   const used = (await kv!.get<number>(key)) ?? 0;

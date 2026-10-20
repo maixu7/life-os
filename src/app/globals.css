@@ -192,3 +192,26 @@ html.big .input { min-height: 3rem; font-size: 1.05rem; }
   .print-only td, .print-only th { border-bottom: 1px solid #ccc; padding: 2mm 1mm; color: #000 !important; }
   .print-only ol { padding-left: 6mm; }
 }
+
+/* ---- Anti-copy: nothing can be selected, long-pressed or dragged except what you type ---- */
+html, body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* no iOS long-press "Copy / Look up / Share" menu */
+}
+input, textarea, select, [contenteditable="true"], [data-allow-copy] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+img, svg, video, canvas, a {
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+}
+/* Blur the app in the app switcher / when it goes to the background. */
+html.app-hidden body { filter: blur(24px); }
+/* Printing (or "Save as PDF") shows nothing. */
+@media print {
+  body { display: none !important; }
+  html::after { content: "Life OS is private and can't be printed."; display: block; padding: 2rem; font: 16px sans-serif; }
+}
