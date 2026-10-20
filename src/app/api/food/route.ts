@@ -122,7 +122,7 @@ export async function POST(req: Request) {
   content.push({ type: "text", text: ask });
 
   try {
-    const client = new Anthropic();
+    const client = new Anthropic({ timeout: 50_000, maxRetries: 0 });
     const msg = await client.beta.messages.parse({
       model: "claude-opus-5-5",
       max_tokens: 4000,
@@ -138,7 +138,8 @@ export async function POST(req: Request) {
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) return bad("Busy right now. Try again in a minute.", 429);
     if (e instanceof Anthropic.AuthenticationError) return bad("AI key is wrong. Check ANTHROPIC_API_KEY in Vercel.", 501);
-    return bad("Couldn't reach the food reader. Try again.", 502);
+    if (e instanceof Anthropic.APIConnectionTimeoutError) return bad("The AI took too long. Try again, or type the meal.", 504);
+    return bad(`Couldn't reach the food reader${e instanceof Anthropic.APIError ? ` (${e.status ?? ""} ${e.message.slice(0, 120)})` : ""}. Try again.`, 502);
   }
 }
 
@@ -159,12 +160,14 @@ async function readWithGemini(key: string, ask: string, img: { mime: string; dat
   if (img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
   parts.push({ text: `${ask}\nAnswer in English. Give all numbers for the whole amount eaten: kcal, and grams of protein, fat, carbs, sugar and salt equivalent.` });
   let why = "";
+  const t0 = Date.now();
   for (const model of models) {
+    if (Date.now() - t0 > 46_000) break; // Vercel stops the function at 60 s
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
+        method: "POST", signal: AbortSignal.timeout(Math.max(3_000, Math.min(30_000, 52_000 - (Date.now() - t0)))),
         headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
-        body: JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", responseSchema: GEMINI_SCHEMA, temperature: 0.2 } }),
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { ...(/2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}), responseMimeType: "application/json", responseSchema: GEMINI_SCHEMA, temperature: 0.2 } }),
       });
       const j = await r.json().catch(() => null);
       if (!r.ok) {
@@ -179,7 +182,7 @@ async function readWithGemini(key: string, ask: string, img: { mime: string; dat
       if (meal.success) return NextResponse.json(tidy(meal.data));
       why = `Gemini answer wasn't readable (${j?.candidates?.[0]?.finishReason ?? "empty"})`;
     } catch (e) {
-      why = `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+      why = e instanceof Error && e.name === "TimeoutError" ? "Gemini took too long" : `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
     }
   }
   return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the meal instead (it's free), or try tomorrow." : why || "Couldn't reach the food reader.", why.includes(" 429") ? 429 : 502);
@@ -191,7 +194,7 @@ async function productWithClaude(ask: string, img: { mime: string; data: string 
   if (img) content.push({ type: "image", source: { type: "base64", media_type: img.mime as "image/jpeg", data: img.data } });
   content.push({ type: "text", text: ask });
   try {
-    const client = new Anthropic();
+    const client = new Anthropic({ timeout: 50_000, maxRetries: 0 });
     const msg = await client.beta.messages.parse({
       model: "claude-opus-5-5", max_tokens: 2000, system: PRODUCT_SYSTEM,
       messages: [{ role: "user", content }],
@@ -222,12 +225,14 @@ async function productWithGemini(key: string, ask: string, img: { mime: string; 
   if (img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
   parts.push({ text: ask });
   let why = "";
+  const t0 = Date.now();
   for (const model of models) {
+    if (Date.now() - t0 > 46_000) break; // Vercel stops the function at 60 s
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
+        method: "POST", signal: AbortSignal.timeout(Math.max(3_000, Math.min(30_000, 52_000 - (Date.now() - t0)))),
         headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
-        body: JSON.stringify({ systemInstruction: { parts: [{ text: PRODUCT_SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", responseSchema: PRODUCT_SCHEMA, temperature: 0.1 } }),
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: PRODUCT_SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { ...(/2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}), responseMimeType: "application/json", responseSchema: PRODUCT_SCHEMA, temperature: 0.1 } }),
       });
       const j = await r.json().catch(() => null);
       if (!r.ok) {
@@ -240,7 +245,7 @@ async function productWithGemini(key: string, ask: string, img: { mime: string; 
       if (out.success) return NextResponse.json(out.data);
       why = "Gemini answer wasn't readable";
     } catch (e) {
-      why = `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+      why = e instanceof Error && e.name === "TimeoutError" ? "Gemini took too long" : `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
     }
   }
   return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the name instead, or try tomorrow." : why || "Couldn't reach the product reader.", why.includes(" 429") ? 429 : 502);
@@ -268,7 +273,7 @@ async function bookWithClaude(ask: string, img: { mime: string; data: string } |
   if (img) content.push({ type: "image", source: { type: "base64", media_type: img.mime as "image/jpeg", data: img.data } });
   content.push({ type: "text", text: ask });
   try {
-    const client = new Anthropic();
+    const client = new Anthropic({ timeout: 50_000, maxRetries: 0 });
     const msg = await client.beta.messages.parse({
       model: "claude-opus-5-5", max_tokens: 1000, system: BOOK_SYSTEM,
       messages: [{ role: "user", content }],
@@ -288,12 +293,14 @@ async function bookWithGemini(key: string, ask: string, img: { mime: string; dat
   if (img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
   parts.push({ text: ask });
   let why = "";
+  const t0 = Date.now();
   for (const model of models) {
+    if (Date.now() - t0 > 46_000) break; // Vercel stops the function at 60 s
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
+        method: "POST", signal: AbortSignal.timeout(Math.max(3_000, Math.min(30_000, 52_000 - (Date.now() - t0)))),
         headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
-        body: JSON.stringify({ systemInstruction: { parts: [{ text: BOOK_SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { responseMimeType: "application/json", responseSchema: BOOK_SCHEMA, temperature: 0.1 } }),
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: BOOK_SYSTEM }] }, contents: [{ role: "user", parts }], generationConfig: { ...(/2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}), responseMimeType: "application/json", responseSchema: BOOK_SCHEMA, temperature: 0.1 } }),
       });
       const j = await r.json().catch(() => null);
       if (!r.ok) {
@@ -306,7 +313,7 @@ async function bookWithGemini(key: string, ask: string, img: { mime: string; dat
       if (out.success) return NextResponse.json(out.data);
       why = "Gemini answer wasn't readable";
     } catch (e) {
-      why = `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+      why = e instanceof Error && e.name === "TimeoutError" ? "Gemini took too long" : `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
     }
   }
   return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the title instead, or try tomorrow." : why || "Couldn't reach the book reader.", why.includes(" 429") ? 429 : 502);
@@ -348,7 +355,7 @@ const RECEIPT_SCHEMA = {
 };
 async function receiptWithClaude(img: { mime: string; data: string }) {
   try {
-    const client = new Anthropic();
+    const client = new Anthropic({ timeout: 50_000, maxRetries: 0 });
     const msg = await client.beta.messages.parse({
       model: "claude-opus-5-5", max_tokens: 4000, system: RECEIPT_SYSTEM,
       messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: img.mime as "image/jpeg", data: img.data } }, { type: "text", text: "Read this receipt." }] }],
@@ -365,12 +372,14 @@ async function receiptWithClaude(img: { mime: string; data: string }) {
 async function receiptWithGemini(key: string, img: { mime: string; data: string }) {
   const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
   let why = "";
+  const t0 = Date.now();
   for (const model of models) {
+    if (Date.now() - t0 > 46_000) break; // Vercel stops the function at 60 s
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
+        method: "POST", signal: AbortSignal.timeout(Math.max(3_000, Math.min(30_000, 52_000 - (Date.now() - t0)))),
         headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
-        body: JSON.stringify({ systemInstruction: { parts: [{ text: RECEIPT_SYSTEM }] }, contents: [{ role: "user", parts: [{ inline_data: { mime_type: img.mime, data: img.data } }, { text: "Read this receipt." }] }], generationConfig: { responseMimeType: "application/json", responseSchema: RECEIPT_SCHEMA, temperature: 0.1 } }),
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: RECEIPT_SYSTEM }] }, contents: [{ role: "user", parts: [{ inline_data: { mime_type: img.mime, data: img.data } }, { text: "Read this receipt." }] }], generationConfig: { ...(/2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}), responseMimeType: "application/json", responseSchema: RECEIPT_SCHEMA, temperature: 0.1 } }),
       });
       const j = await r.json().catch(() => null);
       if (!r.ok) {
@@ -383,7 +392,7 @@ async function receiptWithGemini(key: string, img: { mime: string; data: string 
       if (out.success) return NextResponse.json(out.data);
       why = "Gemini answer wasn't readable";
     } catch (e) {
-      why = `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+      why = e instanceof Error && e.name === "TimeoutError" ? "Gemini took too long" : `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
     }
   }
   return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the receipt in instead, or try tomorrow." : why || "Couldn't reach the receipt reader.", why.includes(" 429") ? 429 : 502);
@@ -397,10 +406,12 @@ async function chat(gemini: string | undefined, ask: string) {
   if (gemini) {
     const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
     let why = "";
+    const t0 = Date.now();
     for (const model of models) {
+      if (Date.now() - t0 > 46_000) break; // Vercel stops the function at 60 s
       try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-          method: "POST",
+          method: "POST", signal: AbortSignal.timeout(Math.max(3_000, Math.min(30_000, 52_000 - (Date.now() - t0)))),
           headers: { "Content-Type": "application/json", "x-goog-api-key": gemini.trim() },
           body: JSON.stringify({ systemInstruction: { parts: [{ text: CHAT_SYSTEM }] }, contents: [{ role: "user", parts: [{ text: ask }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 300 } }),
         });
@@ -414,7 +425,7 @@ async function chat(gemini: string | undefined, ask: string) {
     return bad(why || "Couldn't reach Sensei.", 502);
   }
   try {
-    const client = new Anthropic();
+    const client = new Anthropic({ timeout: 50_000, maxRetries: 0 });
     const msg = await client.messages.create({ model: "claude-opus-5-5", max_tokens: 400, system: CHAT_SYSTEM, messages: [{ role: "user", content: ask }] });
     const answer = msg.content.map((c) => (c.type === "text" ? c.text : "")).join("").trim();
     return answer ? NextResponse.json({ answer: answer.slice(0, 1200) }) : bad("Sensei had no answer. Try again.", 502);
@@ -430,7 +441,7 @@ const GUESS_SYSTEM = "You sort photos for a life-tracking app into one kind: mea
 async function guessWithClaude(ask: string, img: { mime: string; data: string } | null) {
   if (!img) return bad("Send a photo.");
   try {
-    const client = new Anthropic();
+    const client = new Anthropic({ timeout: 50_000, maxRetries: 0 });
     const msg = await client.beta.messages.parse({
       model: "claude-opus-5-5", max_tokens: 200, system: GUESS_SYSTEM,
       messages: [{ role: "user", content: [{ type: "image", source: { type: "base64", media_type: img.mime as "image/jpeg", data: img.data } }, { type: "text", text: ask }] }],
@@ -443,13 +454,15 @@ async function guessWithClaude(ask: string, img: { mime: string; data: string } 
 async function guessWithGemini(key: string, ask: string, img: { mime: string; data: string } | null) {
   if (!img) return bad("Send a photo.");
   const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+  const t0 = Date.now();
   for (const model of models) {
+    if (Date.now() - t0 > 46_000) break; // Vercel stops the function at 60 s
     try {
       const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: "POST",
+        method: "POST", signal: AbortSignal.timeout(Math.max(3_000, Math.min(30_000, 52_000 - (Date.now() - t0)))),
         headers: { "Content-Type": "application/json", "x-goog-api-key": key.trim() },
         body: JSON.stringify({ systemInstruction: { parts: [{ text: GUESS_SYSTEM }] }, contents: [{ role: "user", parts: [{ inline_data: { mime_type: img.mime, data: img.data } }, { text: ask }] }],
-          generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { kind: { type: "STRING", enum: ["meal", "packet", "receipt", "book", "other"] } }, required: ["kind"] }, temperature: 0 } }),
+          generationConfig: { ...(/2\.5-flash/.test(model) ? { thinkingConfig: { thinkingBudget: 0 } } : {}), responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { kind: { type: "STRING", enum: ["meal", "packet", "receipt", "book", "other"] } }, required: ["kind"] }, temperature: 0 } }),
       });
       const j = await r.json().catch(() => null);
       if (!r.ok) { if (r.status === 404 || r.status === 429 || r.status >= 500) continue; return bad(`Gemini ${r.status}`, 502); }

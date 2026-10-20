@@ -25,6 +25,9 @@ export function aiPhotos(imgs: HTMLImageElement[], max = 1600): string {
   return c.toDataURL("image/jpeg", 0.85);
 }
 
+// What went wrong when the server answered without its own message (e.g. Vercel's 60-second limit).
+const why = (r: Response, j: { error?: string }) => j.error || (r.ok ? "no answer" : r.status === 504 ? "it took too long (over 60 s)" : r.status === 413 ? "photo too big" : `server error ${r.status}`);
+
 export type MealRead = { foods: MealFood[]; note: string; ai: boolean; unknown?: string[]; error?: string };
 
 // What's in this meal and how much. Asks the AI reader (photo and/or words);
@@ -41,8 +44,8 @@ export async function readMeal(s: Session, { photo, text = "" }: { photo?: strin
       }));
       return { foods, note: String(j.note ?? ""), ai: true };
     }
-    error = j.error ?? "";
-  } catch { error = "offline"; }
+    error = why(r, j);
+  } catch { error = "no connection"; }
   if (text.trim()) {
     const { foods, unknown } = readMealText(text, items);
     return { foods, unknown, ai: false, error, note: unknown.length ? `I don't know: ${unknown.join(", ")}. Add their numbers or snap their labels.` : "" };
@@ -60,7 +63,7 @@ export async function readProduct(s: Session, photo: string, hint = ""): Promise
     const r = await fetch("/api/food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: s.user, auth: s.auth, image: photo, text: hint, mode: "product" }) });
     const j = await r.json().catch(() => ({}));
     if (r.ok && typeof j.name === "string") return { product: j as ProductRead };
-    return { error: j.error ?? "Couldn't read it" };
+    return { error: why(r, j) };
   } catch { return { error: "offline" }; }
 }
 
@@ -71,7 +74,7 @@ export async function readBook(s: Session, photo: string, hint = ""): Promise<{ 
     const r = await fetch("/api/food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: s.user, auth: s.auth, image: photo, text: hint, mode: "book" }) });
     const j = await r.json().catch(() => ({}));
     if (r.ok && typeof j.title === "string") return { book: j as BookRead };
-    return { error: j.error ?? "Couldn't read it" };
+    return { error: why(r, j) };
   } catch { return { error: "offline" }; }
 }
 
@@ -83,6 +86,6 @@ export async function readReceipt(s: Session, photo: string): Promise<{ receipt?
     const r = await fetch("/api/food", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user: s.user, auth: s.auth, image: photo, mode: "receipt" }) });
     const j = await r.json().catch(() => ({}));
     if (r.ok && Array.isArray(j.items)) return { receipt: j as ReceiptRead };
-    return { error: j.error ?? "Couldn't read it" };
+    return { error: why(r, j) };
   } catch { return { error: "offline" }; }
 }

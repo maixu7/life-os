@@ -11,7 +11,7 @@ export type MealFood = { name: string; qty: number; per: string; grams?: number;
 // One normal serving each, from standard tables (日本食品標準成分表 for Japanese food).
 type N = [name: string, re: RegExp, per: string, g: number, kcal: number, protein: number, fat: number, carbs: number, sugar: number, salt: number, contents?: string];
 const DISHES: N[] = [
-  ["Instant ramen (with soup)", /instant|ready ?made|cup ?noodle|maggi|nissin|chicken ramen|インスタント|カップ麺|袋麺/i, "1 pack (~100 g dry)", 100, 450, 10, 18, 62, 3, 5.5, "fried wheat noodles, soup powder, oil"],
+  ["Instant ramen (with soup)", /instant(?:\s+(?:ramen|noodles?|udon|soba))?|ready ?made(?:\s+(?:ramen|noodles?))?|cup ?noodles?|maggi|nissin|chicken ramen|インスタント|カップ麺|袋麺/i, "1 pack (~100 g dry)", 100, 450, 10, 18, 62, 3, 5.5, "fried wheat noodles, soup powder, oil"],
   ["Ramen (shop)", /ramen|ラーメン|拉麺/i, "1 bowl", 600, 550, 22, 18, 70, 4, 6.5, "wheat noodles, pork broth, chashu, egg"],
   ["Udon", /udon|うどん/i, "1 bowl", 450, 330, 9, 2, 65, 3, 5, "wheat noodles, dashi soup"],
   ["Soba", /soba(?!.*yaki)|そば|蕎麦/i, "1 bowl", 450, 380, 14, 3, 70, 3, 4.5, "buckwheat noodles, dashi soup"],
@@ -25,18 +25,22 @@ const DISHES: N[] = [
   ["Sushi", /sushi|寿司/i, "1 piece", 35, 50, 2.5, 0.5, 8, 1, 0.3, "vinegared rice, fish"],
   ["Cooked rice", /rice|gohan|ご飯|ごはん|白米|米/i, "1 bowl (150 g)", 150, 234, 3.8, 0.5, 56, 0, 0, "white rice"],
   ["Bread", /bread|toast|食パン|パン/i, "1 slice (60 g)", 60, 150, 5.3, 2.5, 28, 2.6, 0.7, "wheat flour"],
+  ["Tamagoyaki", /tamago ?yaki|rolled omelet+e?|dashi ?maki|卵焼き|玉子焼き|だし巻き/i, "1 piece (30 g)", 30, 45, 3.2, 2.8, 1.8, 1.5, 0.4, "egg, sugar, dashi"],
   ["Egg", /\beggs?\b|卵|たまご|玉子/i, "1 egg", 50, 76, 6.2, 5.2, 0.2, 0.2, 0.2],
   ["Natto", /natto|納豆/i, "1 pack (45 g)", 45, 90, 7.4, 4.5, 5.4, 1, 0.3, "fermented soybeans"],
   ["Tofu", /tofu|豆腐/i, "1/2 block (150 g)", 150, 110, 10, 6.5, 2, 0.5, 0, "soybeans"],
   ["Miso soup", /miso|味噌汁|みそ汁/i, "1 bowl", 180, 40, 3, 1.5, 4, 1, 1.5, "miso, tofu, wakame"],
   ["Karaage", /karaage|唐揚げ|からあげ|fried chicken/i, "5 pieces (150 g)", 150, 450, 25, 28, 15, 1, 2, "chicken, flour, oil"],
   ["Gyoza", /gyoza|餃子|dumpling/i, "6 pieces", 140, 300, 12, 15, 28, 2, 1.6, "pork, cabbage, wheat wrapper"],
+  ["Grilled chicken thigh", /(grilled|teriyaki|roast(ed)?|bbq)\s+chicken|chicken\s+(thigh|teriyaki|steak)|グリルチキン|照り焼き|照焼|チキンステーキ|鶏もも/i, "1 thigh (150 g)", 150, 300, 27, 21, 2, 1, 1.2, "chicken thigh, soy or salt seasoning"],
   ["Chicken breast", /chicken breast|鶏むね|サラダチキン/i, "100 g", 100, 120, 23, 2, 0, 0, 0.3],
   ["Chicken", /chicken|鶏/i, "100 g", 100, 200, 17, 14, 0, 0, 0.2],
   ["Pork", /pork|豚/i, "100 g", 100, 250, 18, 19, 0, 0, 0.1],
   ["Beef", /beef|牛肉/i, "100 g", 100, 280, 17, 23, 0, 0, 0.1],
   ["Salmon", /salmon|鮭|サーモン/i, "1 fillet (80 g)", 80, 110, 18, 3.5, 0, 0, 0.2],
   ["Fish", /fish|魚|saba|鯖/i, "1 fillet (80 g)", 80, 160, 17, 10, 0, 0, 0.3],
+  ["Pickles (takuan)", /pickles?|takuan|tsukemono|漬物|たくあん|沢庵/i, "small side (20 g)", 20, 10, 0.2, 0, 2.5, 1.5, 0.8, "pickled daikon, salt"],
+  ["Kinpira gobo", /kinpira|gob[oō]|burdock|きんぴら|ごぼう/i, "small side (40 g)", 40, 50, 0.8, 2, 7, 3.5, 0.6, "burdock, carrot, soy sauce, sugar, oil"],
   ["Salad", /salad|サラダ/i, "1 bowl", 100, 30, 1.5, 0.2, 5, 3, 0],
   ["Milk", /milk|牛乳/i, "1 glass (200 ml)", 200, 134, 6.6, 7.6, 9.6, 9.6, 0.2],
   ["Yogurt", /yog(h)?urt|ヨーグルト/i, "1 cup (100 g)", 100, 60, 3.6, 3, 5, 5, 0.1],
@@ -76,9 +80,25 @@ export function readFood(part: string, items: CustomItem[] = []): MealFood | nul
 
 // The whole meal: every part it recognises, plus the parts it doesn't (named
 // but with no numbers, so you can fill them in).
+// "Grilled chicken rice egg" with no commas: one piece per food it names.
+function byDish(part: string): string[] {
+  let rest = part;
+  const hits: [number, number][] = [];
+  for (const [, re] of DISHES) {
+    for (const m of rest.matchAll(new RegExp(re.source, re.flags.includes("g") ? re.flags : `${re.flags}g`))) {
+      if (!m[0]) continue;
+      hits.push([m.index!, m.index! + m[0].length]);
+      rest = rest.slice(0, m.index) + " ".repeat(m[0].length) + rest.slice(m.index! + m[0].length);
+    }
+  }
+  if (hits.length < 2) return [part];
+  hits.sort((a, b) => a[0] - b[0]);
+  return hits.map(([, end], i) => part.slice(i ? hits[i - 1][1] : 0, i === hits.length - 1 ? part.length : end).trim()).filter(Boolean);
+}
+
 export function readMealText(text: string, items: CustomItem[] = []): { foods: MealFood[]; unknown: string[] } {
   const foods: MealFood[] = [], unknown: string[] = [];
-  for (const p of splitMeal(text)) {
+  for (const p of splitMeal(text).flatMap(byDish)) {
     const f = readFood(p, items);
     if (f) foods.push(f); else unknown.push(p);
   }
