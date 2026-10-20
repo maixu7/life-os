@@ -73,6 +73,7 @@ const tidy = (m: z.infer<typeof Meal>) => ({
 });
 
 export async function POST(req: Request) {
+  const started = Date.now();
   const body = await req.json().catch(() => null);
   const { user, auth, text, image, mode, summary } = body ?? {};
   if (!validUser(user) || !validAuth(auth)) return bad("Invalid request.");
@@ -115,14 +116,18 @@ export async function POST(req: Request) {
     return gemini ? productWithGemini(gemini, ask, m ? { mime: m[1], data: m[2] } : null) : productWithClaude(ask, m ? { mime: m[1], data: m[2] } : null);
   }
   const ask = words ? `What I ate: ${words}` : "What is in this photo, how much, and its nutrition?";
-  if (gemini) return readWithGemini(gemini, ask, m ? { mime: m[1], data: m[2] } : null);
+  if (gemini) {
+    // If Gemini can't answer and a Claude key is also set, Claude reads it instead.
+    const g = await readWithGemini(gemini, ask, m ? { mime: m[1], data: m[2] } : null);
+    if (g.ok || !process.env.ANTHROPIC_API_KEY) return g;
+  }
 
   const content: Anthropic.Beta.BetaContentBlockParam[] = [];
   if (m) content.push({ type: "image", source: { type: "base64", media_type: m[1] as "image/jpeg", data: m[2] } });
   content.push({ type: "text", text: ask });
 
   try {
-    const client = new Anthropic({ timeout: 50_000, maxRetries: 0 });
+    const client = new Anthropic({ timeout: Math.max(8_000, 56_000 - (Date.now() - started)), maxRetries: 0 });
     const msg = await client.beta.messages.parse({
       model: "claude-opus-5-5",
       max_tokens: 4000,
@@ -143,6 +148,33 @@ export async function POST(req: Request) {
   }
 }
 
+// Google retires Gemini model names often (gemini-2.0-flash is gone), so ask
+// Google which models this key can use right now and take the newest Flash.
+// GEMINI_MODEL in Vercel still wins when it is set.
+let listed: { at: number; names: string[] } | null = null;
+async function geminiModels(key: string | undefined): Promise<string[]> {
+  const fixed = ["gemini-flash-latest", "gemini-2.5-flash"];
+  if (key && (!listed || Date.now() - listed.at > 6 * 3_600_000)) {
+    try {
+      const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000", { headers: { "x-goog-api-key": key.trim() }, signal: AbortSignal.timeout(5_000) });
+      const j = await r.json().catch(() => null) as { models?: { name: string; supportedGenerationMethods?: string[] }[] } | null;
+      const ver = (n: string) => Number(/gemini-(\d+(?:\.\d+)?)/.exec(n)?.[1] ?? 0);
+      const names = (j?.models ?? [])
+        .filter((m) => m.supportedGenerationMethods?.includes("generateContent"))
+        .map((m) => m.name.replace(/^models\//, ""))
+        .filter((n) => /^gemini-[\d.]+-flash(-latest)?$|^gemini-[\d.]+-flash-(preview|exp)/.test(n) && !/lite|image|tts|audio|live|thinking/.test(n))
+        .sort((a, b) => ver(b) - ver(a) || Number(/preview|exp/.test(a)) - Number(/preview|exp/.test(b)));
+      if (names.length) listed = { at: Date.now(), names };
+    } catch { /* fall back to the fixed names */ }
+  }
+  return [...new Set([process.env.GEMINI_MODEL, ...(listed?.names.slice(0, 3) ?? []), ...fixed].filter(Boolean) as string[])];
+}
+// Google's 404 says which model to use instead ("…use models/gemini-3.8-flash…"): try that next.
+function suggest(models: string[], msg?: string) {
+  const m = /use (?:models\/)?(gemini-[\w.-]+)/i.exec(String(msg ?? ""));
+  if (m && !models.includes(m[1].replace(/[.,]$/, ""))) models.push(m[1].replace(/[.,]$/, ""));
+}
+
 // Google Gemini (free key from aistudio.google.com), used when GEMINI_API_KEY is set.
 const num = { type: "NUMBER" }, str = { type: "STRING" };
 const GEMINI_SCHEMA = {
@@ -155,11 +187,12 @@ const GEMINI_SCHEMA = {
 };
 async function readWithGemini(key: string, ask: string, img: { mime: string; data: string } | null) {
   // Google renames models now and then; try the newest names in turn.
-  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+  const models = await geminiModels(key);
   const parts: object[] = [];
   if (img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
   parts.push({ text: `${ask}\nAnswer in English. Give all numbers for the whole amount eaten: kcal, and grams of protein, fat, carbs, sugar and salt equivalent.` });
   let why = "";
+  const tried: string[] = [];
   const t0 = Date.now();
   for (const model of models) {
     if (Date.now() - t0 > 46_000) break; // Vercel stops the function at 60 s
@@ -172,8 +205,10 @@ async function readWithGemini(key: string, ask: string, img: { mime: string; dat
       const j = await r.json().catch(() => null);
       if (!r.ok) {
         // Google's own message (never contains the key), so the app can say what went wrong.
-        why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
+        why = `Gemini ${r.status} (${model}): ${String(j?.error?.message ?? r.statusText).slice(0, 120)}`;
         // Not found, or this model's free daily limit is used up: each model has its own limit.
+        tried.push(why);
+        if (r.status === 404) suggest(models, j?.error?.message);
         if (r.status === 404 || r.status === 429 || r.status >= 500) continue;
         return bad(why, 502);
       }
@@ -183,9 +218,12 @@ async function readWithGemini(key: string, ask: string, img: { mime: string; dat
       why = `Gemini answer wasn't readable (${j?.candidates?.[0]?.finishReason ?? "empty"})`;
     } catch (e) {
       why = e instanceof Error && e.name === "TimeoutError" ? "Gemini took too long" : `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+      tried.push(why);
     }
   }
-  return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the meal instead (it's free), or try tomorrow." : why || "Couldn't reach the food reader.", why.includes(" 429") ? 429 : 502);
+  const quota = tried.length > 0 && tried.every((t) => t.includes(" 429") || t.includes(" 404"));
+  if (quota && tried.some((t) => t.includes(" 429"))) return bad("Today's free photo scans are used up. Type the meal instead (it's free), or try tomorrow.", 429);
+  return bad(tried.length > 1 ? tried.join(" · ").slice(0, 400) : why || "Couldn't reach the food reader.", 502);
 }
 
 // ---------- Product reading (What I have) ----------
@@ -220,11 +258,12 @@ const PRODUCT_SCHEMA = {
   required: ["found", "name", "name_ja", "brand", "kind", "emoji", "qty", "unit", "grams", "per", "kcal", "protein", "fat", "carbs", "salt", "expiry", "storage", "allergens", "note"],
 };
 async function productWithGemini(key: string, ask: string, img: { mime: string; data: string } | null) {
-  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+  const models = await geminiModels(key);
   const parts: object[] = [];
   if (img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
   parts.push({ text: ask });
   let why = "";
+  const tried: string[] = [];
   const t0 = Date.now();
   for (const model of models) {
     if (Date.now() - t0 > 46_000) break; // Vercel stops the function at 60 s
@@ -236,7 +275,9 @@ async function productWithGemini(key: string, ask: string, img: { mime: string; 
       });
       const j = await r.json().catch(() => null);
       if (!r.ok) {
-        why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
+        why = `Gemini ${r.status} (${model}): ${String(j?.error?.message ?? r.statusText).slice(0, 120)}`;
+        tried.push(why);
+        if (r.status === 404) suggest(models, j?.error?.message);
         if (r.status === 404 || r.status === 429 || r.status >= 500) continue;
         return bad(why, 502);
       }
@@ -246,9 +287,12 @@ async function productWithGemini(key: string, ask: string, img: { mime: string; 
       why = "Gemini answer wasn't readable";
     } catch (e) {
       why = e instanceof Error && e.name === "TimeoutError" ? "Gemini took too long" : `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+      tried.push(why);
     }
   }
-  return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the name instead, or try tomorrow." : why || "Couldn't reach the product reader.", why.includes(" 429") ? 429 : 502);
+  const quota = tried.length > 0 && tried.every((t) => t.includes(" 429") || t.includes(" 404"));
+  if (quota && tried.some((t) => t.includes(" 429"))) return bad("Today's free photo scans are used up. Type the name instead, or try tomorrow.", 429);
+  return bad(tried.length > 1 ? tried.join(" · ").slice(0, 400) : why || "Couldn't reach the product reader.", 502);
 }
 
 // ---------- Book cover reading (Library) ----------
@@ -288,11 +332,12 @@ async function bookWithClaude(ask: string, img: { mime: string; data: string } |
   }
 }
 async function bookWithGemini(key: string, ask: string, img: { mime: string; data: string } | null) {
-  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+  const models = await geminiModels(key);
   const parts: object[] = [];
   if (img) parts.push({ inline_data: { mime_type: img.mime, data: img.data } });
   parts.push({ text: ask });
   let why = "";
+  const tried: string[] = [];
   const t0 = Date.now();
   for (const model of models) {
     if (Date.now() - t0 > 46_000) break; // Vercel stops the function at 60 s
@@ -304,7 +349,9 @@ async function bookWithGemini(key: string, ask: string, img: { mime: string; dat
       });
       const j = await r.json().catch(() => null);
       if (!r.ok) {
-        why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
+        why = `Gemini ${r.status} (${model}): ${String(j?.error?.message ?? r.statusText).slice(0, 120)}`;
+        tried.push(why);
+        if (r.status === 404) suggest(models, j?.error?.message);
         if (r.status === 404 || r.status === 429 || r.status >= 500) continue;
         return bad(why, 502);
       }
@@ -314,9 +361,12 @@ async function bookWithGemini(key: string, ask: string, img: { mime: string; dat
       why = "Gemini answer wasn't readable";
     } catch (e) {
       why = e instanceof Error && e.name === "TimeoutError" ? "Gemini took too long" : `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+      tried.push(why);
     }
   }
-  return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the title instead, or try tomorrow." : why || "Couldn't reach the book reader.", why.includes(" 429") ? 429 : 502);
+  const quota = tried.length > 0 && tried.every((t) => t.includes(" 429") || t.includes(" 404"));
+  if (quota && tried.some((t) => t.includes(" 429"))) return bad("Today's free photo scans are used up. Type the title instead, or try tomorrow.", 429);
+  return bad(tried.length > 1 ? tried.join(" · ").slice(0, 400) : why || "Couldn't reach the book reader.", 502);
 }
 
 // ---------- Receipt reading (Money + What I have) ----------
@@ -370,8 +420,9 @@ async function receiptWithClaude(img: { mime: string; data: string }) {
   }
 }
 async function receiptWithGemini(key: string, img: { mime: string; data: string }) {
-  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+  const models = await geminiModels(key);
   let why = "";
+  const tried: string[] = [];
   const t0 = Date.now();
   for (const model of models) {
     if (Date.now() - t0 > 46_000) break; // Vercel stops the function at 60 s
@@ -383,7 +434,9 @@ async function receiptWithGemini(key: string, img: { mime: string; data: string 
       });
       const j = await r.json().catch(() => null);
       if (!r.ok) {
-        why = `Gemini ${r.status}: ${String(j?.error?.message ?? r.statusText).slice(0, 160)}`;
+        why = `Gemini ${r.status} (${model}): ${String(j?.error?.message ?? r.statusText).slice(0, 120)}`;
+        tried.push(why);
+        if (r.status === 404) suggest(models, j?.error?.message);
         if (r.status === 404 || r.status === 429 || r.status >= 500) continue;
         return bad(why, 502);
       }
@@ -393,9 +446,12 @@ async function receiptWithGemini(key: string, img: { mime: string; data: string 
       why = "Gemini answer wasn't readable";
     } catch (e) {
       why = e instanceof Error && e.name === "TimeoutError" ? "Gemini took too long" : `Gemini: ${e instanceof Error ? e.message.slice(0, 120) : "network error"}`;
+      tried.push(why);
     }
   }
-  return bad(why.includes(" 429") ? "Today's free photo scans are used up. Type the receipt in instead, or try tomorrow." : why || "Couldn't reach the receipt reader.", why.includes(" 429") ? 429 : 502);
+  const quota = tried.length > 0 && tried.every((t) => t.includes(" 429") || t.includes(" 404"));
+  if (quota && tried.some((t) => t.includes(" 429"))) return bad("Today's free photo scans are used up. Type the receipt in instead, or try tomorrow.", 429);
+  return bad(tried.length > 1 ? tried.join(" · ").slice(0, 400) : why || "Couldn't reach the receipt reader.", 502);
 }
 
 // ---------- Sensei chat (Hero hub) ----------
@@ -404,7 +460,7 @@ Answer in 2 to 4 short sentences in plain, simple English. Use his numbers from 
 Health safety: give only general, safe advice. Never diagnose, never give medicine doses, never suggest extreme diets or fasting. For pain, illness, injury or serious low mood, tell him to see a doctor or call 119 in an emergency.`;
 async function chat(gemini: string | undefined, ask: string) {
   if (gemini) {
-    const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+    const models = await geminiModels(gemini);
     let why = "";
     const t0 = Date.now();
     for (const model of models) {
@@ -453,7 +509,7 @@ async function guessWithClaude(ask: string, img: { mime: string; data: string } 
 }
 async function guessWithGemini(key: string, ask: string, img: { mime: string; data: string } | null) {
   if (!img) return bad("Send a photo.");
-  const models = [process.env.GEMINI_MODEL, "gemini-2.5-flash", "gemini-flash-latest", "gemini-2.0-flash"].filter(Boolean) as string[];
+  const models = await geminiModels(key);
   const t0 = Date.now();
   for (const model of models) {
     if (Date.now() - t0 > 46_000) break; // Vercel stops the function at 60 s
