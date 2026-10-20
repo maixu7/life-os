@@ -56,7 +56,7 @@ export function DailyMission() {
     ...own.map((o) => ({ t: o.time, el: (
       <li key={o.id} className="flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5">
         <span className={`h-7 w-7 shrink-0 rounded-full grid place-items-center font-black ${COLOR[o.done ? "done" : "later"]}`}>{o.done ? "✓" : "○"}</span>
-        <span className="w-16 text-xs text-muted shrink-0">{fmt12(o.time)}</span>
+        <span className="w-[4.5rem] text-[11px] leading-tight text-muted shrink-0">{fmt12(o.time)}{o.end && <span className="block text-[9px]">to {fmt12(o.end)}</span>}</span>
         <span className="flex-1 min-w-0 text-sm truncate">{o.icon} {o.label}<span className="block text-[10px] text-muted">your task{o.want > 1 ? ` · ${o.got}/${o.want} ${AREAS[o.area].unit}` : ""}</span></span>
         {!o.done && o.area === "other" && <button onClick={() => logActivity("activity", { name: o.label }, new Date())} className="chip !py-0.5 text-[11px]">✓ Done</button>}
       </li>
@@ -170,7 +170,7 @@ function StepSheet({ s, onClose, onGo, onDone }: { s: Step; onClose: () => void;
     if (s.id === "b-work") Object.assign(sch, { workStart: time, ...(end ? { workEnd: end } : {}) });
     else if (s.id === "b-study") Object.assign(sch, { studyStart: time, ...(end ? { studyEnd: end } : {}) });
     else if (FIELD[s.id]) Object.assign(sch, { [FIELD[s.id]]: time });
-    const e: StepEdit = { ...edits[s.id], ...(FIELD[s.id] ? {} : { time }), end, ...(label.trim() && label !== s.label ? { label: label.trim() } : {}), ...(s.kind === "water" ? { ml: mlNum(ml, s.ml ?? 250) } : {}) };
+    const e: StepEdit = { ...edits[s.id], ...(FIELD[s.id] && !["b-study", "b-exercise"].includes(s.id) ? {} : { time }), end, ...(label.trim() && label !== s.label ? { label: label.trim() } : {}), ...(s.kind === "water" ? { ml: mlNum(ml, s.ml ?? 250) } : {}) };
     saveSettings({ ...(Object.keys(sch).length ? { schedule: { ...sc, ...sch } } : {}), routineEdit: { ...edits, [s.id]: e } });
   };
   const hide = () => {
@@ -264,7 +264,7 @@ function RoutineSheet({ onClose }: { onClose: () => void }) {
       <ul className="space-y-1">
         {base.map((b) => (
           <li key={b.id} className="flex items-center gap-2 text-sm">
-            <input type="time" className="input !w-24 !py-1" value={String(s[FIELD[b.id]] ?? b.time)} onChange={(e) => setS({ ...s, [FIELD[b.id]]: e.target.value })} />
+            <input type="time" className="input !w-24 !py-1" value={String(s[FIELD[b.id]] ?? b.time)} onChange={(e) => { setS({ ...s, [FIELD[b.id]]: e.target.value }); setEdits((x) => (x[b.id]?.time ? { ...x, [b.id]: { ...x[b.id], time: undefined } } : x)); }} />
             {b.id === "b-work" || b.id === "b-study" ? <input type="time" aria-label="Ends" className="input !w-24 !py-1" value={String(s[b.id === "b-work" ? "workEnd" : "studyEnd"])} onChange={(e) => setS({ ...s, [b.id === "b-work" ? "workEnd" : "studyEnd"]: e.target.value })} /> : null}
             <span className="flex-1 truncate">{b.icon} {b.label}</span><span className="text-[10px] text-muted">🔒</span>
           </li>
@@ -298,18 +298,23 @@ function OwnTaskSheet({ onClose }: { onClose: () => void }) {
   const { update } = useApp();
   const [name, setName] = useState("");
   const [time, setTime] = useState("12:00");
+  const [end, setEnd] = useState("12:30");
   const [area, setArea] = useState<Area>("other");
   const [every, setEvery] = useState(false);
   const save = () => {
     if (!name.trim()) return;
-    const config = { area, time, days: [0, 1, 2, 3, 4, 5, 6], date: every ? undefined : toDay(new Date()), level: "normal" };
+    const config = { area, time, end: end || undefined, days: [0, 1, 2, 3, 4, 5, 6], date: every ? undefined : toDay(new Date()), level: "normal" };
     update((d) => ({ ...d, items: [...d.items, { id: crypto.randomUUID(), category: "task", name: name.trim(), sort: Date.now(), config }] }));
     onClose();
   };
   return (
     <Sheet title="＋ My own task" onClose={onClose}>
       <input className="input" placeholder="Go shopping, call mum, clean room…" value={name} onChange={(e) => setName(e.target.value)} />
-      <label className="flex items-center gap-2 text-sm">At <input type="time" className="input !w-32" value={time} onChange={(e) => setTime(e.target.value)} /></label>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-xs text-muted">Starts<input type="time" className="input mt-1" value={time} onChange={(e) => setTime(e.target.value)} /></label>
+        <label className="text-xs text-muted">Ends<input type="time" className="input mt-1" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
+      </div>
+      <p className="text-[11px] text-muted">It goes in at this time and the app&apos;s own steps around it move to make room.</p>
       <div className="flex flex-wrap gap-1">{(Object.keys(AREAS) as Area[]).map((a) => <button key={a} onClick={() => setArea(a)} className={`chip !py-0.5 text-[11px] ${area === a ? "chip-on" : ""}`}>{AREAS[a].icon} {AREAS[a].label}</button>)}</div>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={every} onChange={(e) => setEvery(e.target.checked)} /> Every day (otherwise just today)</label>
       <button disabled={!name.trim()} onClick={save} className="btn-primary w-full disabled:opacity-40">Add to today&apos;s mission</button>
