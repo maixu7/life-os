@@ -1,0 +1,8 @@
+[{
+     "relation": ["delegate_permission/common.handle_all_urls"],
+     "target": {
+       "namespace": "android_app",
+       "package_name": "com.khadkamanish.lifeos",
+       "sha256_cert_fingerprints": ["F4:8E:BD:39:D2:A9:7A:E0:13:29:2C:E0:70:ED:6A:02:BE:BF:3E:A3:A1:C0:79:7C:A0:74:CA:CE:47:96:5E:EE"]
+     }
+   }]
