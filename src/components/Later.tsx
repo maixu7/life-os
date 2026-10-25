@@ -4,8 +4,8 @@
 import { useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { SnapChoice, useRememberSnap, type Pick } from "@/components/SnapChoice";
-import { DrinkSheet } from "@/components/Drinks";
-import { EquipmentSheet } from "@/components/Equipment";
+import { DrinkSheet } from "@/components/LazySheets";
+import { EquipmentSheet } from "@/components/LazySheets";
 import { MealSheet } from "@/components/Meals";
 import { emojiFor } from "@/lib/emoji";
 import { aiPhotos, readProduct } from "@/lib/foodai";

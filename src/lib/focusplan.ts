@@ -2,7 +2,7 @@ import { AREAS, areaOf, fitOf, type FitSettings, type Group } from "@/lib/focus"
 import { FMOVES, canDoF, fmoveOf, type FMove } from "@/lib/focusmoves";
 import type { PlanRow } from "@/lib/have";
 import type { RoutineItem } from "@/lib/mission";
-import { bodyOf, eaten, energy, metOf } from "@/lib/body";
+import { bodyOf, energy, metOf, sugarOn } from "@/lib/body";
 import { dayType, hm, isOffDay, sched, sleepTimes, toMin } from "@/lib/schedule";
 import { toDay, type Data, type Log } from "@/lib/store";
 
@@ -81,10 +81,7 @@ export function readiness(d: Data, date: Date): Ready {
 }
 
 // ---------- What you ate and drank ----------
-/** Sugar (g) in what was eaten and drunk on a day. */
-export function sugarOn(d: Data, day: string) {
-  return Math.round(eaten(d.logs.filter((l) => l.day === day), d.items).reduce((n, f) => n + (Number(f.sugar) || 0), 0));
-}
+export { sugarOn };
 /** Extra cardio for too much sugar (today or yesterday) or a calorie surplus yesterday: up to 20 min. */
 export function intakeBoost(d: Data, date: Date) {
   const why: string[] = [];

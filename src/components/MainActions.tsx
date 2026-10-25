@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { EquipmentSheet } from "@/components/Equipment";
+import { EquipmentSheet } from "@/components/LazySheets";
 import { CollectionSheet } from "@/components/Collection";
 import { LearnUpload } from "@/components/LearnUpload";
 import { IntakeStrip } from "@/components/IntakeStrip";
@@ -13,7 +13,7 @@ import { useRunAction, useTasks } from "@/components/Coach";
 import { atWork, fmt12, hm, hoursIn, phaseNow, sched, studyFrom } from "@/lib/schedule";
 import { toDay, useApp } from "@/lib/store";
 import { CollectionHost, openCollection } from "@/components/Collections";
-import { openUpload } from "@/components/UploadSheet";
+import { openUpload } from "@/lib/openUpload";
 
 // The page's main purpose as big buttons at the very top (Eat / Drink on
 // Food, Start workout on Train…). Everything else sits below them.

@@ -7,7 +7,7 @@ import { XpHeader } from "@/components/XpHeader";
 import { Blocks, QuickBar } from "@/components/Blocks";
 import { CareCard } from "@/components/CareCard";
 import { EatNextList } from "@/components/FixCard";
-import { DrinkSheet } from "@/components/Drinks";
+import { DrinkSheet } from "@/components/LazySheets";
 import { FoodThumbs, MealSheet, MealsCard } from "@/components/Meals";
 import { Pic } from "@/components/Pic";
 import { haveFoods, whenToEat } from "@/lib/have";

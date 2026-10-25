@@ -36,7 +36,7 @@ import { askDetails } from "@/components/Details";
 import { arrange } from "@/lib/layout";
 import { CareCard } from "@/components/CareCard";
 import { FixCard } from "@/components/FixCard";
-import { DrinkSheet } from "@/components/Drinks";
+import { DrinkSheet } from "@/components/LazySheets";
 import { TaskLog } from "@/components/TaskLog";
 import { Nudges } from "@/components/Safety";
 import { DayScoreChip } from "@/components/Review";

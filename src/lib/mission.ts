@@ -24,7 +24,8 @@ export type StepEdit = { time?: string; end?: string; label?: string; off?: bool
 export type Step = {
   id: string; time: string; label: string; icon: string; kind: StepKind; fixed: boolean; ml?: number;
   /** Where it happens in the app. */ action: Action; href?: string;
-  state: "done" | "missed" | "due" | "later"; at?: string; diff?: number; // minutes late (+) or early (−)
+  state: "done" | "missed" | "due" | "later" | "skipped"; at?: string;
+  /** Skipped today, and why (sick, rest day, travel…): not counted as missed. */ skip?: string; diff?: number; // minutes late (+) or early (−)
   end?: string; note?: string; auto?: boolean; own?: boolean; logId?: string; doneEnd?: string;
   /** Planned minutes (start→end) and how long it really took, when both are known. */
   planLen?: number; doneLen?: number;
@@ -474,7 +475,8 @@ export function steps(d: Data, day: string, now = new Date()): Step[] {
     const end = plan + GRACE[it.kind];
     // Bedtime can still happen after midnight, so it's only ✗ once the day is over.
     const over = past || (isToday && it.kind !== "sleep" && nowM > end);
-    const state: Step["state"] = at ? "done" : over ? "missed" : isToday && nowM >= plan - 30 ? "due" : "later";
+    const skip = d.profile.settings.routineSkip?.[day]?.[it.id];
+    const state: Step["state"] = at ? "done" : skip ? "skipped" : over ? "missed" : isToday && nowM >= plan - 30 ? "due" : "later";
     const href = it.href ?? HREF[it.kind];
     const action: Action = it.kind === "wake" ? { type: "wake" } : it.kind === "sleep" ? { type: "sleep" } : it.kind === "water" ? { type: "water" } : href ? { type: "href", href } : { type: "activity", name: it.label };
     const doneEnd = log?.data.end ? hhmm(new Date(String(log.data.end))) : undefined;
@@ -490,7 +492,7 @@ export function steps(d: Data, day: string, now = new Date()): Step[] {
       if (planLen) planLen -= brk;
       if (doneLen != null && matched?.data.start) { const a = mins(String(matched.data.start)); doneLen -= breakIn(d, a, a + doneLen); }
     }
-    return { brk, endDiff, planLen, doneLen, gotMl: it.kind === "water" ? Number(matched?.data.ml) || undefined : undefined, moves: wp?.rows, progress: wp?.progress, id: it.id, time: it.time, end: it.end, note: it.note, auto: it.auto, own: "mine" in it, label: it.label, icon: iconOf(it), kind: it.kind, fixed: it.id.startsWith("b-"), ml: it.ml, action, href, state, at, diff, logId: matched?.id, doneEnd: realEnd, orig: base.get(it.id)?.[0] ?? it.time, origEnd: base.has(it.id) ? base.get(it.id)![1] : it.end } as Step;
+    return { brk, endDiff, planLen, doneLen, gotMl: it.kind === "water" ? Number(matched?.data.ml) || undefined : undefined, moves: wp?.rows, progress: wp?.progress, id: it.id, time: it.time, end: it.end, note: it.note, auto: it.auto, own: "mine" in it, label: it.label, icon: iconOf(it), kind: it.kind, fixed: it.id.startsWith("b-"), ml: it.ml, action, href, state, at, diff, logId: matched?.id, doneEnd: realEnd, skip: at ? undefined : skip, orig: base.get(it.id)?.[0] ?? it.time, origEnd: base.has(it.id) ? base.get(it.id)![1] : it.end } as Step;
   }).flatMap((x) => (x.id === "b-work" && x.end ? workRows(x, isToday, past, nowM) : [x])).sort((a, b) => toMin(a.time) - toMin(b.time));
 }
 
@@ -498,7 +500,7 @@ export function steps(d: Data, day: string, now = new Date()): Step[] {
 // time, each checked on its own. Both open the whole work plan.
 function workRows(w: Step, isToday: boolean, past: boolean, nowM: number): Step[] {
   const endM = toMin(w.end!);
-  const fin: Step["state"] = w.doneEnd ? "done" : past || (isToday && nowM > endM + GRACE.work) ? "missed" : isToday && nowM >= endM - 30 ? "due" : "later";
+  const fin: Step["state"] = w.doneEnd ? "done" : w.state === "skipped" ? "skipped" : past || (isToday && nowM > endM + GRACE.work) ? "missed" : isToday && nowM >= endM - 30 ? "due" : "later";
   const start: Step = { ...w, label: `Start ${w.label}`, end: undefined, origEnd: undefined, doneEnd: undefined, planLen: undefined, doneLen: undefined, endDiff: undefined, whole: w };
   const finish: Step = { ...w, id: "b-work-end", label: `Finish ${w.label}`, time: w.end!, orig: w.origEnd ?? w.end, origEnd: undefined, end: undefined, state: fin, at: w.doneEnd ? w.at : undefined, diff: w.endDiff, endDiff: undefined, whole: w };
   return [start, finish];
@@ -624,7 +626,7 @@ export function missionStats(d: Data, from: string, to: string, now = new Date()
     const p = picks(d, day, now, rate), o = ownTasks(d, day, now);
     const done = s.filter((x) => x.state === "done").length + p.filter((x) => x.done).length + o.filter((x) => x.done).length;
     const missed = s.filter((x) => x.state === "missed").length + (day < toDay(now) ? p.filter((x) => !x.done).length + o.filter((x) => !x.done).length : 0);
-    rows.push({ day, done, missed, late: s.filter((x) => (x.diff ?? 0) > 15 || (x.endDiff ?? 0) > 15 || tooLong(x) > 0).length, total: s.length + p.length + o.length });
+    rows.push({ day, done, missed, late: s.filter((x) => (x.diff ?? 0) > 15 || (x.endDiff ?? 0) > 15 || tooLong(x) > 0).length, total: s.filter((x) => x.state !== "skipped").length + p.length + o.length });
   }
   const done = rows.reduce((a, r) => a + r.done, 0), missed = rows.reduce((a, r) => a + r.missed, 0), late = rows.reduce((a, r) => a + r.late, 0);
   const score = pathScore(done - late * 0.5, missed + late * 0.5);
@@ -646,10 +648,28 @@ export function missionStreak(d: Data, now = new Date(), max = 14) {
     const day = toDay(new Date(now.getTime() - i * 86_400_000));
     if (!logsOn(d, day).length) break;
     const s = steps(d, day, now);
-    const done = s.filter((x) => x.state === "done").length;
-    if (!s.length || done / s.length < 0.6) break;
+    const done = s.filter((x) => x.state === "done").length, counted = s.filter((x) => x.state !== "skipped").length;
+    if (!counted || done / counted < 0.6) break;
     n++;
   }
   streakMemo.set(key, n);
   return n;
+}
+
+// The last 7 days (before today) of the Daily mission: done, missed and counted steps (skipped ones left out).
+const weekMemo = new Map<string, { day: string; done: number; missed: number; total: number }[]>();
+export function missionWeek(d: Data, now = new Date()) {
+  const today = toDay(now);
+  const key = `${today}|${d.logs.filter((l) => l.day < today).length}|${d.profile.updated_at}`;
+  const hit = weekMemo.get(key);
+  if (hit) return hit;
+  const rows = Array.from({ length: 7 }, (_, i) => {
+    const day = toDay(new Date(now.getTime() - (7 - i) * 86_400_000));
+    if (!logsOn(d, day).length) return { day, done: 0, missed: 0, total: 0 };
+    const s = steps(d, day, now).filter((x) => x.state !== "skipped");
+    return { day, done: s.filter((x) => x.state === "done").length, missed: s.filter((x) => x.state === "missed").length, total: s.length };
+  });
+  weekMemo.clear();
+  weekMemo.set(key, rows);
+  return rows;
 }

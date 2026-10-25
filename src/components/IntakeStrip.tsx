@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { energy } from "@/lib/body";
-import { sugarOn } from "@/lib/focusplan";
+import { sugarOn } from "@/lib/body";
 import { toDay, useApp } from "@/lib/store";
 
 // Food page: today's sugar (against the WHO's 25 g ideal and 50 g limit),
