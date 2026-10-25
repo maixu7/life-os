@@ -172,6 +172,9 @@ function addPens() {
     pen.dataset.loPen = "1"; pen.dataset.noedit = "";
     pen.setAttribute("role", "button"); pen.setAttribute("aria-label", "Edit this box");
     pen.textContent = "✎";
+    const cs = getComputedStyle(el);
+    if (el.tagName === "LI") pen.dataset.loPenRow = "1";
+    else if (cs.overflow !== "visible" || cs.overflowX !== "visible") pen.dataset.loPenIn = "1";
     el.appendChild(pen);
   });
 }

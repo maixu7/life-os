@@ -57,11 +57,10 @@ export function isFundamental(s: Pick<Step, "id" | "label" | "kind" | "own" | "a
   return FUND.test(s.label);
 }
 
-/** Has this task been late for at least `grace` minutes and is still not done? */
+/** Minutes since the task's planned time (negative = still ahead). */
 export function lateBy(s: Step, now: Date) {
   const [h, m] = s.time.split(":").map(Number);
-  let mins = now.getHours() * 60 + now.getMinutes() - (h * 60 + m);
-  if (mins < -720) mins += 1440;
-  return mins;
+  return now.getHours() * 60 + now.getMinutes() - (h * 60 + m);
 }
-export const needsDoing = (s: Step) => s.state !== "done" && !s.id.endsWith("-end");
+/** Not done yet and its time has come (tonight's bedtime isn't "late" in the morning). */
+export const needsDoing = (s: Step) => (s.state === "missed" || s.state === "due") && !s.id.endsWith("-end");

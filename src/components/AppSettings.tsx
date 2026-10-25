@@ -70,7 +70,7 @@ export function AppSettings() {
         </details>
         <details className="text-sm">
           <summary className="cursor-pointer">🖼️ Storage and gallery</summary>
-          <p className="text-xs text-muted mt-1">Photos are picked from your gallery only when you tap Upload; the browser asks each time, so there&apos;s nothing to turn on. Everything is saved encrypted on this device and synced.</p>
+          <p className="text-xs text-muted mt-1">When you tap a photo button you choose 📷 Take a photo or 🖼️ Gallery; the phone asks for the camera the first time. Everything is saved encrypted on this device and synced.</p>
         </details>
         <div className="text-sm">🔕 Do not disturb (no sound, alerts stay silent)</div>
         <div className="grid grid-cols-2 gap-2">

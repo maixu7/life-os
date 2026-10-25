@@ -2,7 +2,7 @@ import { AREAS, areaOf, fitOf, type FitSettings, type Group } from "@/lib/focus"
 import { FMOVES, canDoF, fmoveOf, type FMove } from "@/lib/focusmoves";
 import type { PlanRow } from "@/lib/have";
 import type { RoutineItem } from "@/lib/mission";
-import { bodyOf, metOf } from "@/lib/body";
+import { bodyOf, eaten, energy, metOf } from "@/lib/body";
 import { dayType, hm, isOffDay, sched, sleepTimes, toMin } from "@/lib/schedule";
 import { toDay, type Data, type Log } from "@/lib/store";
 
@@ -80,6 +80,23 @@ export function readiness(d: Data, date: Date): Ready {
   return { factor, light, recovery, why, sleepH: h, sore };
 }
 
+// ---------- What you ate and drank ----------
+/** Sugar (g) in what was eaten and drunk on a day. */
+export function sugarOn(d: Data, day: string) {
+  return Math.round(eaten(d.logs.filter((l) => l.day === day), d.items).reduce((n, f) => n + (Number(f.sugar) || 0), 0));
+}
+/** Extra cardio for too much sugar (today or yesterday) or a calorie surplus yesterday: up to 20 min. */
+export function intakeBoost(d: Data, date: Date) {
+  const why: string[] = [];
+  const today = toDay(date), yday = dayOf(date, 1);
+  const sugar = Math.max(sugarOn(d, today), sugarOn(d, yday));
+  let extra = 0;
+  if (sugar >= 50) { extra += sugar >= 80 ? 15 : 10; why.push(`${sugar} g sugar ${sugarOn(d, today) >= sugar ? "today" : "yesterday"} (WHO limit 50 g, ideal 25 g): +${extra} min brisk walking to burn it off.`); }
+  const e = energy(d, yday);
+  if (e.intake && e.balance > 300) { const add = Math.min(20 - extra, 10); if (add > 0) { extra += add; why.push(`Yesterday you ate ${e.balance} kcal more than you burned: +${add} min cardio.`); } }
+  return { extra, sugar, why };
+}
+
 // ---------- Volume ----------
 /** Change in volume from how much you did in the last 14 days (auto) plus your own setting. */
 export function volume(d: Data, date: Date, fit: FitSettings) {
@@ -126,7 +143,7 @@ const restFor = (rest: number, goal: FitSettings["goal"]) =>
 
 export type Built = { rows: PlanRow[]; notes: string[] };
 /** One session of about `minutes`, starting with a warm-up and ending with a cool-down. */
-export function buildSession(d: Data, date: Date, minutes: number, opts: { light?: boolean; recovery?: boolean; key?: string; skip?: Set<string> } = {}): Built {
+export function buildSession(d: Data, date: Date, minutes: number, opts: { light?: boolean; recovery?: boolean; key?: string; skip?: Set<string>; burn?: number } = {}): Built {
   const fit = fitOf(d.profile.settings.fit);
   const gear = new Set(fit.gear);
   const lv = levelOf(d);
@@ -211,8 +228,14 @@ export function buildSession(d: Data, date: Date, minutes: number, opts: { light
     small.sets++;
     total = rowsMinutes([...rows, ...main, ...cool]);
   }
+  // Too much sugar or food: a brisk walk on top (easy on the joints, fine after a meal).
+  const burn: PlanRow[] = [];
+  if (opts.burn && opts.burn >= 5) {
+    burn.push({ part: "Burn extra sugar", name: "Brisk walk", sets: 1, reps: `${opts.burn} min`, rest: 0 });
+    notes.push(`+${opts.burn} min brisk walk for the extra sugar or calories you had.`);
+  }
   if (pain.size) notes.push(`Avoiding moves that load: ${[...pain].map((p) => areaOf(p)?.label ?? p).join(", ")}.`);
-  return { rows: [...rows, ...main, ...cool], notes };
+  return { rows: [...rows, ...main, ...burn, ...cool], notes };
 }
 
 // ---------- Free time ----------
@@ -289,7 +312,9 @@ export function fitDay(d: Data, date: Date, items: RoutineItem[] = [], from = -1
   const ready = readiness(d, date);
   const vol = volume(d, date, fit);
   const why = [...ready.why];
-  const want = Math.round(fit.minutes * (off ? 1 + fit.weekendBoost / 100 : 1) * vol.factor * (ready.recovery ? 0.5 : ready.factor));
+  const boost = intakeBoost(d, date);
+  const want = Math.round(fit.minutes * (off ? 1 + fit.weekendBoost / 100 : 1) * vol.factor * (ready.recovery ? 0.5 : ready.factor)) + boost.extra;
+  why.push(...boost.why);
   if (off) why.push(`Day off: ${fit.weekendBoost}% longer.`);
   if (vol.auto) why.push(vol.auto > 0 ? `You completed almost everything in the last 2 weeks: +${vol.auto}% volume.` : `You missed some workouts in the last 2 weeks: ${vol.auto}% volume so it's easier to finish.`);
   if (vol.manual) why.push(`Your own setting: ${vol.manual > 0 ? "+" : ""}${vol.manual}%.`);
@@ -336,7 +361,9 @@ export function fitDay(d: Data, date: Date, items: RoutineItem[] = [], from = -1
   const sessions: FitSession[] = [];
   const skip = new Set<string>();
   slots.forEach((x, i) => {
-    const b = buildSession(d, date, x.len, { light, recovery: ready.recovery, key: String(i), skip });
+    // The extra walk goes in the first session, if there's time for it.
+    const burn = i === 0 && boost.extra && x.len >= boost.extra + 15 ? boost.extra : 0;
+    const b = buildSession(d, date, x.len - burn, { light, recovery: ready.recovery, key: String(i), skip, burn });
     b.rows.forEach((r) => skip.add(r.name));
     const len = Math.min(x.len, Math.max(15, rowsMinutes(b.rows)));
     sessions.push({ id: `a-fit-${i + 1}`, start: x.at, len, rows: b.rows, light, notes: b.notes, label: sessionLabel(b.rows, ready.recovery, slots.length > 1 ? i + 1 : 0, slots.length, fit.areas) });
