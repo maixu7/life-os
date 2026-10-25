@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { openSlotSheet } from "@/components/Blocks";
 import { useRunAction } from "@/components/Coach";
-import { breakIn, lateText, lenText, missionStats, ownTasks, picks, steps, timeText, tone, type Pickd, type RoutineItem, type Step, type StepEdit, type StepKind } from "@/lib/mission";
+import { breakIn, lateText, lenText, missionStats, missionStreak, ownTasks, picks, steps, timeText, tone, type Pickd, type RoutineItem, type Step, type StepEdit, type StepKind } from "@/lib/mission";
 import { EditLog } from "@/components/EditLog";
 import { AREAS, type Area } from "@/lib/mytasks";
 import { fmt12, hm, sched, toMin, type Schedule } from "@/lib/schedule";
@@ -69,6 +69,8 @@ export function DailyMission() {
   const [which, setWhich] = useState<"all" | "fund" | "app">(() => { try { return (localStorage.getItem("lifeos-mission-list") as "all" | "fund" | "app") || "all"; } catch { return "all"; } });
   const pickList = (w: typeof which) => { setWhich(w); try { localStorage.setItem("lifeos-mission-list", w); } catch {} };
   const shown = (fund: boolean) => which === "all" || (which === "fund") === fund;
+  const streak = useMemo(() => missionStreak(data), [data]);
+  const waterToday = data.logs.filter((l) => l.kind === "water" && l.day === toDay(new Date())).reduce((n, l) => n + (Number(l.data.ml) || 0), 0);
   const rows = [
     ...list.filter((s) => shown(isFundamental(s))).map((s) => ({ t: s.time, el: <StepRow key={s.id} s={s} onTick={() => tickStep(s)} onDone={() => quickTick(s, logActivity, data.logs, updateLog, true)} onOpen={() => setOpen(s.whole ?? s)} /> })),
     ...own.filter(() => shown(true)).map((o) => ({ t: o.time, el: (
@@ -91,6 +93,11 @@ export function DailyMission() {
       <div className="h-2 rounded-full bg-white/10 overflow-hidden mb-2 flex">
         <div className="h-full bg-emerald-400" style={{ width: `${(done / Math.max(1, total)) * 100}%` }} />
         <div className="h-full bg-rose-500" style={{ width: `${(missed / Math.max(1, total)) * 100}%` }} />
+      </div>
+      <div className="flex items-center gap-1.5 mb-2 text-[11px]">
+        {streak > 0 && <span className="chip !py-0.5 !px-2">🔥 {streak} day{streak > 1 ? "s" : ""} in a row</span>}
+        <span className="text-muted ml-auto">💧 {waterToday} ml</span>
+        {[250, 500].map((ml) => <button key={ml} onClick={() => logActivity("water", { ml, name: "Water" }, new Date())} className="chip !py-0.5 !px-2">+{ml}</button>)}
       </div>
       <div className="grid grid-cols-3 gap-1 mb-2">
         {([["all", "All"], ["fund", "🏠 Fundamental"], ["app", "📱 App-assigned"]] as const).map(([w, l]) => <button key={w} onClick={() => pickList(w)} className={`chip justify-center !px-1 !py-1 text-[11px] ${which === w ? "chip-on" : ""}`}>{l}</button>)}
@@ -128,12 +135,14 @@ export function DailyMission() {
   );
 }
 
+/** A real end that comes after the start (up to 12 h later, so past midnight is fine). */
+const endsAfter = (iso: string, end: string) => { const d = new Date(iso), [h, m] = end.split(":").map(Number); const gap = (h * 60 + m - d.getHours() * 60 - d.getMinutes() + 1440) % 1440; return gap > 0 && gap <= 720; };
 const atHM = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 function StepRow({ s, onTick, onDone, onOpen }: { s: Step; onTick: () => void; onDone: () => void; onOpen: () => void }) {
   const long = lenText(s);
   const sub = s.state === "done" ? (s.id === "b-work" ? `started ${atHM(s.at!)} · ${lateText(s.diff)}` : s.id === "b-work-end" ? `finished ${fmt12(s.doneEnd!)} · ${lateText(s.diff)}${long ? ` · work ${long}` : ""}`
-    : `done ${atHM(s.at!)}${s.doneEnd ? `–${fmt12(s.doneEnd)}` : ""} · ${timeText(s.diff, s.endDiff)}${s.gotMl ? ` · ${s.gotMl} ml` : ""}${long ? ` · ${long}` : ""}`)
+    : `done ${atHM(s.at!)}${s.doneEnd && endsAfter(s.at!, s.doneEnd) ? `–${fmt12(s.doneEnd)}` : ""} · ${timeText(s.diff, s.endDiff)}${s.gotMl ? ` · ${s.gotMl} ml` : ""}${long ? ` · ${long}` : ""}`)
     : s.state === "missed" ? `didn't happen${s.progress?.done ? ` · ${s.progress.done}/${s.progress.total} moves done` : ""}`
     : s.state === "due" ? `now${s.progress ? ` · ${s.progress.done}/${s.progress.total} moves` : ""}`
     : s.end ? `${Math.round(((toMin(s.end) - toMin(s.time) + 1440) % 1440))} min${s.progress ? ` · ${s.progress.done}/${s.progress.total} moves` : ""}` : "";

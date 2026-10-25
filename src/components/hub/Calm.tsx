@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseX } from "@/components/CloseX";
 import { openSlotSheet } from "@/components/Blocks";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -227,12 +228,13 @@ export function NightLayer() {
         <div className="fixed top-2 left-1/2 -translate-x-1/2 z-[61] rounded-full bg-[#1a1030]/95 border border-indigo-300/30 px-3 py-1.5 text-xs flex items-center gap-2 shadow-lg">
           <span>🌙 {mins > 720 ? "Past bedtime!" : `Bed in ${Math.floor(mins / 60) ? `${Math.floor(mins / 60)}h ` : ""}${mins % 60}m`} · 🔒 fun</span>
           <button className="chip !py-0.5 !px-2" onClick={() => openSlotSheet({ kind: "sleep" })}>😴 Sleep</button>
-          <button aria-label="Night mode off" className="text-muted" onClick={() => setNight(false)}>✕</button>
+          <button aria-label="Night mode off" className="grid h-8 w-8 place-items-center rounded-full text-muted hover:bg-white/10" onClick={() => setNight(false)}>✕</button>
         </div>
       )}
       {caught && (
         <div data-overlay className="fixed inset-0 z-[62] grid place-items-center bg-[#05020d]/95 p-6">
-          <div className="card frame max-w-sm w-full p-5 text-center">
+          <div role="dialog" aria-modal="true" className="relative card frame max-w-sm w-full p-5 text-center">
+            <CloseX onClose={() => setCaught(null)} />
             <div className="text-5xl">🌙🔒</div>
             <h2 className="mt-2 font-game text-xl font-black">Fun is locked at night</h2>
             <p className="mt-1 text-sm text-muted">You just logged “{describe(caught).title}”. Night mode is on: tonight belongs to sleep. Tomorrow&apos;s you will thank you.</p>

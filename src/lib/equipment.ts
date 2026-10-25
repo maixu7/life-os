@@ -1579,7 +1579,7 @@ const DEF = new Map(DEFS.map((d) => [d.t, d]));
 const num = (n: number) => String(+n.toFixed(3));
 const lower = (t: string) => (/^[A-Z]{2}/.test(t) ? t : t[0].toLowerCase() + t.slice(1));
 
-type Rec = { e: Equip; d: Def; toks: Set<string>; ja: Set<string>; model?: string[] };
+type Rec = { e: Equip; d: Def; toks: Set<string>; ja: Set<string>; model?: string[]; raw?: { ja?: string; model?: string } };
 const RECS: Rec[] = [];
 const SEEN = new Set<string>();
 const words = (s: string) => s.normalize("NFKC").toLowerCase().replace(/(\d)([a-z]+)/g, "$1 $2").split(/[^\p{L}\p{N}.+]+/u).map((w) => w.replace(/^\.+|\.+$/g, "")).filter((w) => w.length > 1 || /\d/.test(w));
@@ -1592,8 +1592,21 @@ function add(d: Def, name: string, o: { ja?: string; kg?: number; brand?: string
   if (o.brand) e.brand = o.brand;
   if (o.markets) e.markets = o.markets;
   if (o.note) e.note = o.note;
-  const toks = new Set(words(name));
-  RECS.push({ e, d, toks, ja: new Set(words(o.ja ?? "").filter((w) => !toks.has(w))), model: o.model ? words(o.model) : undefined });
+  // Words are split on first use (equipOf), not while the app starts: much faster on slow phones.
+  RECS.push({ e, d, toks: EMPTY, ja: EMPTY, raw: { ja: o.ja, model: o.model } });
+}
+const EMPTY = new Set<string>();
+let split = false;
+function recs() {
+  if (!split) {
+    for (const r of RECS) {
+      const toks = new Set(words(r.e.name));
+      r.toks = toks; r.ja = new Set(words(r.raw?.ja ?? "").filter((w) => !toks.has(w))); r.model = r.raw?.model ? words(r.raw.model) : undefined;
+      delete r.raw;
+    }
+    split = true;
+  }
+  return RECS;
 }
 const sizeName = (d: Def, base: string, s: string) => (d.fmt ? `${base} ${d.fmt(s)}` : `${base} ${s}`);
 function sizes(d: Def, base: string, jaBase: string | undefined, kg: number[] | undefined, lb: number[] | undefined, v: string[] | undefined, extra: { brand?: string; markets?: Market[]; note?: string }) {
@@ -1653,7 +1666,7 @@ export function equipOf(text: string): Equip | undefined {
   }
   const groupHit = new Set(DEFS.filter((d) => typeScore.has(d.t)).map((d) => d.grp));
   let best: Rec | undefined, bestScore = -Infinity;
-  for (const r of RECS) {
+  for (const r of recs()) {
     const e = r.e;
     const ts = typeScore.get(e.type);
     let mScore = 0;

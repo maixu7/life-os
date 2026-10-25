@@ -8,7 +8,8 @@ import { PushCard } from "@/components/Push";
 import { BackupCard } from "@/components/Safety";
 import { LOCK_KEY } from "@/components/Gate";
 import { assistantOf, PHRASE_KINDS, PHRASES, type AssistantSettings } from "@/lib/assistant";
-import { displayPrefs, saveDisplay } from "@/lib/safety";
+import { displayPrefs, downloadText, saveDisplay } from "@/lib/safety";
+import { liteChoice, lowEnd, setLite, type LiteChoice } from "@/lib/perf";
 import { sched } from "@/lib/schedule";
 import { useApp } from "@/lib/store";
 
@@ -27,11 +28,13 @@ export function AppSettings() {
   const setSched = (patch: Partial<typeof s>) => saveSettings({ schedule: { ...data.profile.settings.schedule, ...patch } });
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [light, setLight] = useState(false);
+  const [autoLook, setAutoLook] = useState(false);
+  const [liteC, setLiteC] = useState<LiteChoice>("auto");
   const [perm, setPerm] = useState("");
   const [lockMin, setLockMin] = useState(5);
   const [msg, setMsg] = useState("");
   useEffect(() => {
-    setLight(displayPrefs().light);
+    setLight(displayPrefs().light); setAutoLook(!!displayPrefs().auto); setLiteC(liteChoice());
     try { setLockMin(Number(localStorage.getItem(LOCK_KEY)) || 5); } catch {}
     if (typeof Notification !== "undefined") setPerm(Notification.permission);
     if (typeof speechSynthesis === "undefined") return;
@@ -50,6 +53,20 @@ export function AppSettings() {
       for (const k of Object.keys(localStorage)) if (/^lifeos-(alerted|catchup|battery|push-plan|fit-tab)/.test(k)) localStorage.removeItem(k);
       setMsg("Cache cleared. Your records are not touched.");
     } catch { setMsg("Couldn't clear the cache on this browser."); }
+  };
+  // Every record of the last N days: date, time, type, name and the details, one row each.
+  const exportWeek = (days: number) => {
+    const from = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+    const q = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const rows = data.logs.filter((l) => l.day >= from).sort((x, y) => x.created_at.localeCompare(y.created_at)).map((l) => {
+      const t = new Date(l.created_at);
+      const name = l.data.name ?? l.data.title ?? l.data.exercise ?? "";
+      const rest = Object.entries(l.data).filter(([k, v]) => !["name", "title", "photo", "foods"].includes(k) && v != null && typeof v !== "object").map(([k, v]) => `${k}=${v}`).join("; ");
+      const foods = Array.isArray(l.data.foods) ? (l.data.foods as { name?: string }[]).map((f) => f.name).join(", ") : "";
+      return [l.day, t.toTimeString().slice(0, 5), l.kind, name, foods, rest].map(q).join(",");
+    });
+    downloadText(["date,time,type,name,foods,details", ...rows].join("\n"), `life-os-${days}-days.csv`, "text/csv");
+    setMsg(`Saved ${rows.length} records as a spreadsheet.`);
   };
   return (
     <div>
@@ -108,6 +125,8 @@ export function AppSettings() {
         {sw(a.catchup, "Catch-up list when I open the app", (v) => set({ catchup: v }))}
         <div className="grid grid-cols-2 gap-1.5">{(["time", "kind"] as const).map((o) => <button key={o} onClick={() => set({ sort: o })} className={`chip justify-center ${a.sort === o ? "chip-on" : ""}`}>{o === "time" ? "Sort by time" : "Sort by type"}</button>)}</div>
         {sw(a.battery, "Low-battery warning", (v) => set({ battery: v }))}
+        {sw(a.briefing, "☀️ Morning briefing", (v) => set({ briefing: v }), "Today at a glance the first time you open the app in the morning")}
+        {sw(a.review, "🌙 Night review", (v) => set({ review: v }), "An hour before bed: how today went and your top 3 for tomorrow")}
         <div className="flex items-center justify-between text-sm pt-1"><span>⏸️ Pause all alerts{paused && <span className="block text-[11px] text-amber-300">Paused until {new Date(a.pauseUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}</span>
           {paused ? <button className="chip" onClick={() => set({ pauseUntil: "" })}>Resume</button>
             : <span className="flex gap-1">{[1, 3, 24].map((h) => <button key={h} className="chip !px-2" onClick={() => set({ pauseUntil: new Date(Date.now() + h * 3_600_000).toISOString() })}>{h}h</button>)}</span>}
@@ -120,10 +139,14 @@ export function AppSettings() {
       </Section>
 
       <Section title="🎨 Look">
-        <div className="grid grid-cols-2 gap-2">
-          <button onClick={() => { saveDisplay({ light: false }); setLight(false); }} className={`chip py-2 justify-center ${!light ? "chip-on" : ""}`}>🌙 Dark</button>
-          <button onClick={() => { saveDisplay({ light: true }); setLight(true); }} className={`chip py-2 justify-center ${light ? "chip-on" : ""}`}>☀️ Light</button>
+        <div className="grid grid-cols-3 gap-2">
+          <button onClick={() => { saveDisplay({ light: false, auto: false }); setLight(false); setAutoLook(false); }} className={`chip py-2 justify-center ${!light && !autoLook ? "chip-on" : ""}`}>🌙 Dark</button>
+          <button onClick={() => { saveDisplay({ light: true, auto: false }); setLight(true); setAutoLook(false); }} className={`chip py-2 justify-center ${light && !autoLook ? "chip-on" : ""}`}>☀️ Light</button>
+          <button onClick={() => { saveDisplay({ auto: true }); setAutoLook(true); }} className={`chip py-2 justify-center ${autoLook ? "chip-on" : ""}`}>📱 Auto</button>
         </div>
+        <div className="text-sm pt-1">⚡ Speed</div>
+        <div className="grid grid-cols-3 gap-1.5">{(["auto", "on", "off"] as const).map((c) => <button key={c} onClick={() => { setLite(c); setLiteC(c); }} className={`chip justify-center !py-1.5 text-xs ${liteC === c ? "chip-on" : ""}`}>{c === "auto" ? "Auto" : c === "on" ? "Fast (fewer effects)" : "All effects"}</button>)}</div>
+        <p className="text-[11px] text-muted">Auto turns effects down on slower phones and tablets{lowEnd() ? " (this device: fewer effects)" : ""}.</p>
         {sw(a.mode === "game", "Game look (XP, levels, monsters, scenes)", (v) => set({ mode: v ? "game" : "assistant" }), "Off = plain assistant. Every feature works the same either way.")}
       </Section>
 
@@ -142,6 +165,8 @@ export function AppSettings() {
 
       <Section title="💾 Data">
         <BackupCard />
+        <button className="btn-ghost w-full" onClick={() => exportWeek(7)}>📄 Last 7 days as a spreadsheet (CSV)</button>
+        <button className="btn-ghost w-full" onClick={() => exportWeek(30)}>📄 Last 30 days as a spreadsheet (CSV)</button>
         <button className="btn-ghost w-full" onClick={clearCache}>🧹 Clear cache and alert history</button>
         <p className="text-[11px] text-muted">To delete single records, open them from Days (calendar). Records are never deleted from here.</p>
         {msg && <p className="text-xs text-[var(--accent2)]">{msg}</p>}

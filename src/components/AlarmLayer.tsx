@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseX } from "@/components/CloseX";
 import { useEffect, useRef, useState } from "react";
 import { alarmPrefs, ring, stopRing, unlockAudioOnTap, type AlarmEvent } from "@/lib/alarm";
 
@@ -29,6 +30,7 @@ export function AlarmLayer() {
   };
   return (
     <div data-overlay className="fixed inset-0 z-[80] bg-black/85 backdrop-blur-md grid place-items-center p-6" role="alertdialog" aria-label={on.title}>
+      <CloseX onClose={close} label="Stop alarm" className="!fixed right-3 top-[max(.75rem,env(safe-area-inset-top))]" />
       <div className="w-full max-w-sm text-center space-y-4">
         <div className="text-7xl animate-bounce">{on.icon ?? "⏰"}</div>
         <div className="font-game text-2xl text-[var(--accent2)]">{on.title}</div>

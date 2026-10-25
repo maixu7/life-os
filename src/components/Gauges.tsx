@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseX } from "@/components/CloseX";
 import { canvasDpr, isLite } from "@/lib/perf";
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
@@ -154,6 +155,7 @@ export function Fireworks({ onDone, seconds = 7 }: { onDone: () => void; seconds
   return createPortal(
     <div data-overlay onClick={onDone} className="fixed inset-0 z-[60] bg-black/70 grid place-items-center">
       <canvas ref={ref} className="absolute inset-0 h-full w-full" />
+      <CloseX onClose={onDone} className="!fixed right-3 top-[max(.75rem,env(safe-area-inset-top))]" />
       <div className="relative text-center pointer-events-none animate-stamp">
         <div className="text-6xl font-black text-[var(--gold)] drop-shadow-[0_0_20px_#ffd166]">花火</div>
         <div className="mt-2 font-game text-lg">ALL GAUGES FULL!</div>

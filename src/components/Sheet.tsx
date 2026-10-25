@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 // A clean popup: slides up from the bottom on phones, centered on wider screens.
 export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  useBackCloses(onClose);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     addEventListener("keydown", onKey);
@@ -29,13 +30,36 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
       >
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-bold">{title}</h3>
-          <button aria-label="Close" onClick={onClose} className="h-8 w-8 rounded-full bg-white/10 text-muted">✕</button>
+          <button aria-label="Close" title="Close" onClick={onClose} className="h-10 w-10 shrink-0 rounded-full bg-white/10 text-muted hover:text-white">✕</button>
         </div>
         {children}
       </div>
     </div>,
     host,
   );
+}
+
+/** The phone's Back button (or the browser's) closes the top pop-up instead of leaving the page. */
+const openDepths = new Set<number>();
+const depthOf = () => Number((history.state as { loDepth?: number } | null)?.loDepth) || 0;
+let skipper = false;
+export function useBackCloses(onClose: () => void) {
+  const close = useRef(onClose);
+  close.current = onClose;
+  useEffect(() => {
+    // Back steps left by pop-ups that were closed with ✕ or Save are skipped, so Back never "does nothing".
+    // (Closing never calls history.back() itself: that could undo a page change the pop-up just started.)
+    if (!skipper) {
+      skipper = true;
+      addEventListener("popstate", () => { const d = depthOf(); if (d > 0 && !openDepths.has(d)) history.back(); });
+    }
+    const depth = depthOf() + 1;
+    try { history.pushState({ ...(history.state ?? {}), loDepth: depth }, "", location.href); } catch { return; }
+    openDepths.add(depth);
+    const onPop = () => { if (depthOf() < depth) close.current(); };
+    addEventListener("popstate", onPop);
+    return () => { removeEventListener("popstate", onPop); openDepths.delete(depth); };
+  }, []);
 }
 
 export const dtLocal = (d: Date) => {

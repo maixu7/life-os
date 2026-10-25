@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseX } from "@/components/CloseX";
 import { WhenPicker } from "@/components/When";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { dtLocal, Sheet } from "@/components/Sheet";
@@ -273,7 +274,8 @@ export default function ShopPage() {
         <>
           <p className="text-sm text-muted mb-2">Tap two photos to compare them side by side in the store.</p>
           {compare.length === 2 && (
-            <div className="fixed inset-0 z-40 bg-black/90 grid grid-cols-2 gap-1 p-1" onClick={() => setCompare([])}>
+            <div role="dialog" aria-label="Compare photos" className="fixed inset-0 z-40 bg-black/90 grid grid-cols-2 gap-1 p-1" onClick={() => setCompare([])}>
+              <CloseX onClose={() => setCompare([])} className="!fixed right-3 top-[max(.75rem,env(safe-area-inset-top))] bg-black/60" />
               {compare.map((cid) => {
                 const i = data.shopping.find((x) => x.id === cid)!;
                 return (

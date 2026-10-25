@@ -94,7 +94,7 @@ export const lastDrill = (user: string) => get(`lifeos-drill:${user}`);
 export const markDrill = (user: string) => set(`lifeos-drill:${user}`, new Date().toISOString());
 
 // ---------- Display and reading ----------
-export type Display = { light: boolean; font: number; big: boolean; speak: boolean; voiceRate: number };
+export type Display = { light: boolean; font: number; big: boolean; speak: boolean; voiceRate: number; auto?: boolean /* follow the phone's dark/light setting */ };
 const DISPLAY = "lifeos-display";
 export function displayPrefs(): Display {
   const d = { light: false, font: 100, big: false, speak: false, voiceRate: 1 };
@@ -102,10 +102,11 @@ export function displayPrefs(): Display {
 }
 export function applyDisplay(p = displayPrefs()) {
   const h = document.documentElement;
-  h.classList.toggle("light", p.light);
+  const light = p.auto && typeof matchMedia !== "undefined" ? matchMedia("(prefers-color-scheme: light)").matches : p.light;
+  h.classList.toggle("light", light);
   h.classList.toggle("big", p.big);
   h.style.fontSize = p.font === 100 ? "" : `${p.font}%`;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", p.light ? "#f6f3ff" : "#070512");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", light ? "#f6f3ff" : "#070512");
 }
 export function saveDisplay(patch: Partial<Display>) {
   const p = { ...displayPrefs(), ...patch };

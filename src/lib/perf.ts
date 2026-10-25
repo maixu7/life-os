@@ -9,7 +9,15 @@ export function liteChoice(): LiteChoice {
 export function isLite() {
   const c = liteChoice();
   if (c !== "auto") return c === "on";
-  try { return localStorage.getItem(MEASURED) === "1"; } catch { return false; }
+  try { if (localStorage.getItem(MEASURED) === "1") return true; } catch {}
+  return lowEnd();
+}
+/** Few cores, little memory, or the phone's own "reduce motion" / data saver. */
+export function lowEnd() {
+  if (typeof navigator === "undefined") return false;
+  const n = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
+  return (n.deviceMemory != null && n.deviceMemory <= 4) || (n.hardwareConcurrency != null && n.hardwareConcurrency <= 4) || !!n.connection?.saveData
+    || (typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches);
 }
 export function applyLite() {
   document.documentElement.classList.toggle("lite", isLite());

@@ -46,11 +46,13 @@ function setProp(el: HTMLElement, p: string, v: string) {
   el.dataset.loProps = [...ps].join(",");
 }
 
+let textOn = false; // some words were changed on screen (so they may need putting back)
 function applyLook(look: Look, path: string) {
   const tmap = { ...look.text?.["*"], ...look.text?.[path] };
-  // Words: every piece of text on screen, pop-ups included.
+  const anyText = Object.keys(tmap).length > 0;
+  // Words: every piece of text on screen, pop-ups included (skipped when no words are changed: fast on slow phones).
   const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  for (let n = w.nextNode() as Text | null; n; n = w.nextNode() as Text | null) {
+  if (anyText || textOn) for (let n = w.nextNode() as Text | null; n; n = w.nextNode() as Text | null) {
     const p = n.parentElement;
     if (!p || p.closest(SKIP) || p.closest("script,style")) continue;
     const r = textMem.get(n);
@@ -62,7 +64,8 @@ function applyLook(look: Look, path: string) {
     if (n.data !== out) n.data = out;
     textMem.set(n, { orig: o, out });
   }
-  document.querySelectorAll<HTMLInputElement>("input[placeholder],textarea[placeholder]").forEach((el) => {
+  textOn = anyText || Object.keys(look.etext ?? {}).length > 0;
+  if (anyText || document.querySelector("[data-lo-ph]")) document.querySelectorAll<HTMLInputElement>("input[placeholder],textarea[placeholder]").forEach((el) => {
     if (el.closest(SKIP)) return;
     const o = el.dataset.loPh ?? el.placeholder;
     const rep = tmap[o.trim()];
@@ -161,21 +164,47 @@ function applyLook(look: Look, path: string) {
 
 // A small ✎ on every box (cards, tiles and list rows), so each one has its own edit.
 const PEN_HOSTS = ".card, main a.rounded-2xl, main button.rounded-2xl, .card li, [role=dialog] li";
+// Something you can tap (not the box itself or its pen) under a corner of the pen.
+const TAP = "button,a,input,select,textarea,label,[role=button]";
+function blocked(pen: HTMLElement, host: HTMLElement) {
+  const r = pen.getBoundingClientRect();
+  if (!r.width) return false;
+  // Buttons in the box and next to it (works off screen too, unlike elementsFromPoint).
+  const near = (host.parentElement ?? host).querySelectorAll<HTMLElement>(TAP);
+  for (const t of Array.from(near)) {
+    if (t === host || t.contains(host) || t.closest("[data-lo-pen]")) continue;
+    const q = t.getBoundingClientRect();
+    if (q.width && r.left < q.right - 1 && r.right > q.left + 1 && r.top < q.bottom - 1 && r.bottom > q.top + 1) return true;
+  }
+  return false;
+}
+// Places to try, in order: on the corner, inside the top-right, inside the top-left, inside the bottom-left.
+const SPOTS = ["", "in", "tl", "bl"] as const;
+function place(pen: HTMLElement, host: HTMLElement, first: number) {
+  for (let i = first; i < SPOTS.length; i++) {
+    delete pen.dataset.loPenIn; delete pen.dataset.loPenTl; delete pen.dataset.loPenBl;
+    if (SPOTS[i] === "in") pen.dataset.loPenIn = "1"; else if (SPOTS[i] === "tl") pen.dataset.loPenTl = "1"; else if (SPOTS[i] === "bl") pen.dataset.loPenBl = "1";
+    pen.style.visibility = "";
+    if (!blocked(pen, host)) return;
+  }
+  pen.style.visibility = "hidden"; // nowhere free: the box can still be edited from ✏ Edit mode
+}
+const penned = new WeakSet<HTMLElement>();
 function addPens() {
   document.querySelectorAll<HTMLElement>(PEN_HOSTS).forEach((el) => {
+    if (penned.has(el) && el.querySelector(":scope > [data-lo-pen]")) return; // done already (no layout work each redraw)
     if (el.closest(SKIP) || el.closest("nav")) return;
-    const has = !!el.querySelector(":scope > [data-lo-pen]");
-    if (!has) { const r = el.getBoundingClientRect(); if (r.width < 60 || r.height < 28) return; }
+    const r = el.getBoundingClientRect(); if (r.width < 60 || r.height < 28) return;
     if (getComputedStyle(el).position === "static") setProp(el, "position", "relative");
-    if (has) return;
+    penned.add(el);
     const pen = document.createElement("span");
     pen.dataset.loPen = "1"; pen.dataset.noedit = "";
     pen.setAttribute("role", "button"); pen.setAttribute("aria-label", "Edit this box");
     pen.textContent = "✎";
     const cs = getComputedStyle(el);
-    if (el.tagName === "LI") pen.dataset.loPenRow = "1";
-    else if (cs.overflow !== "visible" || cs.overflowX !== "visible") pen.dataset.loPenIn = "1";
     el.appendChild(pen);
+    if (el.tagName === "LI") { pen.dataset.loPenRow = "1"; if (blocked(pen, el)) { delete pen.dataset.loPenRow; place(pen, el, 1); } }
+    else place(pen, el, cs.overflow !== "visible" || cs.overflowX !== "visible" ? 1 : 0);
   });
 }
 
@@ -198,7 +227,7 @@ export function EditLayer() {
   // Keep the changes on screen while React redraws things.
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | null = null;
-    const obs = new MutationObserver(() => { if (!t) t = setTimeout(run, 60); });
+    const obs = new MutationObserver(() => { if (!t) t = setTimeout(run, 120); });
     const opts = { childList: true, subtree: true, characterData: true };
     function run() {
       t = null;
@@ -313,15 +342,27 @@ export function EditLayer() {
   );
 }
 
-function Box({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+/** A short message at the bottom of the screen, so you can see a change was saved. */
+function flash(text: string) {
+  const d = document.createElement("div");
+  d.setAttribute("role", "status");
+  d.setAttribute("data-noedit", "");
+  d.textContent = text;
+  d.className = "fixed left-1/2 -translate-x-1/2 bottom-24 z-[10001] rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white shadow-xl animate-fade";
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 1600);
+}
+
+function Box({ title, onClose, children, footer }: { title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
     <div data-noedit className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/50" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-md max-h-[75dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-amber-300/40 bg-[#140c24] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-3 shadow-2xl">
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-bold truncate">{title}</h3>
-          <button aria-label="Close" onClick={onClose} className="h-8 w-8 shrink-0 rounded-full bg-white/10 text-muted">✕</button>
+          <button aria-label="Close" onClick={onClose} className="h-10 w-10 shrink-0 rounded-full bg-white/10 text-muted">✕</button>
         </div>
         {children}
+        {footer && <div className="sticky -bottom-4 -mx-4 -mb-4 border-t border-white/10 bg-[#140c24] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">{footer}</div>}
       </div>
     </div>
   );
@@ -339,6 +380,11 @@ function ItemSheet({ el, path, look, save, pages, onBigger, onSmaller, onClose }
   onBigger: () => void; onSmaller?: () => void; onClose: () => void;
 }) {
   const inPopup = !!el.closest("[data-overlay],[role=dialog],nav,.fixed");
+  // What it looked like when this box opened, so Cancel can put it back.
+  const [before] = useState(look);
+  const changed = look !== before;
+  const cancel = () => { if (changed) save(() => before); onClose(); flash("↩ Changes cancelled"); };
+  const done = () => { (document.activeElement as HTMLElement | null)?.blur?.(); setTimeout(() => { onClose(); flash(changed ? "✓ Saved" : "✓ Done"); }, 0); };
   const [scope, setScope] = useState(inPopup ? "*" : path);
   const [textAll, setTextAll] = useState(false);
   const [adding, setAdding] = useState<"button" | "note" | null>(null);
@@ -410,7 +456,12 @@ function ItemSheet({ el, path, look, save, pages, onBigger, onSmaller, onClose }
 
   const words = wordsOf(el).replace(/^add:.*/, added?.name ?? "").slice(0, 40);
   return (
-    <Box title={`✏️ ${words || el.tagName.toLowerCase()}`} onClose={onClose}>
+    <Box title={`✏️ ${words || el.tagName.toLowerCase()}`} onClose={done} footer={
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={cancel} className="btn-ghost !py-3 text-sm">✕ Cancel{changed ? " changes" : ""}</button>
+        <button type="button" onClick={done} className="btn-primary !py-3 text-sm">✓ {changed ? "Confirm" : "Done"}</button>
+      </div>
+    }>
       <div className="flex flex-wrap gap-1.5">
         <Btn on={onBigger}>⬆ Pick the bigger part</Btn>
         {onSmaller && <Btn on={onSmaller}>⬇ Back to smaller</Btn>}

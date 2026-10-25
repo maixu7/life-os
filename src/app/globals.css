@@ -224,5 +224,7 @@ html.lo-editing body { padding-top: 2.5rem; }
 [data-lo-pen] { position: absolute; top: -9px; right: -9px; z-index: 6; width: 18px; height: 18px; border-radius: 9999px; display: grid; place-items: center; font-size: 10px; line-height: 1; color: #fff; background: rgba(20, 12, 36, 0.9); border: 1px solid rgba(255, 255, 255, 0.25); opacity: 0.8; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
 /* boxes that clip their edges: a small pen just inside the top-right corner */
 [data-lo-pen][data-lo-pen-in] { top: 2px; right: 2px; width: 15px; height: 15px; font-size: 9px; opacity: 0.55; }
+[data-lo-pen][data-lo-pen-tl] { top: 2px; left: 2px; right: auto; width: 15px; height: 15px; font-size: 9px; opacity: 0.55; }
+[data-lo-pen][data-lo-pen-bl] { top: auto; bottom: 2px; left: 2px; right: auto; width: 15px; height: 15px; font-size: 9px; opacity: 0.55; }
 /* rows in a list: in the box's margin, left of the row, so it never covers ✓ or Go to */
 [data-lo-pen][data-lo-pen-row] { top: 50%; right: auto; left: -12px; transform: translateY(-50%); width: 13px; height: 14px; font-size: 8px; opacity: 0.5; box-shadow: none; }

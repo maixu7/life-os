@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseX } from "@/components/CloseX";
 import { useEffect, useMemo, useState } from "react";
 import { battleFor, bodyOf, health, skills, strength, weightForecast, type Battle, type Lift } from "@/lib/body";
 import { howTo } from "@/lib/howto";
@@ -184,8 +185,9 @@ export function BattleWatcher() {
   if (!show) return null;
   const done = step >= show.rounds.length;
   return (
-    <div data-overlay className="fixed inset-0 z-50 grid place-items-center bg-[#05020d]/92 p-5 animate-fade">
-      <div className="card frame w-full max-w-md p-5">
+    <div data-overlay role="dialog" aria-modal="true" className="fixed inset-0 z-50 grid place-items-center bg-[#05020d]/92 p-5 animate-fade">
+      <div className="relative card frame w-full max-w-md p-5">
+        <CloseX onClose={() => setShow(null)} />
         <div className="text-center">
           <div className="text-xs font-game tracking-widest text-[var(--accent2)]">🌙 WHILE YOU SLEPT…</div>
           <h2 className="mt-1 font-game text-xl font-black">{show.demonIcon} {show.demon} attacked!</h2>

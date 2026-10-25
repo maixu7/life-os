@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseX } from "@/components/CloseX";
 import { openSlotSheet } from "@/components/Blocks";
 import { alarmPrefs, ring } from "@/lib/alarm";
 
@@ -300,7 +301,9 @@ export function Popper() {
         if (!seen) { setCp({ hour: point, tasks: latest.current.slice(0, 3) }); return; }
       }
       if (c.popups === "off" || isQuiet(c)) return;
-      if ((opened && once(`lifeos-phase:${n.phase}`, 45)) || (changed && !opened)) {
+      let muted = false;
+      try { muted = localStorage.getItem(`lifeos-phase-mute-${new Date().toDateString()}`) === "1"; } catch {}
+      if (!muted && ((opened && once(`lifeos-phase:${n.phase}`, 45)) || (changed && !opened))) {
         if (document.querySelector("[data-overlay]")) return;
         setPop({ kind: "phase", n, line: pick(PHASE_LINES[n.phase]), top: true });
         if (changed && !opened && alarmPrefs().phase && ["study", "work", "break", "winddown"].includes(n.phase)) ring({ rounds: 3 });
@@ -325,7 +328,8 @@ export function Popper() {
       )}
       {pop && !(pop.kind === "task" && pop.level > 0) && (
         <div className={`fixed left-3 right-3 z-[38] mx-auto max-w-md animate-sheet ${pop.top ? "top-3" : "bottom-24"}`}>
-          <div className="card frame p-4 bg-[#1c1330]/95 backdrop-blur" onClick={() => { if (pop.kind === "task") nagMore(pop.t.id); setPop(null); }}>
+          <div role="status" className="relative card frame p-4 pr-12 bg-[#1c1330]/95 backdrop-blur" onClick={() => { if (pop.kind === "task") nagMore(pop.t.id); setPop(null); }}>
+            <CloseX onClose={() => { if (pop.kind === "task") nagMore(pop.t.id); setPop(null); }} />
             {pop.kind === "phase" ? (
               <>
                 <div className="text-[10px] font-game tracking-widest text-[var(--accent2)]">
@@ -333,6 +337,7 @@ export function Popper() {
                   {pop.n.minsLeft != null && pop.n.minsLeft < 600 ? ` · ${Math.floor(pop.n.minsLeft / 60) ? `${Math.floor(pop.n.minsLeft / 60)}h ` : ""}${pop.n.minsLeft % 60}m left` : ""}
                 </div>
                 <p className="mt-1 text-sm">🥷 {pop.line}</p>
+                <button type="button" className="mt-2 text-xs text-muted underline min-h-8" onClick={(e) => { e.stopPropagation(); try { localStorage.setItem(`lifeos-phase-mute-${new Date().toDateString()}`, "1"); } catch {} setPop(null); }}>Don&apos;t show these today</button>
               </>
             ) : pop.kind === "wisdom" ? (
               <>
@@ -364,13 +369,15 @@ export function Popper() {
             </div>
             <p className="mt-4 font-game text-2xl font-black leading-snug">{quote.kind === "quote" ? `“${quote.text}”` : quote.text}</p>
             {quote.by && <p className="mt-3 text-sm text-muted">— {quote.by}</p>}
-            <p className="mt-8 text-[11px] text-muted">Tap to close</p>
+            <p className="mt-8 text-[11px] text-muted">Tap anywhere to close</p>
+            <CloseX onClose={() => setQuote(null)} className="!fixed right-3 top-[max(.75rem,env(safe-area-inset-top))]" />
           </div>
         </div>
       )}
       {cp && (
         <div data-overlay className="fixed inset-0 z-50 grid place-items-center bg-[#05020d]/90 p-5 animate-fade">
-          <div className="card frame w-full max-w-md p-5 max-h-[90dvh] overflow-y-auto">
+          <div role="dialog" aria-modal="true" className="relative card frame w-full max-w-md p-5 max-h-[90dvh] overflow-y-auto">
+            <CloseX onClose={() => setCp(null)} />
             <div className="text-center">
               <div className="text-xs font-game tracking-widest text-[var(--accent2)]">{cp.hour === 9 ? "🌅" : cp.hour === 12 ? "☀️" : cp.hour === 17 ? "🌇" : "🌙"} {cp.hour > 12 ? cp.hour - 12 : cp.hour} {cp.hour >= 12 ? "PM" : "AM"} CHECK-IN</div>
               <h2 className="mt-1 font-game text-xl font-black">Here&apos;s what you&apos;re lacking</h2>
@@ -396,7 +403,8 @@ export function Popper() {
       )}
       {night && !asleep && (
         <div data-overlay className="fixed inset-0 z-50 grid place-items-center bg-[#05020d]/90 p-5 animate-fade">
-          <div className="card frame w-full max-w-md p-5 text-center">
+          <div role="dialog" aria-modal="true" className="relative card frame w-full max-w-md p-5 text-center">
+            <CloseX onClose={() => setNight(false)} />
             <div className="text-5xl animate-float">🌙</div>
             <h2 className="mt-2 font-game text-xl font-black">Why are you awake, hero?</h2>
             <p className="mt-1 text-sm text-muted">
@@ -417,7 +425,8 @@ export function Popper() {
       )}
       {woke && sleptAt && (
         <div data-overlay className="fixed inset-0 z-50 grid place-items-center bg-[#05020d]/90 p-5 animate-fade">
-          <div className="card frame w-full max-w-md p-5 text-center">
+          <div role="dialog" aria-modal="true" className="relative card frame w-full max-w-md p-5 text-center">
+            <CloseX onClose={() => setWoke(false)} />
             <div className="text-5xl animate-float">👀</div>
             <h2 className="mt-2 font-game text-xl font-black">You went to sleep at {sleptAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. Why are you awake?</h2>
             <p className="mt-1 text-sm text-muted">
@@ -447,7 +456,8 @@ function NagPop({ t, level, onDo, onLater }: { t: Task; level: number; onDo: () 
   const full = lv >= 3;
   return (
     <div data-overlay className={`fixed inset-0 z-[50] grid place-items-center p-4 animate-fade ${lv === 1 ? "bg-black/60" : lv === 2 ? "bg-black/85" : "bg-[#120018]"}`}>
-      <div className={`w-full text-center animate-sheet ${full ? "max-w-lg" : lv === 2 ? "max-w-md card frame p-6 bg-[#1c1330]" : "max-w-sm card frame p-5 bg-[#1c1330]"}`}>
+      <div role="dialog" aria-modal="true" className={`relative w-full text-center animate-sheet ${full ? "max-w-lg" : lv === 2 ? "max-w-md card frame p-6 bg-[#1c1330]" : "max-w-sm card frame p-5 bg-[#1c1330]"}`}>
+        <CloseX onClose={onLater} label="Close (ask again later)" />
         <div className={`font-game tracking-widest text-rose-300 ${full ? "text-sm" : "text-[11px]"}`}>🥷 SENSEI&apos;S ORDER · {level + 1}{["st", "nd", "rd"][level] ?? "th"} TIME TODAY</div>
         <div className={`mx-auto mt-3 ${full ? "text-8xl animate-float" : lv === 2 ? "text-6xl" : "text-5xl"}`}>{t.icon}</div>
         <h2 className={`mt-3 font-game font-black leading-tight ${full ? "text-4xl glow-text" : lv === 2 ? "text-2xl" : "text-xl"}`}>{t.title}</h2>
