@@ -22,6 +22,7 @@ import { VoiceButton } from "@/components/VoiceButton";
 import { Auto, EditLayer } from "@/components/EditLayer";
 import { UploadHost } from "@/components/UploadSheet";
 import { Fab, HubHost } from "@/components/hub/Hub";
+import { AssistantLayer, GameOnly, PlainWords } from "@/components/Assistant";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -30,11 +31,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <VoiceButton />
       <Auto id="fab"><Fab /></Auto>
       <Nav />
-      <Auto id="game"><GameWatcher /></Auto>
+      <GameOnly><Auto id="game"><GameWatcher /></Auto></GameOnly>
       <Auto id="resume"><ResumeRoute /></Auto>
-      <Auto id="stage"><StageIntro /></Auto>
+      <GameOnly><Auto id="stage"><StageIntro /></Auto></GameOnly>
       <Auto id="popper"><Popper /></Auto>
-      <Auto id="battle"><BattleWatcher /></Auto>
+      <GameOnly><Auto id="battle"><BattleWatcher /></Auto></GameOnly>
       <Auto id="reminders"><ReminderWatcher /></Auto>
       <Auto id="bodycare"><BodyCareWatcher /></Auto>
       <Auto id="push"><PushSync /></Auto>
@@ -44,6 +45,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Auto id="doing"><DoingTray /></Auto>
       <Auto id="celebrate"><CelebrationLayer /></Auto>
       <Auto id="alarm"><AlarmLayer /></Auto>
+      <Auto id="assistant"><AssistantLayer /></Auto>
+      <PlainWords />
       <SlotHost />
       <DetailsHost />
       <SummaryHost />

@@ -1,6 +1,7 @@
 "use client";
 
 import type { FitSettings } from "@/lib/focus";
+import type { AssistantSettings } from "@/lib/assistant";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Facts } from "@/lib/label";
 import type { RoutineItem, StepEdit } from "@/lib/mission";
@@ -38,6 +39,7 @@ export type Settings = {
   cat_budgets?: Record<string, number>; // monthly budget per spending category
   payday?: Payday; // allowance day and "pay yourself first"
   grocery_skip?: string[]; // names the auto grocery list should stop suggesting
+  assistant?: Partial<AssistantSettings>; // the assistant: name, voice, missed-task alerts, catch-up, plain or game look (lib/assistant.ts)
   fit?: Partial<FitSettings>; // Focus Area: body areas, equipment, workout time and safety rules (lib/focus.ts)
   look?: Look; // ✏️ edit mode: your words, pictures, colours, order, hidden items, new buttons, automatic features off
   hub?: { pins?: string[]; lang?: "en" | "ja" }; // Hero hub: actions pinned on Base Camp, menu language

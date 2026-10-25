@@ -3,6 +3,7 @@
 import { canvasDpr, isLite } from "@/lib/perf";
 import { useEffect, useRef } from "react";
 import { useApp } from "@/lib/store";
+import { assistantOf } from "@/lib/assistant";
 
 const COMIC = ["SUGOI!", "YATTA!", "KABOOM!", "LEGENDARY!", "FULL POWER!", "NICE!"];
 
@@ -90,8 +91,16 @@ function hanabi(canvas: HTMLCanvasElement, bursts: number) {
 }
 
 export function CelebrationLayer() {
-  const { celebration, clearCelebration } = useApp();
+  const { celebration, clearCelebration, data } = useApp();
   const canvas = useRef<HTMLCanvasElement>(null);
+  const a = assistantOf(data.profile.settings);
+  const game = a.mode === "game", name = a.name;
+  // Plain look: notes fade on their own; level-up and trophy screens are skipped.
+  useEffect(() => {
+    if (!celebration || game) return;
+    const t = setTimeout(clearCelebration, celebration.kind === "level" || celebration.kind === "achievement" ? 0 : celebration.quote ? 6000 : 2500);
+    return () => clearTimeout(t);
+  }, [celebration, game, clearCelebration]);
 
   useEffect(() => {
     if (!celebration || !canvas.current) return;
@@ -107,6 +116,19 @@ export function CelebrationLayer() {
   }, [celebration, clearCelebration]);
 
   if (!celebration) return null;
+  // Plain assistant look: no level-up or trophy screens and no fireworks, just a short note.
+  if (!game) {
+    if (celebration.kind === "level" || celebration.kind === "achievement") return null;
+    return (
+      <div className="fixed inset-x-0 top-[22vh] z-50 px-6 text-center pointer-events-none" onClick={clearCelebration}>
+        <div className="card inline-block max-w-md px-4 py-3 text-left animate-pop pointer-events-auto">
+          <div className="font-semibold">{celebration.icon ? `${celebration.icon} ` : ""}{celebration.title.replace(/!+$/, "")}</div>
+          {celebration.subtitle && <div className="text-sm text-muted">{celebration.subtitle}</div>}
+          {celebration.quote && <p className="text-sm mt-1"><b className="text-[var(--accent2)]">{name}:</b> {celebration.quote}</p>}
+        </div>
+      </div>
+    );
+  }
   const word = COMIC[Math.floor(Math.random() * COMIC.length)];
   const color = celebration.kind === "achievement" ? "var(--gold)" : celebration.kind === "level" ? "var(--accent)" : "var(--accent2)";
   return (

@@ -1,5 +1,6 @@
 "use client";
 
+import { isFundamental } from "@/lib/assistant";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Sheet } from "@/components/Sheet";
@@ -43,7 +44,7 @@ export function DailyMission() {
   // Tick a step: wake/sleep/meals open their own sheet; the rest is logged now.
   // A step with a start and an end that is already over asks for the real times first.
   const tickStep = (s: Step, at = new Date(), end?: Date, ask = true, ml?: number) => {
-    if (ask && s.moves?.length) return router.push("/train");
+    if (ask && s.moves?.length) return router.push(s.href ?? "/train");
     if (s.kind === "wake") return openSlotSheet({ kind: "wake" });
     if (s.kind === "sleep") return openSlotSheet({ kind: "sleep" });
     if (s.kind === "meal") return openSlotSheet({ kind: "meal", name: s.label });
@@ -63,9 +64,13 @@ export function DailyMission() {
     const minutes = end ? Math.max(1, Math.round((end.getTime() - at.getTime()) / 60_000)) : undefined;
     logActivity(kind, { name: s.label, routine: s.id, ...(end ? { start: at.toISOString(), end: end.toISOString(), minutes } : {}) }, at);
   };
+  // Two lists: your fixed routine (Fundamental) and what the app assigns.
+  const [which, setWhich] = useState<"all" | "fund" | "app">(() => { try { return (localStorage.getItem("lifeos-mission-list") as "all" | "fund" | "app") || "all"; } catch { return "all"; } });
+  const pickList = (w: typeof which) => { setWhich(w); try { localStorage.setItem("lifeos-mission-list", w); } catch {} };
+  const shown = (fund: boolean) => which === "all" || (which === "fund") === fund;
   const rows = [
-    ...list.map((s) => ({ t: s.time, el: <StepRow key={s.id} s={s} onTick={() => tickStep(s)} onOpen={() => setOpen(s.whole ?? s)} /> })),
-    ...own.map((o) => ({ t: o.time, el: (
+    ...list.filter((s) => shown(isFundamental(s))).map((s) => ({ t: s.time, el: <StepRow key={s.id} s={s} onTick={() => tickStep(s)} onOpen={() => setOpen(s.whole ?? s)} /> })),
+    ...own.filter(() => shown(true)).map((o) => ({ t: o.time, el: (
       <li key={o.id} className="flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5">
         <button onClick={() => setTask(o.id)} aria-label="Edit task" className="contents">
         <span className={`h-7 w-7 shrink-0 rounded-full grid place-items-center font-black ${COLOR[o.done ? "done" : "later"]}`}>{o.done ? "✓" : "○"}</span>
@@ -86,8 +91,11 @@ export function DailyMission() {
         <div className="h-full bg-emerald-400" style={{ width: `${(done / Math.max(1, total)) * 100}%` }} />
         <div className="h-full bg-rose-500" style={{ width: `${(missed / Math.max(1, total)) * 100}%` }} />
       </div>
+      <div className="grid grid-cols-3 gap-1 mb-2">
+        {([["all", "All"], ["fund", "🏠 Fundamental"], ["app", "📱 App-assigned"]] as const).map(([w, l]) => <button key={w} onClick={() => pickList(w)} className={`chip justify-center !px-1 !py-1 text-[11px] ${which === w ? "chip-on" : ""}`}>{l}</button>)}
+      </div>
       <ul className="space-y-1">{rows.map((r) => r.el)}</ul>
-      {pk.length > 0 && (
+      {pk.length > 0 && which !== "fund" && (
         <>
           <div className="text-[10px] font-game tracking-widest text-[var(--accent2)] mt-3 mb-1">TODAY&apos;S PICKS (BY THE APP)</div>
           <ul className="space-y-1">

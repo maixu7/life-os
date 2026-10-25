@@ -37,6 +37,7 @@ export const AUTOS: [string, string, string][] = [
   ["bottle", "🧴 Bottle refill nudges", "Short reminder to refill your water bottle"],
   ["payday", "💴 Payday auto-save", "Pays yourself first by itself on payday"],
   ["alarm", "🚨 Full-screen alarms", "Alarms that ring until you tap Stop"],
+  ["assistant", "🗣️ Assistant alerts", "Speaks up when a task is late and shows the catch-up list"],
   ["resume", "↩️ Reopen on the last screen", "Opening the app continues where you left off"],
   ["doing", "⏳ “In progress” pill", "The pill on every screen while something runs"],
   ["fab", "＋ Round quick-add button", "The floating ＋ button"],
