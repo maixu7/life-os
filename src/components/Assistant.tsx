@@ -1,5 +1,7 @@
 "use client";
 
+import { CloseX } from "@/components/CloseX";
+import { useBackCloses } from "@/components/Sheet";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useRunAction } from "@/components/Coach";
@@ -60,14 +62,17 @@ type UpdateFn = (id: string, patch: { data?: Record<string, unknown>; at?: Date 
 /** Mark a Daily mission step done straight away, at its planned time (or now if that's still ahead). */
 export function quickTick(s: Step, log: LogFn, logs: { id: string; kind: string; data: Record<string, unknown> }[], update: UpdateFn, live = false) {
   const today = toDay(new Date());
-  const planned = new Date(`${today}T${s.time}:00`);
-  // From the Daily mission (live) or for getting up: now, when it's within 1.5–2 hours of the
-  // plan (so a late wake-up moves the morning); otherwise the planned time.
-  const late = lateBy(s, new Date());
+  const nowD = new Date();
+  // Ticked afterwards (catch-up, or long after): it's saved at the time you PLANNED it,
+  // not the time a late wake-up moved it to, and not now. From the Daily mission (live)
+  // or for getting up within 1.5–2 hours of the plan, it's now (so the morning moves).
+  const late = lateBy(s, nowD);
   const now = live ? late <= 120 : s.kind === "wake" && late <= 90;
-  const at = now || planned > new Date() ? new Date() : planned;
-  const end = s.end ? new Date(`${today}T${s.end}:00`) : undefined;
-  const span = end && end > at && end <= new Date() ? { start: at.toISOString(), end: end.toISOString(), minutes: Math.round((end.getTime() - at.getTime()) / 60_000) } : {};
+  const planned = new Date(`${today}T${s.orig ?? s.time}:00`);
+  const at = now || planned > nowD ? nowD : planned;
+  const endT = now ? s.end : s.orig ? s.origEnd : s.end;
+  const end = endT ? new Date(`${today}T${endT}:00`) : undefined;
+  const span = end && end > at && end <= nowD ? { start: at.toISOString(), end: end.toISOString(), minutes: Math.round((end.getTime() - at.getTime()) / 60_000) } : {};
   const name = s.label.replace(/^(Start|Finish) /, "");
   if (s.kind === "wake") {
     const open = [...logs].reverse().find((l) => l.kind === "sleep" && !l.data.end);
@@ -75,7 +80,7 @@ export function quickTick(s: Step, log: LogFn, logs: { id: string; kind: string;
     log("wake", { time: s.time, slept_from: open?.data.start ?? null, routine: s.id }, at);
   } else if (s.kind === "sleep") log("sleep", { start: at.toISOString(), end: null, type: "night", routine: s.id }, at);
   else if (s.kind === "water") log("water", { ml: s.ml ?? 250, name: "Water", routine: s.id }, at);
-  else if (s.id === "b-work-end") log("activity", { name, routine: "b-work", start: new Date(`${today}T${s.whole?.time ?? s.time}:00`).toISOString(), end: at.toISOString() }, at);
+  else if (s.id === "b-work-end") log("activity", { name, routine: "b-work", start: new Date(`${today}T${s.whole?.orig ?? s.whole?.time ?? s.time}:00`).toISOString(), end: at.toISOString() }, at);
   else log(s.kind === "code" ? "coding" : "activity", { name, routine: s.id, ticked: true, ...span }, at);
 }
 
@@ -146,7 +151,7 @@ export function AssistantLayer() {
   };
 
   if (battery != null) return (
-    <Overlay a={a} full={a.fullscreen}>
+    <Overlay a={a} full={a.fullscreen} onClose={() => setBattery(null)}>
       <p className="text-lg">Battery is low ({battery}%). Charge your phone so alarms and reminders keep working.</p>
       <button className="btn-primary w-full mt-4" onClick={() => setBattery(null)}>OK</button>
     </Overlay>
@@ -159,7 +164,7 @@ export function AssistantLayer() {
   const woke = wake?.state === "done" && wake.diff != null && wake.diff >= 10 ? `You got up ${wake.diff} min late, so the morning moved to after you got up.` : "";
   if (catchup && missed.length) return <CatchUp a={a} list={missed} now={now} note={woke} onRest={rest} onClose={seen} onGo={(s) => { seen(); go(s); }} onTick={tick} />;
   if (alert) return (
-    <Overlay a={a} full={a.fullscreen}>
+    <Overlay a={a} full={a.fullscreen} onClose={() => mark(alert, true)}>
       {a.output !== "sound" && <p className="text-xl font-semibold leading-snug">{sayFor(alert, a)}</p>}
       <p className="text-sm text-muted mt-2">Planned for {fmt12(alert.time)} · {lateBy(alert, now)} min ago</p>
       <div className="grid grid-cols-2 gap-2 mt-5">
@@ -173,10 +178,11 @@ export function AssistantLayer() {
   return null;
 }
 
-function Overlay({ a, full, children }: { a: AssistantSettings; full: boolean; children: React.ReactNode }) {
+function Overlay({ a, full, children, onClose }: { a: AssistantSettings; full: boolean; children: React.ReactNode; onClose?: () => void }) {
   return (
     <div role="dialog" aria-label={a.name} data-noedit className={`fixed z-[60] ${full ? "inset-0 bg-[var(--bg,#070512)]/95 grid place-items-center p-6" : "inset-x-3 bottom-24"}`}>
-      <div className={`card w-full max-w-md p-5 ${full ? "" : "shadow-2xl"}`}>
+      <div className={`relative card w-full max-w-md p-5 pr-12 ${full ? "" : "shadow-2xl"}`}>
+        {onClose && <CloseX onClose={onClose} />}
         <div className="text-xs font-semibold tracking-widest uppercase text-[var(--accent2)] mb-2">{a.name}</div>
         {children}
       </div>
@@ -187,19 +193,21 @@ function Overlay({ a, full, children }: { a: AssistantSettings; full: boolean; c
 function CatchUp({ a, list, now, note, onRest, onClose, onGo, onTick }: { a: AssistantSettings; list: Step[]; now: Date; note?: string; onRest: () => void; onClose: () => void; onGo: (s: Step) => void; onTick: (s: Step) => void }) {
   const { data, saveSettings } = useApp();
   const [focus, setFocus] = useState(a.focus);
+  useBackCloses(onClose);
   useEffect(() => { assistantSay(`You missed ${list.length} ${list.length === 1 ? "task" : "tasks"} so far today.`, a); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div role="dialog" aria-label="Catch-up" data-noedit className="fixed inset-0 z-[60] bg-[var(--bg,#070512)] overflow-y-auto p-4 pt-[max(1rem,env(safe-area-inset-top))]">
-      <div className="mx-auto max-w-md">
+      <div className="relative mx-auto max-w-md">
+        <CloseX onClose={onClose} />
         <div className="text-xs font-semibold tracking-widest uppercase text-[var(--accent2)]">{a.name}</div>
-        <h2 className="text-xl font-bold mt-1">Missed so far today ({list.length})</h2>
+        <h2 className="text-xl font-bold mt-1 pr-12">Missed so far today ({list.length})</h2>
         <p className="text-xs text-muted">Up to {fmt12(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`)}, {a.sort === "kind" ? "by type" : "in time order"}.</p>
         {note && <p className="card p-2.5 mt-2 text-sm">🌅 {note}</p>}
         <ul className="mt-3 space-y-2">
           {list.map((s) => (
             <li key={s.id} className="card p-3 flex items-center gap-3">
               <span className="text-2xl">{s.icon}</span>
-              <span className="flex-1 min-w-0"><span className="block font-semibold truncate">{s.label}</span><span className="text-xs text-muted">{fmt12(s.time)} · {lateBy(s, now)} min late</span></span>
+              <span className="flex-1 min-w-0"><span className="block font-semibold truncate">{s.label}</span><span className="block text-xs text-muted">Planned {fmt12(s.orig ?? s.time)}{(s.orig ? s.origEnd : s.end) ? `–${fmt12((s.orig ? s.origEnd : s.end)!)}` : ""}{s.orig && s.orig !== s.time ? ` · moved to ${fmt12(s.time)}` : ""}</span></span>
               <button aria-label={`Done: ${s.label}`} className="h-10 w-10 shrink-0 rounded-full border-2 border-emerald-400 text-emerald-300 text-lg font-black active:scale-90" onClick={() => onTick(s)}>✓</button>
               <button className="btn-primary !px-3 !py-2 text-sm shrink-0" onClick={() => onGo(s)}>Go to</button>
             </li>

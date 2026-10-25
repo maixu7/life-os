@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { assistantSay, stopSpeaking } from "@/components/Assistant";
+import { CloseX } from "@/components/CloseX";
+import { useBackCloses } from "@/components/Sheet";
 import { assistantOf } from "@/lib/assistant";
 import { steps, type Step } from "@/lib/mission";
 import { fmt12, sched, sleepTimes, toMin } from "@/lib/schedule";
@@ -43,10 +45,11 @@ export function DayCards() {
   return null;
 }
 
-function Shell({ title, children }: { title: string; children: React.ReactNode }) {
+function Shell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  useBackCloses(onClose);
   return (
-    <div role="dialog" aria-label={title} data-noedit className="fixed inset-0 z-[65] bg-[var(--bg,#070512)] overflow-y-auto p-4 pt-[max(1rem,env(safe-area-inset-top))]">
-      <div className="mx-auto max-w-md space-y-3">{children}</div>
+    <div role="dialog" aria-modal="true" aria-label={title} data-noedit className="fixed inset-0 z-[65] bg-[var(--bg,#070512)] overflow-y-auto p-4 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="relative mx-auto max-w-md space-y-3"><CloseX onClose={onClose} />{children}</div>
     </div>
   );
 }
@@ -68,7 +71,7 @@ function Briefing({ now, onClose }: { now: Date; onClose: () => void }) {
   const speech = [`Good morning ${name}.`, woke, next[0] && `First: ${next[0].label} at ${fmt12(next[0].time)}.`, work && `Workout at ${fmt12(work.time)}.`, study && `Study at ${fmt12(study.time)}.`,
     plan.length ? `Your top ${plan.length} for today: ${plan.join(", ")}.` : "", exam != null && exam >= 0 ? `${exam} days until your exam.` : ""].filter(Boolean).join(" ");
   return (
-    <Shell title="Morning briefing">
+    <Shell title="Morning briefing" onClose={onClose}>
       <div className="text-xs font-semibold tracking-widest uppercase text-[var(--accent2)]">{a.name}</div>
       <h2 className="text-2xl font-bold">☀️ Good morning, {name}</h2>
       <p className="text-sm text-muted">{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</p>
@@ -105,7 +108,7 @@ function Review({ now, onClose }: { now: Date; onClose: () => void }) {
     onClose();
   };
   return (
-    <Shell title="Night review">
+    <Shell title="Night review" onClose={onClose}>
       <h2 className="text-2xl font-bold">🌙 How did today go?</h2>
       <div className="grid grid-cols-2 gap-2 text-center">
         <div className="card p-3"><div className="text-2xl font-black text-emerald-400">{done}</div><div className="text-xs text-muted">done</div></div>

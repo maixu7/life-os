@@ -64,7 +64,7 @@ function applyLook(look: Look, path: string) {
     if (n.data !== out) n.data = out;
     textMem.set(n, { orig: o, out });
   }
-  textOn = anyText;
+  textOn = anyText || Object.keys(look.etext ?? {}).length > 0;
   if (anyText || document.querySelector("[data-lo-ph]")) document.querySelectorAll<HTMLInputElement>("input[placeholder],textarea[placeholder]").forEach((el) => {
     if (el.closest(SKIP)) return;
     const o = el.dataset.loPh ?? el.placeholder;
@@ -342,15 +342,27 @@ export function EditLayer() {
   );
 }
 
-function Box({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+/** A short message at the bottom of the screen, so you can see a change was saved. */
+function flash(text: string) {
+  const d = document.createElement("div");
+  d.setAttribute("role", "status");
+  d.setAttribute("data-noedit", "");
+  d.textContent = text;
+  d.className = "fixed left-1/2 -translate-x-1/2 bottom-24 z-[10001] rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white shadow-xl animate-fade";
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 1600);
+}
+
+function Box({ title, onClose, children, footer }: { title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
     <div data-noedit className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center bg-black/50" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()} className="w-full sm:max-w-md max-h-[75dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-amber-300/40 bg-[#140c24] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-3 shadow-2xl">
         <div className="flex items-center justify-between gap-2">
           <h3 className="font-bold truncate">{title}</h3>
-          <button aria-label="Close" onClick={onClose} className="h-8 w-8 shrink-0 rounded-full bg-white/10 text-muted">✕</button>
+          <button aria-label="Close" onClick={onClose} className="h-10 w-10 shrink-0 rounded-full bg-white/10 text-muted">✕</button>
         </div>
         {children}
+        {footer && <div className="sticky -bottom-4 -mx-4 -mb-4 border-t border-white/10 bg-[#140c24] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">{footer}</div>}
       </div>
     </div>
   );
@@ -368,6 +380,11 @@ function ItemSheet({ el, path, look, save, pages, onBigger, onSmaller, onClose }
   onBigger: () => void; onSmaller?: () => void; onClose: () => void;
 }) {
   const inPopup = !!el.closest("[data-overlay],[role=dialog],nav,.fixed");
+  // What it looked like when this box opened, so Cancel can put it back.
+  const [before] = useState(look);
+  const changed = look !== before;
+  const cancel = () => { if (changed) save(() => before); onClose(); flash("↩ Changes cancelled"); };
+  const done = () => { (document.activeElement as HTMLElement | null)?.blur?.(); setTimeout(() => { onClose(); flash(changed ? "✓ Saved" : "✓ Done"); }, 0); };
   const [scope, setScope] = useState(inPopup ? "*" : path);
   const [textAll, setTextAll] = useState(false);
   const [adding, setAdding] = useState<"button" | "note" | null>(null);
@@ -439,7 +456,12 @@ function ItemSheet({ el, path, look, save, pages, onBigger, onSmaller, onClose }
 
   const words = wordsOf(el).replace(/^add:.*/, added?.name ?? "").slice(0, 40);
   return (
-    <Box title={`✏️ ${words || el.tagName.toLowerCase()}`} onClose={onClose}>
+    <Box title={`✏️ ${words || el.tagName.toLowerCase()}`} onClose={done} footer={
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" onClick={cancel} className="btn-ghost !py-3 text-sm">✕ Cancel{changed ? " changes" : ""}</button>
+        <button type="button" onClick={done} className="btn-primary !py-3 text-sm">✓ {changed ? "Confirm" : "Done"}</button>
+      </div>
+    }>
       <div className="flex flex-wrap gap-1.5">
         <Btn on={onBigger}>⬆ Pick the bigger part</Btn>
         {onSmaller && <Btn on={onSmaller}>⬇ Back to smaller</Btn>}

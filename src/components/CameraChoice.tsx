@@ -16,7 +16,7 @@ export function needsChooser() {
   const ua = navigator.userAgent;
   const uad = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
   if (/Android/i.test(ua) || uad?.platform === "Android") return true;
-  return /Linux|CrOS/i.test(ua) && !/iPhone|iPad|Mac/i.test(ua) && navigator.maxTouchPoints > 0;
+  return /Linux|CrOS/i.test(ua) && !/iPhone|iPad|Mac/i.test(ua) && (navigator.maxTouchPoints > 0 || matchMedia("(pointer: coarse)").matches);
 }
 
 export function CameraChoice() {
@@ -49,7 +49,7 @@ export function CameraChoice() {
         <div className="text-sm font-bold text-center">Add a photo</div>
         <button className="btn-primary w-full py-3" onClick={() => open(true)}>📷 Take a photo</button>
         <button className="btn-ghost w-full py-3" onClick={() => open(false)}>🖼️ Choose from gallery</button>
-        <button className="w-full text-xs text-muted py-1" onClick={() => setInput(null)}>Cancel</button>
+        <button className="w-full text-sm text-muted py-2.5" onClick={() => setInput(null)}>Cancel</button>
       </div>
     </div>
   );

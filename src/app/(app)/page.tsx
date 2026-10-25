@@ -278,7 +278,7 @@ export default function TodayPage() {
         <div className="fixed bottom-24 left-4 right-20 z-30 card bg-[#1c1330] px-4 py-3 text-sm flex items-center gap-3 animate-sheet">
           <span className="flex-1 truncate">✓ {describe(toast).title} at {fmtTime(toast.created_at)}</span>
           <button onClick={() => { setEditing(data.logs.find((l) => l.id === toast.id) ?? toast); setToast(null); }} className="font-bold text-[var(--accent2)]">Details</button>
-          <button aria-label="Close" onClick={() => setToast(null)} className="text-muted">✕</button>
+          <button aria-label="Close" onClick={() => setToast(null)} className="grid h-10 w-10 -my-2 -mr-2 place-items-center rounded-full text-muted hover:bg-white/10">✕</button>
         </div>
       )}
       {editing && <EditLog log={editing} onClose={() => setEditing(null)} />}

@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseX } from "@/components/CloseX";
 import { useEffect, useMemo, useState } from "react";
 import { line, timeTopic } from "@/lib/lore";
 import { dailyMissions, weeklyBoss } from "@/lib/missions";
@@ -93,7 +94,8 @@ export function StageIntro() {
   };
 
   return (
-    <div data-overlay className="fixed inset-0 z-[55] flex flex-col items-center justify-center bg-[#05030f]/95 px-6 text-center animate-fade" onClick={close}>
+    <div data-overlay className="fixed inset-0 z-[55] flex flex-col items-center justify-center bg-[#05030f]/95 px-6 text-center animate-fade" onClick={close} role="dialog" aria-modal="true" aria-label="Today's stage">
+      <CloseX onClose={close} className="!fixed right-3 top-[max(.75rem,env(safe-area-inset-top))]" />
       <div className="font-game text-xs tracking-[.5em] text-[var(--accent2)]">DAY {dayN}</div>
       <div className="mt-3 overflow-hidden">
         <h1 className="animate-slash font-game text-4xl font-black italic glow-text">{report ? "STAGE REPORT" : STAGES[topic]}</h1>

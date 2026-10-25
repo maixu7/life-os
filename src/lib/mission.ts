@@ -32,6 +32,7 @@ export type Step = {
   /** Finished early (−) or late (+) against the planned end. */ endDiff?: number;
   /** Work: planned break minutes inside it (planLen and doneLen already leave them out). */ brk?: number;
   /** Start/Finish work rows: the whole work step they belong to. */ whole?: Step;
+  /** The time you planned it for, before a late wake-up or real times moved it (a ✓ ticked afterwards saves this). */ orig?: string; origEnd?: string;
   /** Workout steps: the moves of today's plan in this part, and how many are finished. */
   moves?: (PlanRow & { done: number })[]; progress?: { done: number; total: number };
 };
@@ -382,7 +383,7 @@ function afterWake(items: (RoutineItem & { mine?: boolean })[], got: Map<string,
   return out.size ? items.map((it) => out.get(it.id) ?? it) : items;
 }
 
-type Planned = { items: (RoutineItem & { mine?: boolean })[]; got: Map<string, Log>; tasks: Map<string, { time: string; end?: string }> };
+type Planned = { items: (RoutineItem & { mine?: boolean })[]; got: Map<string, Log>; tasks: Map<string, { time: string; end?: string }>; base: Map<string, [string, string | undefined]> };
 const planned = new WeakMap<Data, Map<string, Planned>>();
 
 // The day fitted together: your changes, the app's steps around them, and then
@@ -410,6 +411,8 @@ function plan(d: Data, day: string, now = new Date()): Planned {
   const all = [...raw, ...tasks];
   let items = all.map((x) => ({ ...x }));
   reflow(items, edits, d, date);
+  // Your plan as it stood before a late wake-up or real times moved things.
+  const base = new Map(items.map((it) => [it.id, [it.time, it.end] as [string, string | undefined]]));
   const logs = logsOn(d, day);
   // Who gets which log: a log ticked from a step belongs to that step; any other
   // log goes to the closest step it fits, and one log never counts twice.
@@ -444,7 +447,7 @@ function plan(d: Data, day: string, now = new Date()): Planned {
   if (real.size) {
     items = follow(items, real, d, date, edits, from);
   }
-  const out: Planned = { items: items.filter((x) => !x.id.startsWith("t-")), got, tasks: new Map(items.filter((x) => x.id.startsWith("t-")).map((x) => [x.id.slice(2), { time: x.time, end: x.end }])) };
+  const out: Planned = { items: items.filter((x) => !x.id.startsWith("t-")), got, tasks: new Map(items.filter((x) => x.id.startsWith("t-")).map((x) => [x.id.slice(2), { time: x.time, end: x.end }])), base };
   if (!planned.has(d)) planned.set(d, new Map());
   planned.get(d)!.set(key, out);
   return out;
@@ -452,7 +455,7 @@ function plan(d: Data, day: string, now = new Date()): Planned {
 
 /** The day's timeline, each step checked against your logs. */
 export function steps(d: Data, day: string, now = new Date()): Step[] {
-  const { items, got } = plan(d, day, now);
+  const { items, got, base } = plan(d, day, now);
   const logs = logsOn(d, day);
   const isToday = day === toDay(now), past = day < toDay(now);
   const nowM = now.getHours() * 60 + now.getMinutes();
@@ -487,7 +490,7 @@ export function steps(d: Data, day: string, now = new Date()): Step[] {
       if (planLen) planLen -= brk;
       if (doneLen != null && matched?.data.start) { const a = mins(String(matched.data.start)); doneLen -= breakIn(d, a, a + doneLen); }
     }
-    return { brk, endDiff, planLen, doneLen, gotMl: it.kind === "water" ? Number(matched?.data.ml) || undefined : undefined, moves: wp?.rows, progress: wp?.progress, id: it.id, time: it.time, end: it.end, note: it.note, auto: it.auto, own: "mine" in it, label: it.label, icon: iconOf(it), kind: it.kind, fixed: it.id.startsWith("b-"), ml: it.ml, action, href, state, at, diff, logId: matched?.id, doneEnd: realEnd } as Step;
+    return { brk, endDiff, planLen, doneLen, gotMl: it.kind === "water" ? Number(matched?.data.ml) || undefined : undefined, moves: wp?.rows, progress: wp?.progress, id: it.id, time: it.time, end: it.end, note: it.note, auto: it.auto, own: "mine" in it, label: it.label, icon: iconOf(it), kind: it.kind, fixed: it.id.startsWith("b-"), ml: it.ml, action, href, state, at, diff, logId: matched?.id, doneEnd: realEnd, orig: base.get(it.id)?.[0] ?? it.time, origEnd: base.has(it.id) ? base.get(it.id)![1] : it.end } as Step;
   }).flatMap((x) => (x.id === "b-work" && x.end ? workRows(x, isToday, past, nowM) : [x])).sort((a, b) => toMin(a.time) - toMin(b.time));
 }
 
@@ -496,8 +499,8 @@ export function steps(d: Data, day: string, now = new Date()): Step[] {
 function workRows(w: Step, isToday: boolean, past: boolean, nowM: number): Step[] {
   const endM = toMin(w.end!);
   const fin: Step["state"] = w.doneEnd ? "done" : past || (isToday && nowM > endM + GRACE.work) ? "missed" : isToday && nowM >= endM - 30 ? "due" : "later";
-  const start: Step = { ...w, label: `Start ${w.label}`, end: undefined, doneEnd: undefined, planLen: undefined, doneLen: undefined, endDiff: undefined, whole: w };
-  const finish: Step = { ...w, id: "b-work-end", label: `Finish ${w.label}`, time: w.end!, end: undefined, state: fin, at: w.doneEnd ? w.at : undefined, diff: w.endDiff, endDiff: undefined, whole: w };
+  const start: Step = { ...w, label: `Start ${w.label}`, end: undefined, origEnd: undefined, doneEnd: undefined, planLen: undefined, doneLen: undefined, endDiff: undefined, whole: w };
+  const finish: Step = { ...w, id: "b-work-end", label: `Finish ${w.label}`, time: w.end!, orig: w.origEnd ?? w.end, origEnd: undefined, end: undefined, state: fin, at: w.doneEnd ? w.at : undefined, diff: w.endDiff, endDiff: undefined, whole: w };
   return [start, finish];
 }
 

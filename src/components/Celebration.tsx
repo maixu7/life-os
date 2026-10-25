@@ -1,5 +1,6 @@
 "use client";
 
+import { CloseX } from "@/components/CloseX";
 import { canvasDpr, isLite } from "@/lib/perf";
 import { useEffect, useRef } from "react";
 import { useApp } from "@/lib/store";
@@ -121,7 +122,8 @@ export function CelebrationLayer() {
     if (celebration.kind === "level" || celebration.kind === "achievement") return null;
     return (
       <div className="fixed inset-x-0 top-[22vh] z-50 px-6 text-center pointer-events-none" onClick={clearCelebration}>
-        <div className="card inline-block max-w-md px-4 py-3 text-left animate-pop pointer-events-auto">
+        <div role="status" className="relative card inline-block max-w-md px-4 py-3 pr-12 text-left animate-pop pointer-events-auto">
+          <CloseX onClose={clearCelebration} />
           <div className="font-semibold">{celebration.icon ? `${celebration.icon} ` : ""}{celebration.title.replace(/!+$/, "")}</div>
           {celebration.subtitle && <div className="text-sm text-muted">{celebration.subtitle}</div>}
           {celebration.quote && <p className="text-sm mt-1"><b className="text-[var(--accent2)]">{name}:</b> {celebration.quote}</p>}
@@ -134,6 +136,7 @@ export function CelebrationLayer() {
   return (
     <div data-overlay className={`fixed inset-0 z-50 ${celebration.big ? "bg-black/70 animate-fade" : "pointer-events-none"}`} onClick={clearCelebration}>
       <canvas ref={canvas} className="absolute inset-0 w-full h-full pointer-events-none" />
+      <CloseX onClose={clearCelebration} className="!fixed pointer-events-auto right-3 top-[max(.75rem,env(safe-area-inset-top))] bg-black/40" />
       {celebration.big ? (
         <div className="absolute inset-x-0 top-[18vh] px-6 text-center">
           <div className="text-xs font-game font-bold tracking-[.4em]" style={{ color }}>{word}</div>

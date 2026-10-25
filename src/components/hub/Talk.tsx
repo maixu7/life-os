@@ -122,12 +122,12 @@ export function InboxSheet({ onClose }: { onClose: () => void }) {
                 {m.body && <span className="block text-xs text-muted">{m.body}</span>}
                 <span className="block text-[10px] text-muted">{KIND_LABEL[m.kind]} · {new Date(m.at).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}</span>
               </button>
-              <button aria-label="Delete" className="text-muted text-xs" onClick={() => removeInbox(m.id)}>✕</button>
+              <button aria-label={`Delete ${m.title}`} title="Delete" className="shrink-0 grid h-10 w-10 place-items-center rounded-lg text-base text-rose-300 hover:bg-rose-500/15" onClick={() => removeInbox(m.id)}>🗑</button>
             </li>
           ))}
         </ul>
       )}
-      {list.length > 0 && <button className="btn-ghost w-full text-sm" onClick={clearInbox}>Clear all</button>}
+      {list.length > 0 && <button className="btn-ghost w-full text-sm" onClick={() => { if (confirm(`Delete all ${list.length} notifications?`)) clearInbox(); }}>🗑 Delete all</button>}
       <p className="text-[11px] text-muted">Kept on this device (last 120).</p>
     </Sheet>
   );

@@ -135,12 +135,14 @@ export function DailyMission() {
   );
 }
 
+/** A real end that comes after the start (up to 12 h later, so past midnight is fine). */
+const endsAfter = (iso: string, end: string) => { const d = new Date(iso), [h, m] = end.split(":").map(Number); const gap = (h * 60 + m - d.getHours() * 60 - d.getMinutes() + 1440) % 1440; return gap > 0 && gap <= 720; };
 const atHM = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 function StepRow({ s, onTick, onDone, onOpen }: { s: Step; onTick: () => void; onDone: () => void; onOpen: () => void }) {
   const long = lenText(s);
   const sub = s.state === "done" ? (s.id === "b-work" ? `started ${atHM(s.at!)} · ${lateText(s.diff)}` : s.id === "b-work-end" ? `finished ${fmt12(s.doneEnd!)} · ${lateText(s.diff)}${long ? ` · work ${long}` : ""}`
-    : `done ${atHM(s.at!)}${s.doneEnd ? `–${fmt12(s.doneEnd)}` : ""} · ${timeText(s.diff, s.endDiff)}${s.gotMl ? ` · ${s.gotMl} ml` : ""}${long ? ` · ${long}` : ""}`)
+    : `done ${atHM(s.at!)}${s.doneEnd && endsAfter(s.at!, s.doneEnd) ? `–${fmt12(s.doneEnd)}` : ""} · ${timeText(s.diff, s.endDiff)}${s.gotMl ? ` · ${s.gotMl} ml` : ""}${long ? ` · ${long}` : ""}`)
     : s.state === "missed" ? `didn't happen${s.progress?.done ? ` · ${s.progress.done}/${s.progress.total} moves done` : ""}`
     : s.state === "due" ? `now${s.progress ? ` · ${s.progress.done}/${s.progress.total} moves` : ""}`
     : s.end ? `${Math.round(((toMin(s.end) - toMin(s.time) + 1440) % 1440))} min${s.progress ? ` · ${s.progress.done}/${s.progress.total} moves` : ""}` : "";

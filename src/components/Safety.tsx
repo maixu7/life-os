@@ -71,7 +71,7 @@ export function SafetyLayer() {
     <>
       {!hide && (!s.online || s.stale) && (
         <div className="fixed top-0 inset-x-0 z-[44] flex justify-center px-3 pt-[env(safe-area-inset-top)] pointer-events-none">
-          <button onClick={() => setHide(true)} className={`pointer-events-auto mt-1 max-w-md w-full rounded-xl px-3 py-1.5 text-[11px] text-left shadow-lg ${!s.online ? "bg-amber-500/90 text-black" : "bg-rose-600/90 text-white"}`}>
+          <button onClick={() => setHide(true)} aria-label="Hide this message" className={`pointer-events-auto mt-1 max-w-md w-full min-h-9 rounded-xl px-3 py-1.5 text-[11px] text-left shadow-lg ${!s.online ? "bg-amber-500/90 text-black" : "bg-rose-600/90 text-white"}`}>
             {!s.online
               ? <>📴 <b>Offline.</b> Everything is saved on this device{s.pending ? " and will sync when you are back online" : ""}. ✕</>
               : <>⚠️ <b>This device has not synced for {ago(s.last).replace(" ago", "")}.</b> Check the internet so your other devices get your records. ✕</>}
@@ -113,7 +113,8 @@ function UndoToast() {
       <div className="card w-full max-w-md px-3 py-2 flex items-center gap-2 text-sm animate-sheet">
         <span>🗑️</span>
         <span className="flex-1 min-w-0 truncate">Deleted <b>{name}</b>{del.logs.length > 1 ? ` (+${del.logs.length - 1} reward)` : ""}</span>
-        <button onClick={undo} className="btn-primary !py-1.5 !px-3">Undo {left}s</button>
+        <button onClick={undo} className="btn-primary !py-2 !px-3">Undo {left}s</button>
+        <button aria-label="Close" onClick={() => setDel(null)} className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-muted hover:bg-white/10">✕</button>
       </div>
     </div>
   );
