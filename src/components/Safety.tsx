@@ -333,7 +333,8 @@ export function DisplaySheet({ onClose }: { onClose: () => void }) {
 
 export function SpeakButton({ text, className = "" }: { text: string; className?: string }) {
   if (!canSpeak()) return null;
-  return <button type="button" aria-label="Read aloud" onClick={(e) => { e.stopPropagation(); speak(text, true); }} className={`chip !px-2 !py-0.5 ${className}`}>🔊</button>;
+  // Tap again while it's reading to stop.
+  return <button type="button" aria-label="Read aloud" onClick={(e) => { e.stopPropagation(); if (speechSynthesis.speaking) speechSynthesis.cancel(); else speak(text, true); }} className={`chip !px-2 !py-0.5 ${className}`}>🔊</button>;
 }
 
 // ---------- Nudges on Base Camp ----------

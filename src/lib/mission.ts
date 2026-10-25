@@ -345,6 +345,43 @@ function follow(items: (RoutineItem & { mine?: boolean })[], real: Map<string, [
   });
 }
 
+// Woke up late: the steps planned between your wake-up target and when you really got
+// up (not done yet) move to just after you got up, in the same order, and the steps
+// after them shift along until there's room. Work, meals, sleep and bedtime stay.
+function afterWake(items: (RoutineItem & { mine?: boolean })[], got: Map<string, Log>, edits: Record<string, StepEdit>, planned: number, actual: number) {
+  const len = (it: RoutineItem) => (it.end ? (toMin(it.end) - toMin(it.time) + 1440) % 1440 : 0);
+  const free = (it: RoutineItem) => !got.has(it.id) && !fixed(it.id) && !BED.includes(it.id) && !it.id.startsWith("a-fit") && it.kind !== "sleep" && it.kind !== "wake";
+  // Before the real wake-up: everything not done moves. After it: only the app's own steps
+  // shift along; your steps and times you set stay where you put them.
+  const moves = (it: RoutineItem & { mine?: boolean }) => free(it) && toMin(it.time) >= planned
+    && (toMin(it.time) < actual || (!it.mine && !edits[it.id]?.time && it.kind !== "water"));
+  const wall = items.filter((it) => !moves(it) && len(it) > 0 && it.kind !== "water" && it.id !== "a-listen" && it.kind !== "sleep" && toMin(it.time) >= planned)
+    .map((it) => [toMin(it.time), toMin(it.time) + len(it), it.id === "b-work" ? 1 : 0] as const);
+  const list = items.filter(moves).sort((a, b) => toMin(a.time) - toMin(b.time));
+  const out = new Map<string, RoutineItem>();
+  const taken: (readonly [number, number, number])[] = [...wall];
+  for (const it of list) {
+    const t0 = toMin(it.time), n = len(it), early = t0 < actual;
+    // Later steps stay unless something now sits on top of them.
+    if (!early && !taken.some(([a, b]) => t0 < b && t0 + Math.max(n, 1) > a)) { if (n) taken.push([t0, t0 + n, 0]); continue; }
+    // The first free time after the real wake-up (or after its own time); a step that only
+    // just doesn't fit gets shorter (10 min at least).
+    let t = early ? actual + 2 : t0, m = n, stop = false;
+    for (let g = 0; g < 40; g++) {
+      const h = taken.filter(([a, b]) => t < b && t + Math.max(m, 1) > a).sort((x, y) => x[0] - y[0])[0];
+      if (!h) break;
+      const room = h[0] - 2 - t;
+      if (h[0] > t && room >= Math.min(n, 10)) { m = room; break; }
+      if (h[2]) { stop = true; break; } // never pushed into work: it stays (✗ if missed)
+      t = h[1] + 2; m = n;
+    }
+    if (stop || t > 23 * 60 || (!early && t - t0 > 180)) continue;
+    out.set(it.id, { ...it, time: hm(t), ...(it.end ? { end: hm(t + m) } : {}) });
+    taken.push([t, t + Math.max(m, 1), 0]);
+  }
+  return out.size ? items.map((it) => out.get(it.id) ?? it) : items;
+}
+
 type Planned = { items: (RoutineItem & { mine?: boolean })[]; got: Map<string, Log>; tasks: Map<string, { time: string; end?: string }> };
 const planned = new WeakMap<Data, Map<string, Planned>>();
 
@@ -389,6 +426,12 @@ function plan(d: Data, day: string, now = new Date()): Planned {
   }
   pairs.sort((a, b) => a.dist - b.dist);
   for (const p of pairs) if (!got.has(p.id) && !taken.has(p.l.id)) { got.set(p.id, p.l); taken.add(p.l.id); }
+  // Got up late: the morning moves to after the real wake-up.
+  const wk = items.find((it) => it.id === "b-wake"), wl = got.get("b-wake");
+  if (wk && wl && day === toDay(new Date(wl.created_at))) {
+    const p = toMin(wk.time), a = mins(wl.created_at);
+    if (a - p >= 5 && a - p <= 360) items = afterWake(items, got, edits, p, a);
+  }
   // Real-time: a step with a real start sits where it really happened (to its real end,
   // or its planned length while it's still going), and the rest fit around it.
   const real = new Map<string, [string, string]>();

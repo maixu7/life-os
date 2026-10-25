@@ -22,7 +22,8 @@ import { VoiceButton } from "@/components/VoiceButton";
 import { Auto, EditLayer } from "@/components/EditLayer";
 import { UploadHost } from "@/components/UploadSheet";
 import { Fab, HubHost } from "@/components/hub/Hub";
-import { AssistantLayer, GameOnly, PlainWords } from "@/components/Assistant";
+import { AssistantLayer, GameOnly, PlainWords, SpeechStop } from "@/components/Assistant";
+import { CameraChoice } from "@/components/CameraChoice";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -47,6 +48,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Auto id="alarm"><AlarmLayer /></Auto>
       <Auto id="assistant"><AssistantLayer /></Auto>
       <PlainWords />
+      <SpeechStop />
+      <CameraChoice />
       <SlotHost />
       <DetailsHost />
       <SummaryHost />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useRunAction } from "@/components/Coach";
 import { assistantOf, lateBy, needsDoing, sayFor, type AssistantSettings } from "@/lib/assistant";
 import { steps, type Step } from "@/lib/mission";
@@ -14,7 +14,6 @@ import { toDay, useApp } from "@/lib/store";
 // was missed so far today, in time order, each with "Go to".
 
 const ALERTED = "lifeos-alerted";
-const CATCHUP = "lifeos-catchup-at";
 const read = <T,>(k: string, d: T): T => { try { return JSON.parse(localStorage.getItem(k) ?? "") as T; } catch { return d; } };
 const write = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 
@@ -33,10 +32,17 @@ function beep() {
 }
 
 /** Speak with the assistant's voice, rate and pitch (respects master audio, text-only and quiet hours). */
+let pending: ReturnType<typeof setTimeout> | undefined;
+/** Stop speaking now (also a sentence that is about to start after the chime). */
+export function stopSpeaking() {
+  clearTimeout(pending);
+  try { speechSynthesis.cancel(); } catch {}
+}
 export function assistantSay(text: string, a: AssistantSettings, quiet = false) {
   if (!a.audio || a.output === "text" || quiet || typeof speechSynthesis === "undefined") return;
+  stopSpeaking();
   if (a.chime) beep();
-  setTimeout(() => {
+  pending = setTimeout(() => {
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "").trim());
@@ -48,6 +54,30 @@ export function assistantSay(text: string, a: AssistantSettings, quiet = false) 
   }, a.chime ? 450 : 0);
 }
 
+type LogFn = (kind: string, data?: Record<string, unknown>, at?: Date) => unknown;
+type UpdateFn = (id: string, patch: { data?: Record<string, unknown>; at?: Date }) => void;
+/** Mark a Daily mission step done straight away, at its planned time (or now if that's still ahead). */
+export function quickTick(s: Step, log: LogFn, logs: { id: string; kind: string; data: Record<string, unknown> }[], update: UpdateFn, live = false) {
+  const today = toDay(new Date());
+  const planned = new Date(`${today}T${s.time}:00`);
+  // From the Daily mission (live) or for getting up: now, when it's within 1.5–2 hours of the
+  // plan (so a late wake-up moves the morning); otherwise the planned time.
+  const late = lateBy(s, new Date());
+  const now = live ? late <= 120 : s.kind === "wake" && late <= 90;
+  const at = now || planned > new Date() ? new Date() : planned;
+  const end = s.end ? new Date(`${today}T${s.end}:00`) : undefined;
+  const span = end && end > at && end <= new Date() ? { start: at.toISOString(), end: end.toISOString(), minutes: Math.round((end.getTime() - at.getTime()) / 60_000) } : {};
+  const name = s.label.replace(/^(Start|Finish) /, "");
+  if (s.kind === "wake") {
+    const open = [...logs].reverse().find((l) => l.kind === "sleep" && !l.data.end);
+    if (open) update(open.id, { data: { ...open.data, end: at.toISOString() } });
+    log("wake", { time: s.time, slept_from: open?.data.start ?? null, routine: s.id }, at);
+  } else if (s.kind === "sleep") log("sleep", { start: at.toISOString(), end: null, type: "night", routine: s.id }, at);
+  else if (s.kind === "water") log("water", { ml: s.ml ?? 250, name: "Water", routine: s.id }, at);
+  else if (s.id === "b-work-end") log("activity", { name, routine: "b-work", start: new Date(`${today}T${s.whole?.time ?? s.time}:00`).toISOString(), end: at.toISOString() }, at);
+  else log(s.kind === "code" ? "coding" : "activity", { name, routine: s.id, ticked: true, ...span }, at);
+}
+
 function useGo() {
   const router = useRouter();
   const run = useRunAction();
@@ -55,14 +85,13 @@ function useGo() {
 }
 
 export function AssistantLayer() {
-  const { data } = useApp();
+  const { data, logActivity, updateLog } = useApp();
   const a = assistantOf(data.profile.settings);
   const go = useGo();
   const [now, setNow] = useState(() => new Date());
   const [alert, setAlert] = useState<Step | null>(null);
-  // Due when the app opens (or comes back after 30 minutes away), decided before any single alert.
-  const due = () => { const last = read<string>(CATCHUP, ""); return !last || Date.now() - new Date(last).getTime() > 30 * 60_000; };
-  const [catchup, setCatchup] = useState(() => typeof window !== "undefined" && a.catchup && due());
+  // Every time the app opens, reloads or comes back to the screen: the catch-up list.
+  const [catchup, setCatchup] = useState(() => a.catchup);
   const [battery, setBattery] = useState<number | null>(null);
   const day = toDay(now);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 30_000); return () => clearInterval(t); }, []);
@@ -74,16 +103,12 @@ export function AssistantLayer() {
     return a.sort === "kind" ? [...xs].sort((p, q) => p.kind.localeCompare(q.kind) || p.time.localeCompare(q.time)) : xs;
   }, [list, now, a.grace, a.sort]);
 
-  // Opening the app (or coming back after 30 minutes away): the catch-up list.
+  // Nothing missed when it opened: no list (single alerts take over).
+  useEffect(() => { if (catchup && !missed.length) setCatchup(false); }, [catchup, missed.length]);
   useEffect(() => {
     if (!a.catchup || paused) return;
-    const check = () => {
-      if (document.hidden) return;
-      if (due()) setCatchup(true);
-      write(CATCHUP, new Date().toISOString());
-    };
-    write(CATCHUP, new Date().toISOString());
-    const vis = () => { if (document.hidden) write(CATCHUP, new Date().toISOString()); else check(); };
+    let hiddenAt = 0;
+    const vis = () => { if (document.hidden) hiddenAt = Date.now(); else if (hiddenAt && Date.now() - hiddenAt > 3000) setCatchup(true); };
     document.addEventListener("visibilitychange", vis);
     return () => document.removeEventListener("visibilitychange", vis);
   }, [a.catchup, paused]);
@@ -108,13 +133,15 @@ export function AssistantLayer() {
     }).catch(() => {});
   }, [a.battery, day, now]);
 
+  // ✓: record it as done at its planned time, right away (no sheet to fill in).
+  const tick = (s: Step) => quickTick(s, logActivity, data.logs, updateLog);
   const mark = (s: Step, later: boolean) => {
     const k = `${ALERTED}-${day}`;
     const done = read<Record<string, string>>(k, {});
     done[s.id] = later && a.snooze > 0 ? new Date(Date.now() + a.snooze * 60_000).toISOString() : "x";
     write(k, done);
     setAlert(null);
-    try { speechSynthesis.cancel(); } catch {}
+    stopSpeaking();
   };
 
   if (battery != null) return (
@@ -124,8 +151,8 @@ export function AssistantLayer() {
     </Overlay>
   );
   // Closing the catch-up counts as being told about each of them (no alert for them one by one after).
-  const seen = () => { const k = `${ALERTED}-${day}`; const done = read<Record<string, string>>(k, {}); missed.forEach((s) => { done[s.id] = "x"; }); write(k, done); setCatchup(false); };
-  if (catchup && missed.length) return <CatchUp a={a} list={missed} now={now} onClose={seen} onGo={(s) => { seen(); go(s); }} />;
+  const seen = () => { const k = `${ALERTED}-${day}`; const done = read<Record<string, string>>(k, {}); missed.forEach((s) => { done[s.id] = "x"; }); write(k, done); setCatchup(false); stopSpeaking(); };
+  if (catchup && missed.length) return <CatchUp a={a} list={missed} now={now} onClose={seen} onGo={(s) => { seen(); go(s); }} onTick={tick} />;
   if (alert) return (
     <Overlay a={a} full={a.fullscreen}>
       {a.output !== "sound" && <p className="text-xl font-semibold leading-snug">{sayFor(alert, a)}</p>}
@@ -134,6 +161,7 @@ export function AssistantLayer() {
         <button className="btn-ghost !py-3" onClick={() => mark(alert, true)}>Later</button>
         <button className="btn-primary !py-3" onClick={() => { mark(alert, false); go(alert); }}>OK</button>
       </div>
+      <button className="btn-ghost w-full mt-2 !py-2.5" onClick={() => { tick(alert); mark(alert, false); }}>✓ Already done</button>
     </Overlay>
   );
   return null;
@@ -150,7 +178,7 @@ function Overlay({ a, full, children }: { a: AssistantSettings; full: boolean; c
   );
 }
 
-function CatchUp({ a, list, now, onClose, onGo }: { a: AssistantSettings; list: Step[]; now: Date; onClose: () => void; onGo: (s: Step) => void }) {
+function CatchUp({ a, list, now, onClose, onGo, onTick }: { a: AssistantSettings; list: Step[]; now: Date; onClose: () => void; onGo: (s: Step) => void; onTick: (s: Step) => void }) {
   const { data, saveSettings } = useApp();
   const [focus, setFocus] = useState(a.focus);
   useEffect(() => { assistantSay(`You missed ${list.length} ${list.length === 1 ? "task" : "tasks"} so far today.`, a); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -165,6 +193,7 @@ function CatchUp({ a, list, now, onClose, onGo }: { a: AssistantSettings; list: 
             <li key={s.id} className="card p-3 flex items-center gap-3">
               <span className="text-2xl">{s.icon}</span>
               <span className="flex-1 min-w-0"><span className="block font-semibold truncate">{s.label}</span><span className="text-xs text-muted">{fmt12(s.time)} · {lateBy(s, now)} min late</span></span>
+              <button aria-label={`Done: ${s.label}`} className="h-10 w-10 shrink-0 rounded-full border-2 border-emerald-400 text-emerald-300 text-lg font-black active:scale-90" onClick={() => onTick(s)}>✓</button>
               <button className="btn-primary !px-3 !py-2 text-sm shrink-0" onClick={() => onGo(s)}>Go to</button>
             </li>
           ))}
@@ -173,6 +202,7 @@ function CatchUp({ a, list, now, onClose, onGo }: { a: AssistantSettings; list: 
           <input className="input mt-1" placeholder="One thing that matters most today" value={focus} onChange={(e) => setFocus(e.target.value)} onBlur={() => saveSettings({ assistant: { ...assistantOf(data.profile.settings), focus } })} />
         </label>
         <button className="btn-ghost w-full mt-4 !py-3" onClick={onClose}>OK, close</button>
+        <p className="text-[11px] text-muted text-center mt-2">✓ = I did it (saved at its planned time; change the time on the Daily mission if needed).</p>
       </div>
     </div>
   );
@@ -213,4 +243,18 @@ export function PlainWords() {
 export function GameOnly({ children }: { children: React.ReactNode }) {
   const { data } = useApp();
   return assistantOf(data.profile.settings).mode === "game" ? <>{children}</> : null;
+}
+
+// While anything is being read aloud: a Stop button, and leaving the page stops it too.
+export function SpeechStop() {
+  const path = usePathname();
+  const [on, setOn] = useState(false);
+  useEffect(() => { stopSpeaking(); }, [path]);
+  useEffect(() => {
+    if (typeof speechSynthesis === "undefined") return;
+    const t = setInterval(() => setOn(speechSynthesis.speaking), 300);
+    return () => clearInterval(t);
+  }, []);
+  if (!on) return null;
+  return <button data-noedit onClick={() => { stopSpeaking(); setOn(false); }} className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[70] rounded-full bg-rose-500 px-5 py-2.5 font-bold text-white shadow-xl active:scale-95">■ Stop voice</button>;
 }

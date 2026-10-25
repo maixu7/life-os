@@ -1,6 +1,7 @@
 "use client";
 
 import { isFundamental } from "@/lib/assistant";
+import { quickTick } from "@/components/Assistant";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Sheet } from "@/components/Sheet";
@@ -69,7 +70,7 @@ export function DailyMission() {
   const pickList = (w: typeof which) => { setWhich(w); try { localStorage.setItem("lifeos-mission-list", w); } catch {} };
   const shown = (fund: boolean) => which === "all" || (which === "fund") === fund;
   const rows = [
-    ...list.filter((s) => shown(isFundamental(s))).map((s) => ({ t: s.time, el: <StepRow key={s.id} s={s} onTick={() => tickStep(s)} onOpen={() => setOpen(s.whole ?? s)} /> })),
+    ...list.filter((s) => shown(isFundamental(s))).map((s) => ({ t: s.time, el: <StepRow key={s.id} s={s} onTick={() => tickStep(s)} onDone={() => quickTick(s, logActivity, data.logs, updateLog, true)} onOpen={() => setOpen(s.whole ?? s)} /> })),
     ...own.filter(() => shown(true)).map((o) => ({ t: o.time, el: (
       <li key={o.id} className="flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5">
         <button onClick={() => setTask(o.id)} aria-label="Edit task" className="contents">
@@ -77,7 +78,7 @@ export function DailyMission() {
         <span className="w-[4.5rem] text-[11px] leading-tight text-muted shrink-0">{fmt12(o.time)}{o.end && <span className="block text-[9px]">to {fmt12(o.end)}</span>}</span>
         <span className="flex-1 min-w-0 text-sm truncate">{o.icon} {o.label}<span className="block text-[10px] text-muted">your task{o.want > 1 ? ` · ${o.got}/${o.want} ${AREAS[o.area].unit}` : ""}</span></span>
         </button>
-        {!o.done && o.area === "other" && <button onClick={() => logActivity("activity", { name: o.label }, new Date())} className="chip !py-0.5 text-[11px]">✓ Done</button>}
+        {!o.done && o.area === "other" && <button onClick={() => logActivity("activity", { name: o.label }, new Date())} aria-label={`Done: ${o.label}`} className="h-8 w-8 shrink-0 rounded-full border-2 border-emerald-400 text-emerald-300 font-black active:scale-90">✓</button>}
       </li>
     ) })),
   ].sort((a, b) => a.t.localeCompare(b.t));
@@ -129,7 +130,7 @@ export function DailyMission() {
 
 const atHM = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
-function StepRow({ s, onTick, onOpen }: { s: Step; onTick: () => void; onOpen: () => void }) {
+function StepRow({ s, onTick, onDone, onOpen }: { s: Step; onTick: () => void; onDone: () => void; onOpen: () => void }) {
   const long = lenText(s);
   const sub = s.state === "done" ? (s.id === "b-work" ? `started ${atHM(s.at!)} · ${lateText(s.diff)}` : s.id === "b-work-end" ? `finished ${fmt12(s.doneEnd!)} · ${lateText(s.diff)}${long ? ` · work ${long}` : ""}`
     : `done ${atHM(s.at!)}${s.doneEnd ? `–${fmt12(s.doneEnd)}` : ""} · ${timeText(s.diff, s.endDiff)}${s.gotMl ? ` · ${s.gotMl} ml` : ""}${long ? ` · ${long}` : ""}`)
@@ -147,7 +148,8 @@ function StepRow({ s, onTick, onOpen }: { s: Step; onTick: () => void; onOpen: (
             <span className={`block text-[10px] truncate ${s.state === "done" ? (t === "late" ? "text-amber-300" : t === "early" ? "text-sky-300" : "text-emerald-400") : s.state === "missed" ? "text-rose-400" : "text-muted"}`}>{sub}{s.note && s.state !== "done" ? `${sub ? " · " : ""}${s.note}` : ""}</span>
           </span>
         </button>
-        {s.state !== "done" && <button onClick={onTick} aria-label={s.moves?.length ? "Open workout" : "Done"} className="chip !px-2 !py-0.5 text-[11px] shrink-0">{s.moves?.length ? "▶" : "✓"}</button>}
+        {s.state !== "done" && s.moves?.length ? <button onClick={onTick} aria-label="Open workout" className="chip !px-2 !py-0.5 text-[11px] shrink-0">▶</button> : null}
+        {s.state !== "done" && <button onClick={onDone} aria-label={`Done: ${s.label}`} className="h-8 w-8 shrink-0 rounded-full border-2 border-emerald-400 text-emerald-300 font-black active:scale-90">✓</button>}
       </div>
       {s.moves && s.moves.length > 0 && s.state !== "done" && (
         <ul className="mt-1 ml-9 flex flex-wrap gap-1">

@@ -1,6 +1,7 @@
 import { itemKind, planMinutes, workoutHalves, type PlanRow } from "@/lib/have";
 import { myKit } from "@/lib/learnkit";
 import { fitOf } from "@/lib/focus";
+import { intakeBoost } from "@/lib/focusplan";
 import type { RoutineItem } from "@/lib/mission";
 import { dayType, goalsOn, hm, isOffDay, sched, sleepTimes, toMin } from "@/lib/schedule";
 import { toDay, type Data } from "@/lib/store";
@@ -84,7 +85,11 @@ export function autoSteps(d: Data, date: Date): RoutineItem[] {
   const fruit = d.pantry.filter((p) => p.qty > 0 && ["fruit", "veg"].includes(itemKind(p)));
   const tea = toMin(s.tea);
   const snackAt = !Number.isNaN(tea) && !busy(tea) ? tea : free + 15;
-  add("snack", snackAt, 10, "Snack", "meal", { note: fruit.length ? `Have ${pick(fruit, "f").name} (you have it at home)` : "Fruit, nuts or yoghurt, not sweets", href: "/food" });
+  // Too much sugar or food (today or yesterday): no sweets, and a brisk walk to burn it off.
+  const boost = intakeBoost(d, date);
+  const sweet = boost.sugar >= 50 ? ` No sweets or sweet drinks today: ${boost.sugar} g sugar already.` : "";
+  add("snack", snackAt, 10, "Snack", "meal", { note: (fruit.length ? `Have ${pick(fruit, "f").name} (you have it at home)` : "Fruit, nuts or yoghurt, not sweets") + sweet, href: "/food" });
+  if (boost.extra && !fitOn) { const dn = toMin(s.dinner); add("burn", (Number.isNaN(dn) ? free + 60 : dn) + 35, boost.extra, `Brisk walk ${boost.extra} min`, "workout", { note: boost.why.join(" "), href: "/train" }); }
 
   // ---- Training: part 2 of today's workout, after work ----
   const ex = toMin(s.exercise);
