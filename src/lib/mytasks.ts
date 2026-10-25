@@ -78,6 +78,7 @@ export function myTasks(d: Data, now = new Date()): Task[] {
   for (const i of d.items.filter((x) => x.category === "task")) {
     const t = taskOf(i);
     if (!dueOn(t, now)) continue;
+    if (Array.isArray(i.config.doneOn) && (i.config.doneOn as string[]).includes(day)) continue; // ticked by hand
     const [hh, mm] = t.time.split(":").map(Number);
     if (mins < hh * 60 + mm) continue;
     // Only what you did from the task's time on counts.

@@ -609,10 +609,13 @@ export function ownTasks(d: Data, day: string, now = new Date()) {
   const fit = plan(d, day, now).tasks; // where your task sits after the day is fitted together
   return d.items.filter((i) => i.category === "task").map((i) => ({ i, t: taskOf(i) })).filter(({ t }) => dueOn(t, date)).map(({ i, t }) => {
     const want = targetOf(t, d, now) ?? 1;
-    const since = new Date(`${day}T${t.time}:00`).getTime();
-    const got = measure(t.area, i.name, logs.filter((l) => new Date(l.created_at).getTime() >= since - 3_600_000), d, day);
+    // Counts what you logged from an hour before its time, but never from before you made the task
+    // (so drinks you had earlier don't tick a new "Drink milk" straight away).
+    const since = Math.max(new Date(`${day}T${t.time}:00`).getTime() - 3_600_000, i.sort > 1e12 ? i.sort : 0);
+    const got = measure(t.area, i.name, logs.filter((l) => new Date(l.created_at).getTime() >= since), d, day);
+    const ticked = Array.isArray(i.config.doneOn) && (i.config.doneOn as string[]).includes(day);
     const at = fit.get(i.id);
-    return { id: i.id, time: at?.time ?? t.time, end: at ? at.end : typeof i.config.end === "string" && i.config.end ? i.config.end : undefined, label: i.name, icon: AREAS[t.area].icon, area: t.area, done: got >= want, want, got };
+    return { id: i.id, time: at?.time ?? t.time, end: at ? at.end : typeof i.config.end === "string" && i.config.end ? i.config.end : undefined, set: t.time, label: i.name, icon: AREAS[t.area].icon, area: t.area, done: ticked || got >= want, ticked, want, got };
   });
 }
 

@@ -5,6 +5,7 @@ import { quickTick } from "@/components/Assistant";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Sheet } from "@/components/Sheet";
+import { CloseX } from "@/components/CloseX";
 import { openSlotSheet } from "@/components/Blocks";
 import { useRunAction } from "@/components/Coach";
 import { sleepDebt, timeMap, TIME_CAT, usualTime, waterPace, type TimeCat } from "@/lib/insights";
@@ -26,7 +27,7 @@ const COLOR = { done: "text-emerald-400 bg-emerald-500/15", missed: "text-rose-4
 const SKIPS = ["😷 Sick", "🛌 Rest day", "✈️ Travelling", "🚫 Not needed today", "⏰ No time today"];
 
 export function DailyMission() {
-  const { data, logActivity, updateLog } = useApp();
+  const { data, logActivity, updateLog, update } = useApp();
   const run = useRunAction();
   const router = useRouter();
   const [, tick] = useState(0);
@@ -36,6 +37,14 @@ export function DailyMission() {
   const [report, setReport] = useState(false);
   const [open, setOpen] = useState<Step | null>(null);
   const [task, setTask] = useState<string | null>(null);
+  // The task you just added: scrolled to, lit up, and named in a small note.
+  const [added, setAdded] = useState<{ id: string; text: string } | null>(null);
+  useEffect(() => {
+    if (!added) return;
+    const raf = requestAnimationFrame(() => document.querySelector(`[data-task="${added.id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    const t = setTimeout(() => setAdded(null), 5000);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+  }, [added]);
   const [pick, setPick] = useState<Pickd | null>(null);
   const day = toDay(new Date());
   const list = steps(data, day);
@@ -67,6 +76,11 @@ export function DailyMission() {
     const minutes = end ? Math.max(1, Math.round((end.getTime() - at.getTime()) / 60_000)) : undefined;
     logActivity(kind, { name: s.label, routine: s.id, ...(end ? { start: at.toISOString(), end: end.toISOString(), minutes } : {}) }, at);
   };
+  // ✓ on your own task: ticked for today whatever kind it is, and recorded like any other activity.
+  const tickOwn = (id: string, name: string, area: Area) => {
+    update((d) => ({ ...d, items: d.items.map((i) => (i.id === id ? { ...i, config: { ...i.config, doneOn: [...((i.config.doneOn as string[]) ?? []).filter((x) => x >= day), day] } } : i)) }));
+    if (area === "other") logActivity("activity", { name }, new Date());
+  };
   // Two lists: your fixed routine (Fundamental) and what the app assigns.
   const [which, setWhich] = useState<"all" | "fund" | "app">(() => { try { return (localStorage.getItem("lifeos-mission-list") as "all" | "fund" | "app") || "all"; } catch { return "all"; } });
   const pickList = (w: typeof which) => { setWhich(w); try { localStorage.setItem("lifeos-mission-list", w); } catch {} };
@@ -76,14 +90,19 @@ export function DailyMission() {
   const waterToday = pace.got;
   const rows = [
     ...list.filter((s) => shown(isFundamental(s))).map((s) => ({ t: s.time, el: <StepRow key={s.id} s={s} onTick={() => tickStep(s)} onDone={() => quickTick(s, logActivity, data.logs, updateLog, true)} onOpen={() => setOpen(s.whole ?? s)} /> })),
-    ...own.filter(() => shown(true)).map((o) => ({ t: o.time, el: (
-      <li key={o.id} className="flex items-center gap-2 rounded-xl bg-white/5 px-2 py-1.5">
-        <button onClick={() => setTask(o.id)} aria-label="Edit task" className="contents">
-        <span className={`h-7 w-7 shrink-0 rounded-full grid place-items-center font-black ${COLOR[o.done ? "done" : "later"]}`}>{o.done ? "✓" : "○"}</span>
-        <span className="w-[4.5rem] text-[11px] leading-tight text-muted shrink-0">{fmt12(o.time)}{o.end && <span className="block text-[9px]">to {fmt12(o.end)}</span>}</span>
-        <span className="flex-1 min-w-0 text-sm truncate">{o.icon} {o.label}<span className="block text-[10px] text-muted">your task{o.want > 1 ? ` · ${o.got}/${o.want} ${AREAS[o.area].unit}` : ""}</span></span>
+    // Your own tasks show in every list: you made them, so they never hide behind a filter.
+    ...own.map((o) => ({ t: o.time, el: (
+      <li key={o.id} data-task={o.id} className={`flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors ${added?.id === o.id ? "bg-emerald-500/20 ring-2 ring-emerald-400" : "bg-white/5"}`}>
+        <button onClick={() => setTask(o.id)} aria-label={`Edit task: ${o.label}`} className="flex flex-1 min-w-0 items-center gap-2 text-left">
+          <span className={`h-7 w-7 shrink-0 rounded-full grid place-items-center font-black ${COLOR[o.done ? "done" : "later"]}`}>{o.done ? "✓" : "○"}</span>
+          <span className="w-[4.5rem] text-[11px] leading-tight text-muted shrink-0">{fmt12(o.time)}{o.end && <span className="block text-[9px]">to {fmt12(o.end)}</span>}</span>
+          <span className="flex-1 min-w-0 text-sm">
+            <span className="block truncate">{o.icon} {o.label}</span>
+            <span className="block text-[10px] text-muted truncate">your task{o.time !== o.set ? ` · set for ${fmt12(o.set)}` : ""}{o.want > 1 ? ` · ${o.got}/${o.want} ${AREAS[o.area].unit}` : ""}</span>
+            {o.done && <span className="mt-0.5 inline-block rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-bold text-emerald-300">✓ Done</span>}
+          </span>
         </button>
-        {!o.done && o.area === "other" && <button onClick={() => logActivity("activity", { name: o.label }, new Date())} aria-label={`Done: ${o.label}`} className="h-8 w-8 shrink-0 rounded-full border-2 border-emerald-400 text-emerald-300 font-black active:scale-90">✓</button>}
+        {!o.done && <button onClick={() => tickOwn(o.id, o.label, o.area)} aria-label={`Done: ${o.label}`} className="h-9 w-9 shrink-0 rounded-full border-2 border-emerald-400 text-emerald-300 font-black active:scale-90">✓</button>}
       </li>
     ) })),
   ].sort((a, b) => a.t.localeCompare(b.t));
@@ -134,7 +153,13 @@ export function DailyMission() {
         <button onClick={() => setReport(true)} className="chip justify-center !py-1.5 text-xs">📊 Report</button>
       </div>
       {edit && <RoutineSheet onClose={() => setEdit(false)} />}
-      {add && <OwnTaskSheet onClose={() => setAdd(false)} />}
+      {add && <OwnTaskSheet onClose={() => setAdd(false)} onAdded={(id, text) => setAdded({ id, text })} />}
+      {added && (
+        <div role="status" className="fixed left-1/2 -translate-x-1/2 bottom-24 z-[60] max-w-[92vw] rounded-2xl bg-emerald-600 text-white shadow-lg pl-4 pr-12 py-3 text-sm font-semibold">
+          {added.text}
+          <CloseX onClose={() => setAdded(null)} label="Close" />
+        </div>
+      )}
       {task && <OwnTaskSheet id={task} onClose={() => setTask(null)} />}
       {pick && <PickSheet p={pick} day={day} onClose={() => setPick(null)} />}
       {report && <MissionReport onClose={() => setReport(false)} />}
@@ -361,7 +386,7 @@ function RoutineSheet({ onClose }: { onClose: () => void }) {
 
 // ---------- ＋ My own task (e.g. 12:00 go shopping) ----------
 // With an id it edits that task (times, name, kind, every day) or deletes it.
-function OwnTaskSheet({ onClose, id }: { onClose: () => void; id?: string }) {
+function OwnTaskSheet({ onClose, id, onAdded }: { onClose: () => void; id?: string; onAdded?: (id: string, text: string) => void }) {
   const { data, update } = useApp();
   const old = id ? data.items.find((i) => i.id === id) : undefined;
   const c = (old?.config ?? {}) as Record<string, unknown>;
@@ -374,7 +399,11 @@ function OwnTaskSheet({ onClose, id }: { onClose: () => void; id?: string }) {
     if (!name.trim()) return;
     const config = { ...c, area, time, end: end || undefined, at: Date.now(), days: (c.days as number[]) ?? [0, 1, 2, 3, 4, 5, 6], date: every ? undefined : (c.date as string) ?? toDay(new Date()), level: (c.level as string) ?? "normal" };
     if (old) update((d) => ({ ...d, items: d.items.map((i) => (i.id === old.id ? { ...i, name: name.trim(), config } : i)) }));
-    else update((d) => ({ ...d, items: [...d.items, { id: crypto.randomUUID(), category: "task", name: name.trim(), sort: Date.now(), config }] }));
+    else {
+      const nid = crypto.randomUUID();
+      update((d) => ({ ...d, items: [...d.items, { id: nid, category: "task", name: name.trim(), sort: Date.now(), config }] }));
+      onAdded?.(nid, `✓ Added "${name.trim()}" at ${fmt12(time)}${every ? ", every day" : " today"}`);
+    }
     onClose();
   };
   const remove = () => { if (old && confirm(`Delete "${old.name}"?`)) { update((d) => ({ ...d, items: d.items.filter((i) => i.id !== old.id) })); onClose(); } };
@@ -389,6 +418,11 @@ function OwnTaskSheet({ onClose, id }: { onClose: () => void; id?: string }) {
       <div className="flex flex-wrap gap-1">{(Object.keys(AREAS) as Area[]).map((a) => <button key={a} onClick={() => setArea(a)} className={`chip !py-0.5 text-[11px] ${area === a ? "chip-on" : ""}`}>{AREAS[a].icon} {AREAS[a].label}</button>)}</div>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={every} onChange={(e) => setEvery(e.target.checked)} /> Every day (otherwise just today)</label>
       <button disabled={!name.trim()} onClick={save} className="btn-primary w-full disabled:opacity-40">{old ? "Save" : "Add to today\u2019s mission"}</button>
+      {old && (() => {
+        const today = toDay(new Date()), ticked = Array.isArray(c.doneOn) && (c.doneOn as string[]).includes(today);
+        const flip = () => { update((d) => ({ ...d, items: d.items.map((i) => (i.id === old.id ? { ...i, config: { ...i.config, doneOn: ticked ? (c.doneOn as string[]).filter((x) => x !== today) : [...((c.doneOn as string[]) ?? []).filter((x) => x >= today), today] } } : i)) })); onClose(); };
+        return <button onClick={flip} className="chip w-full justify-center">{ticked ? "↩ Not done yet" : "✓ Mark done today"}</button>;
+      })()}
       {old && <button onClick={remove} className="chip w-full justify-center text-rose-300">🗑 Delete this task</button>}
     </Sheet>
   );
