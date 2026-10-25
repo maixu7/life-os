@@ -5,6 +5,7 @@ import { assistantSay, stopSpeaking } from "@/components/Assistant";
 import { CloseX } from "@/components/CloseX";
 import { useBackCloses } from "@/components/Sheet";
 import { assistantOf } from "@/lib/assistant";
+import { sleepDebt } from "@/lib/insights";
 import { steps, type Step } from "@/lib/mission";
 import { fmt12, sched, sleepTimes, toMin } from "@/lib/schedule";
 import { toDay, useApp, type Data } from "@/lib/store";
@@ -64,18 +65,20 @@ function Briefing({ now, onClose }: { now: Date; onClose: () => void }) {
   const find = (re: RegExp) => list.find((x: Step) => re.test(x.id) && x.state !== "done");
   const work = find(/^a-fit-1$|^b-exercise$|^a-train/), study = find(/^b-study$/);
   const plan = plannedToday(data, day);
+  const sd = useMemo(() => sleepDebt(data, now), [data, now]);
   const exam = data.profile.settings.exam_date ? Math.ceil((new Date(data.profile.settings.exam_date).getTime() - now.getTime()) / 86_400_000) : null;
   const name = data.profile.display_name || "there";
   const water = data.profile.settings.water_goal_ml;
   const woke = wake?.state === "done" && wake.diff != null ? (wake.diff > 4 ? `You got up ${wake.diff} min late; the morning has moved to fit.` : wake.diff < -4 ? `You got up ${-wake.diff} min early. Great start.` : "You got up on time.") : "";
   const speech = [`Good morning ${name}.`, woke, next[0] && `First: ${next[0].label} at ${fmt12(next[0].time)}.`, work && `Workout at ${fmt12(work.time)}.`, study && `Study at ${fmt12(study.time)}.`,
-    plan.length ? `Your top ${plan.length} for today: ${plan.join(", ")}.` : "", exam != null && exam >= 0 ? `${exam} days until your exam.` : ""].filter(Boolean).join(" ");
+    plan.length ? `Your top ${plan.length} for today: ${plan.join(", ")}.` : "", sd.debt >= 1 ? `You are ${sd.debt} hours short on sleep this week.` : "", exam != null && exam >= 0 ? `${exam} days until your exam.` : ""].filter(Boolean).join(" ");
   return (
     <Shell title="Morning briefing" onClose={onClose}>
       <div className="text-xs font-semibold tracking-widest uppercase text-[var(--accent2)]">{a.name}</div>
       <h2 className="text-2xl font-bold">☀️ Good morning, {name}</h2>
       <p className="text-sm text-muted">{now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</p>
       {woke && <p className="card p-3 text-sm">🌅 {woke}</p>}
+      {sd.debt >= 1 && <p className="card p-3 text-sm">😴 You are {sd.debt} h short on sleep this week.{sd.tonight ? ` Bed at ${fmt12(sd.tonight)} tonight wins some back.` : ""}</p>}
       {plan.length > 0 && <div className="card p-3"><div className="text-xs text-muted mb-1">Your top {plan.length} (planned last night)</div>{plan.map((p, i) => <div key={i} className="text-sm">{i + 1}. {p}</div>)}</div>}
       <div className="card p-3 space-y-1.5">
         <div className="text-xs text-muted">Next up</div>

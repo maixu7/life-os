@@ -245,7 +245,7 @@ export function UploadSheet({ cat, item, onClose, onShop }: {
 }
 
 // "Upload" from anywhere: pick which collection, then its own upload screen.
-export const openUpload = (cat?: UploadCat) => window.dispatchEvent(new CustomEvent("lifeos-upload", { detail: cat ?? null }));
+export { openUpload } from "@/lib/openUpload";
 export function UploadHost() {
   const [open, setOpen] = useState<UploadCat | "pick" | null>(null);
   useEffect(() => {

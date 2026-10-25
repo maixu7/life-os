@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { DrinkSheet } from "@/components/Drinks";
+import { DrinkSheet } from "@/components/LazySheets";
 import { MealSheet } from "@/components/Meals";
 import { TaskLog } from "@/components/TaskLog";
 import { SleepSheet, WakeSheet } from "@/components/WakeSleep";

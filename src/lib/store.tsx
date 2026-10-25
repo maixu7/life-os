@@ -26,6 +26,7 @@ export type Settings = {
   allowances: Record<string, number>; // "2026-10" -> allowance for that month
   schedule?: Partial<Schedule>; // wake/sleep, work hours, breaks, holidays
   routine?: RoutineItem[]; // your own timed steps in the daily mission (bathroom 5:50, brush 6:45…)
+  routineSkip?: Record<string, Record<string, string>>; // day → step id → why it was skipped that day (sick, rest day…)
   routineEdit?: Record<string, StepEdit>; // your changes to any daily-mission step (times, name, hidden)
   ui?: Ui; // bottom menu tabs and hidden Base Camp sections
   study_plan?: StudyItem[]; // what to study each day and how much

@@ -5,7 +5,7 @@ import { Sheet } from "@/components/Sheet";
 import { Pic } from "@/components/Pic";
 import { UploadSheet } from "@/components/UploadSheet";
 import { EditLog } from "@/components/EditLog";
-import { DrinkSheet } from "@/components/Drinks";
+import { DrinkSheet } from "@/components/LazySheets";
 import { FoodThumbs, MealSheet, isMealLog } from "@/components/Meals";
 import { MealSlotSheet } from "@/components/Meals";
 import { describe as describeLog } from "@/lib/describe";

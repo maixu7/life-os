@@ -12,7 +12,7 @@ import { energy, type Eaten } from "@/lib/body";
 import { SnapChoice, useRememberSnap, type LabelRead, type Pick } from "@/components/SnapChoice";
 import { foodPicks } from "@/lib/foodpicks";
 import { haveFoods, recentFoods, takeFromPantry } from "@/lib/have";
-import { DrinkSheet } from "@/components/Drinks";
+import { DrinkSheet } from "@/components/LazySheets";
 import { allMealSlots, ICONS, MEAL_IDEAS, mealSlots, uid, type MealSlot } from "@/lib/layout";
 import type { Ui } from "@/lib/ui";
 import { toDay, useApp, type Log } from "@/lib/store";

@@ -316,3 +316,8 @@ export function battleFor(d: Data, day: string): Battle {
   if (hp > 0 && fhp > 0) rounds.push(won ? `✨ Your discipline finishes it off!` : `💨 The ${demon} escapes into the dark.`);
   return { day, demon, demonIcon, why, hero, foe, won, gold: won ? 20 + Math.round(hero / 10) : 0, rounds };
 }
+
+/** Sugar (g) in what was eaten and drunk on a day. */
+export function sugarOn(d: Data, day: string) {
+  return Math.round(eaten(d.logs.filter((l) => l.day === day), d.items).reduce((n, f) => n + (Number(f.sugar) || 0), 0));
+}
