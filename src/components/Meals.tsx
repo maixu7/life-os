@@ -166,7 +166,7 @@ export function MealsCard() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {pic ? <img src={pic} alt={m.label} className="h-10 w-10 rounded-xl object-cover" /> : <span className="text-2xl h-10 grid place-items-center">{m.icon}</span>}
               <span className="text-[10px] leading-tight text-center line-clamp-2">{m.label}</span>
-              {done.length > 0 && <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-emerald-500 text-[11px] grid place-items-center">{done.length > 1 ? done.length : "✓"}</span>}
+              {done.length > 0 && <span aria-label="Done" className="rounded-full bg-emerald-500 px-1.5 text-[9px] font-bold leading-4 text-white">✓ {done.length > 1 ? `×${done.length}` : "Done"}</span>}
             </button>
           );
         })}

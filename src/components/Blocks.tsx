@@ -74,7 +74,7 @@ export function SlotGrid({ slots, done }: { slots: MiniSlot[]; done?: (s: MiniSl
           <>
             <span className="text-2xl leading-none">{s.icon}</span>
             <span className="text-[10px] leading-tight text-center line-clamp-2">{s.label}</span>
-            {ok && <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-emerald-500 text-[9px] grid place-items-center">✓</span>}
+            {ok && <span aria-label="Done" className="rounded-full bg-emerald-500 px-1.5 text-[9px] font-bold leading-4 text-white">✓ Done</span>}
           </>
         );
         const cls = `relative rounded-2xl border bg-white/[.04] p-1.5 flex flex-col items-center gap-1 active:scale-95 transition ${ok ? "border-emerald-400/60" : "border-white/10"}`;

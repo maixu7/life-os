@@ -185,7 +185,7 @@ export function DrinksCard() {
   const tile = (key: string, icon: React.ReactNode, label: string, done: number, go: () => void) => (
     <button key={key} onClick={go} className={`relative rounded-2xl border bg-white/[.04] p-1 pb-1.5 flex flex-col items-center gap-1 active:scale-95 ${done ? "border-sky-400/60" : "border-white/10"}`}>
       {icon}<span className="text-[10px] leading-tight text-center line-clamp-2">{label}</span>
-      {done > 0 && <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-sky-500 text-[11px] grid place-items-center">{done > 1 ? done : "✓"}</span>}
+      {done > 0 && <span aria-label="Done" className="rounded-full bg-sky-500 px-1.5 text-[9px] font-bold leading-4 text-white">✓ {done > 1 ? `×${done}` : "Done"}</span>}
     </button>
   );
   return (
