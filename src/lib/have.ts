@@ -149,7 +149,7 @@ export const withGear = (kit: Kit, g: Gear) => MOVES.filter((m) => m.kind === "b
 
 // A full day's workout from what you own: warm-up, one move per body part, a
 // finisher and a cool-down. It changes each day.
-export type PlanRow = { part: string; name: string; sets: number; reps: string; kg?: number };
+export type PlanRow = { part: string; name: string; sets: number; reps: string; kg?: number; /** seconds of rest between sets */ rest?: number };
 // "3 × 8-12" in plain words: "3 sets of 8–12 reps", "1 round of 60 seconds".
 export function setsText(sets: number, reps: string) {
   const r = String(reps).trim().replace(/-/g, "–");

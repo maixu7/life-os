@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { hm, sched, studyFrom, type Schedule } from "@/lib/schedule";
 import { studyGate } from "@/lib/worst";
 import { AREAS, taskOf } from "@/lib/mytasks";
-import { toDay } from "@/lib/store";
+import { toDay, type Data } from "@/lib/store";
+import { steps } from "@/lib/mission";
+import { fitOf } from "@/lib/focus";
 import { useApp, useCustomItems, type CustomItem } from "@/lib/store";
 
 // Phone notifications while the app is closed: Sensei's reminders are sent
@@ -15,13 +17,37 @@ const ON = "lifeos-push-on";
 const add = (t: string, mins: number) => { const [h, m] = t.split(":").map(Number); const x = (h * 60 + m + mins + 1440) % 1440; return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`; };
 const weekdays = [1, 2, 3, 4, 5], weekend = [0, 6];
 
-export function buildPlan(s: Schedule, reminders: CustomItem[], studying: boolean, tasks: CustomItem[] = []): Plan[] {
+// Focus Area: each workout of the next 7 days with water before and after, posture
+// nudges while sitting at work, and the weekly fitness report on Sunday evening.
+export function fitPlan(d: Data, now = new Date()): Plan[] {
+  const fit = fitOf(d.profile.settings.fit);
+  if (!fit.on || !fit.remind) return [];
+  const s = sched(d.profile.settings.schedule);
+  const out: Plan[] = [{ at: "20:00", body: "📈 Your weekly fitness report is ready: what improved and what to do next.", days: [0], url: "/fit" }];
+  for (let i = 0; i < 7; i++) {
+    const date = new Date(now.getTime() + i * 86_400_000), day = toDay(date), dow = date.getDay();
+    for (const x of steps(d, day, i ? new Date(`${day}T00:00:00`) : now).filter((st) => /^a-fit-\d+$/.test(st.id) || st.id === "a-kegel")) {
+      if (x.id === "a-kegel") { out.push({ at: x.time, body: `🌸 ${x.label}. 3 minutes, sit or lie down.`, days: [dow], url: "/fit" }); continue; }
+      out.push({ at: add(x.time, -15), body: "💧 Drink 250 ml of water: training in 15 minutes.", days: [dow], url: "/fit" });
+      out.push({ at: x.time, body: `💪 ${x.label}. Tap to start.`, days: [dow], url: "/fit" });
+      if (x.end) out.push({ at: add(x.end, 5), body: "💧 Great work. Drink 300 ml of water now.", days: [dow] });
+    }
+  }
+  if (fit.posture && s.workType !== "none" && s.workStart && s.workEnd) {
+    const [a, b] = [s.workStart, s.workEnd].map((t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; });
+    for (let m = a + 90; m < b - 30; m += 90) out.push({ at: hm(m), body: "🧍 Sitting long? Stand up, roll your shoulders back and do 10 chin tucks.", days: s.workDays });
+  }
+  return out;
+}
+
+export function buildPlan(s: Schedule, reminders: CustomItem[], studying: boolean, tasks: CustomItem[] = [], fit: Plan[] = []): Plan[] {
   // Reports: every day at 8 PM, every Saturday at 8 AM, and the month's on its first Saturday.
   const p: Plan[] = [
     { at: "20:00", body: "📊 Your day report is ready: what went well and what you lacked.", url: "/?report=day" },
     { at: "08:00", body: "📊 Your week report is ready. 2 minutes to see how the week went.", days: [6], url: "/?report=week" },
     { at: "08:00", body: "📊 Your month report is ready. See the month and what to fix next.", days: [6], first: true, url: "/?report=month" },
   ];
+  p.push(...fit);
   p.push(...reminders.filter((r) => /^\d\d:\d\d$/.test(String(r.config.time))).map((r) => ({ at: String(r.config.time), body: `⏰ ${r.name}` })));
   const t = (at: string, body: string, days?: number[]) => { if (/^\d\d:\d\d$/.test(at)) p.push({ at, body, days }); };
   // Your own weekly tasks ring like Sensei's (one-date tasks show in the app).
@@ -45,7 +71,7 @@ export function buildPlan(s: Schedule, reminders: CustomItem[], studying: boolea
       for (let m = a + 20, i = 0; m < (end > a ? end : a + 300); m += 20, i++) p.push({ at: add("00:00", m), body: NAGS[i % NAGS.length], until: "study", days });
     }
   }
-  t(s.exercise, "💪 Training time. Even 15 minutes counts.");
+  if (!fit.length) t(s.exercise, "💪 Training time. Even 15 minutes counts.");
   t(add(s.sleep, -(s.windDown || 30)), "🌙 Wind down: screens away, plan tomorrow.", weekdays);
   t(s.sleep, "😴 Bedtime. Phone away, Sensei says goodnight.", weekdays);
   t(s.weekendSleep, "😴 Bedtime. Phone away.", weekend);
@@ -57,12 +83,15 @@ const b64 = (s: string) => { const p = "=".repeat((4 - (s.length % 4)) % 4); con
 const call = (body: object) => fetch("/api/push", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then(async (r) => ({ ok: r.ok, j: await r.json().catch(() => ({})) }));
 
 function usePlan() {
-  const { profile } = useApp();
+  const { profile, data } = useApp();
   const { items } = useCustomItems("reminder");
   const { items: tasks } = useCustomItems("task");
   const s = sched(profile.settings.schedule);
   const studying = !!profile.settings.study_plan?.length;
-  return useMemo(() => buildPlan(s, items, studying, tasks), [s, items, studying, tasks]);
+  // The workouts move with your day, so they're worked out again when the day or your data changes.
+  // Only worked out when notifications are on (it plans 7 days).
+  const fit = useMemo(() => { let on = false; try { on = localStorage.getItem(ON) === "1"; } catch {} return on ? fitPlan(data) : []; }, [data]);
+  return useMemo(() => buildPlan(s, items, studying, tasks, fit), [s, items, studying, tasks, fit]);
 }
 
 export function PushCard() {

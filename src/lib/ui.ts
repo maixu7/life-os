@@ -10,6 +10,7 @@ export const ALL_TABS: Tab[] = [
   { href: "/food", icon: "🍱", label: "Food" },
   { href: "/doctor", icon: "🩺", label: "Doctor" },
   { href: "/train", icon: "⚔️", label: "Train" },
+  { href: "/fit", icon: "🎯", label: "Focus Area" },
   { href: "/today", icon: "📋", label: "Today" },
   { href: "/focus", icon: "🧘", label: "Dojo" },
   { href: "/tools", icon: "🧰", label: "Tools" },

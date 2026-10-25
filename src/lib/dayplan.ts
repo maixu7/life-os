@@ -1,5 +1,6 @@
 import { itemKind, planMinutes, workoutHalves, type PlanRow } from "@/lib/have";
 import { myKit } from "@/lib/learnkit";
+import { fitOf } from "@/lib/focus";
 import type { RoutineItem } from "@/lib/mission";
 import { dayType, goalsOn, hm, isOffDay, sched, sleepTimes, toMin } from "@/lib/schedule";
 import { toDay, type Data } from "@/lib/store";
@@ -49,7 +50,8 @@ export function autoSteps(d: Data, date: Date): RoutineItem[] {
   add("wash-am", W + 55, 10, "Wash face, get ready", "step");
   // Part 1 of today's workout (the same plan as Train › Today's full workout).
   const { am, pm } = workoutHalves(d.pantry, date, off);
-  add("train-am", W + 65, planMinutes(am), workoutLabel(1, am), "workout", { moves: am, href: "/train" });
+  const fitOn = fitOf(d.profile.settings.fit).on; // Focus Area plans the workout itself (lib/focusplan.ts)
+  if (!fitOn) add("train-am", W + 65, planMinutes(am), workoutLabel(1, am), "workout", { moves: am, href: "/train" });
 
   // ---- Learning from your collection ----
   const kit = myKit(d);
@@ -88,8 +90,8 @@ export function autoSteps(d: Data, date: Date): RoutineItem[] {
   const ex = toMin(s.exercise);
   const exAt = !Number.isNaN(ex) && !busy(ex, 45) ? ex : free + (noTraining ? 20 : 60);
   // The schedule already has Exercise (part 2) at its time; otherwise the app adds it.
-  if (Number.isNaN(ex)) add("train", exAt, planMinutes(pm), `${workoutLabel(2, pm)}${noTraining ? " (no training for 3 days)" : ""}`, "workout", { moves: pm, href: "/train" });
-  add("warmup", exAt - 5, 5, "Warm up 5 min before part 2", "step", { href: "/train", before: Number.isNaN(ex) ? "a-train" : "b-exercise" });
+  if (Number.isNaN(ex) && !fitOn) add("train", exAt, planMinutes(pm), `${workoutLabel(2, pm)}${noTraining ? " (no training for 3 days)" : ""}`, "workout", { moves: pm, href: "/train" });
+  if (!fitOn) add("warmup", exAt - 5, 5, "Warm up 5 min before part 2", "step", { href: "/train", before: Number.isNaN(ex) ? "a-train" : "b-exercise" });
 
   // ---- Evening learning ----
   const st = toMin(s.studyStart), se = toMin(s.studyEnd);

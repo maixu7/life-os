@@ -3,6 +3,8 @@ import { itemKind, kitOf, planMinutes, workoutHalves, type PlanRow } from "@/lib
 import { AREAS, dueOn, measure, targetOf, taskOf, type Area } from "@/lib/mytasks";
 import { dayType, goalsOn, hm, isOffDay, sched, sleepTimes, studyFrom, toMin } from "@/lib/schedule";
 import { autoSteps, workoutLabel } from "@/lib/dayplan";
+import { fitOf } from "@/lib/focus";
+import { fitSteps } from "@/lib/focusplan";
 import { isStudy } from "@/lib/worst";
 import { pathFor, pathScore } from "@/lib/karma";
 import { toDay, type Data, type Log } from "@/lib/store";
@@ -61,7 +63,8 @@ export function builtIn(d: Data, date: Date): RoutineItem[] {
   const stLen = s.studyEnd ? Math.max(30, toMin(s.studyEnd) - toMin(s.studyStart)) : 90;
   if (!Number.isNaN(ex) && !Number.isNaN(st) && Math.abs(st - ex) < 50) st = ex + 50;
   if (!Number.isNaN(st)) out.push({ id: "b-study", time: hm(st), end: hm(st + stLen), label: "Study", kind: "study" });
-  if (!Number.isNaN(ex)) {
+  // With Focus Area on, the workout gets its own free time (lib/focusplan.ts) instead.
+  if (!Number.isNaN(ex) && !fitOf(d.profile.settings.fit).on) {
     // Exercise is part 2 of today's workout (part 1 is in the morning).
     const { pm } = workoutHalves(d.pantry, date, off);
     out.push({ id: "b-exercise", time: hm(ex), end: hm(ex + planMinutes(pm)), label: workoutLabel(2, pm), kind: "workout", moves: pm, href: "/train" });
@@ -128,6 +131,8 @@ const GRACE: Record<StepKind, number> = { wake: 120, sleep: 180, meal: 120, wate
 //   routine only ever moves earlier, back from bedtime.
 const BED = ["a-shower", "a-prep", "a-phone", "a-toilet-pm", "a-sitz-pm", "a-brush-pm", "a-journal"];
 const FIXED = ["b-wake", "b-sleep", "b-work", "b-breakfast", "b-lunch", "b-dinner", "a-listen"];
+// The Focus Area workout already sits in free time (never in work, meals, study, yours or DND): the rest fit around it.
+const fixed = (id: string) => FIXED.includes(id) || /^a-fit-\d+$/.test(id);
 function reflow(items: (RoutineItem & { mine?: boolean })[], edits: Record<string, StepEdit>, d: Data, date: Date, real = new Map<string, [string, string]>()) {
   const s = sched(d.profile.settings.schedule);
   const W = toMin(isOffDay(dayType(s, date)) ? s.weekendWake : s.wake);
@@ -138,12 +143,12 @@ function reflow(items: (RoutineItem & { mine?: boolean })[], edits: Record<strin
   const bed = sleep ? rel(sleep.time) : 1440;
   // Water and zero-length steps (phone away) fit alongside anything; listening rides along with the commute.
   const blocks = (it: RoutineItem) => it.kind !== "water" && len(it) > 0 && it.kind !== "sleep" && it.kind !== "wake" && it.id !== "a-listen";
-  const taken: [number, number][] = items.filter((it) => FIXED.includes(it.id) && blocks(it)).map((it) => [rel(it.time), rel(it.time) + len(it)]);
+  const taken: [number, number][] = items.filter((it) => fixed(it.id) && blocks(it)).map((it) => [rel(it.time), rel(it.time) + len(it)]);
   for (const [a, b] of real.values()) taken.push([rel(a), rel(a) + ((toMin(b) - toMin(a) + 1440) % 1440)]);
   const solid = () => [...taken];
   // Yours first: the newest change, other changes, your own steps, then the schedule's.
   const rank = (it: RoutineItem & { mine?: boolean }) =>
-    FIXED.includes(it.id) || real.has(it.id) ? -1 : edits[it.id]?.time ? 3 + (edits[it.id].at ?? 1) : it.mine ? 3 + (it.at ?? 0) : it.id.startsWith("b-") ? 1 : 0;
+    fixed(it.id) || real.has(it.id) ? -1 : edits[it.id]?.time ? 3 + (edits[it.id].at ?? 1) : it.mine ? 3 + (it.at ?? 0) : it.id.startsWith("b-") ? 1 : 0;
   // A warm-up the app added moves together with its training, as one block.
   const warm = new Map<string, number>();
   items.forEach((it, i) => { if (it.before && !edits[it.id]?.time && !real.has(it.id)) warm.set(it.before, i); });
@@ -282,7 +287,7 @@ function follow(items: (RoutineItem & { mine?: boolean })[], real: Map<string, [
   const glued = (it: RoutineItem) => !!it.before && !real.has(it.id) && !edits[it.id]?.time;
   // Only steps that haven't started yet move (running late at work moves this evening's
   // plan; a step already missed stays where it was, ✗). The bedtime routine stays by bedtime.
-  const moves = (it: RoutineItem & { mine?: boolean }) => !real.has(it.id) && !FIXED.includes(it.id) && !BED.includes(it.id) && !glued(it) && toMin(it.time) >= from && it.kind !== "water" && len(it) > 0;
+  const moves = (it: RoutineItem & { mine?: boolean }) => !real.has(it.id) && !fixed(it.id) && !BED.includes(it.id) && !glued(it) && toMin(it.time) >= from && it.kind !== "water" && len(it) > 0;
   // Room kept in front of a training for its warm-up.
   const pre = (it: RoutineItem) => { const w = items.find((x) => x.before === it.id && glued(x)); return w ? len(w) + 1 : 0; };
   const hits = (list: [number, number][], t: number, n: number) => list.find(([a, b]) => t < b && t + n > a);
@@ -359,9 +364,12 @@ function plan(d: Data, day: string, now = new Date()): Planned {
   const tasks = d.items.filter((i) => i.category === "task").map((i) => ({ i, t: taskOf(i) })).filter(({ t }) => dueOn(t, date))
     .map(({ i, t }) => ({ id: `t-${i.id}`, time: t.time, end: typeof i.config.end === "string" && i.config.end ? i.config.end : undefined, label: i.name, kind: "step" as StepKind, mine: true, at: typeof i.config.at === "number" ? i.config.at : undefined }));
   // Your changes win: new times, a new name, or a step you hid (schedule steps can't be hidden).
-  const raw = [...builtIn(d, date), ...autoSteps(d, date), ...own]
+  const edit = (list: (RoutineItem & { mine?: boolean })[]) => list
     .map((it) => { const e = edits[it.id]; return e ? { ...it, ...(e.time ? { time: e.time } : {}), ...(e.end !== undefined ? { end: e.end || undefined } : {}), ...(keepLen(it, e) ?? {}), ...(e.label ? { label: e.label } : {}), ...(e.ml ? { ml: e.ml, ...(it.kind === "water" && !e.label ? { label: it.label.replace(/\d+\s*ml/i, `${e.ml} ml`) } : {}) } : {}), off: !!e.off } : it; })
     .filter((it) => !("off" in it && it.off));
+  const raw = edit([...builtIn(d, date), ...autoSteps(d, date), ...own]);
+  // Focus Area: the workout goes in free time around all of the above (a missed one moves to the next free time today).
+  if (fitOf(d.profile.settings.fit).on) raw.push(...edit(fitSteps(d, date, [...raw, ...tasks], from >= 0 && from < 1e9 ? from : -1)));
   const all = [...raw, ...tasks];
   let items = all.map((x) => ({ ...x }));
   reflow(items, edits, d, date);
