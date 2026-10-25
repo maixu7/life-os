@@ -74,9 +74,10 @@ function applyLook(look: Look, path: string) {
   const mine = (k: string) => { const s = scopePart(k); return s === "*" || s === path; };
   const keys = [
     ...Object.keys(look.hide ?? {}), ...Object.keys(look.img ?? {}), ...Object.keys(look.style ?? {}), ...Object.keys(look.go ?? {}),
-    ...Object.keys(look.order ?? {}), ...(look.add ?? []).map((a) => keyOf(a.at, a.after)),
+    ...Object.keys(look.order ?? {}), ...Object.keys(look.etext ?? {}), ...(look.add ?? []).map((a) => keyOf(a.at, a.after)),
   ].filter(mine);
   const kids = Object.entries(look.order ?? {}).filter(([k]) => mine(k)).flatMap(([, v]) => v);
+  if (look.pens !== "off") addPens(); else document.querySelectorAll("[data-lo-pen]").forEach((p) => p.remove());
   if (!keys.length && !(look.add ?? []).length) return;
   // One pass per tag to name every item on screen.
   const tags = new Set([...keys.map(sigPart), ...kids].map((s) => s.slice(0, s.indexOf("|"))).filter(Boolean));
@@ -111,6 +112,19 @@ function applyLook(look: Look, path: string) {
   }
   if ((look.add ?? []).length) index();
 
+  // Words changed in one exact box only.
+  for (const [k, m] of Object.entries(look.etext ?? {})) {
+    const el = find(k); if (!el) continue;
+    const tw = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = tw.nextNode() as Text | null; n; n = tw.nextNode() as Text | null) {
+      if (n.parentElement?.closest(SKIP)) continue;
+      const o = origOf(n), t = o.trim(), rep = t ? m[t] : undefined;
+      if (rep === undefined) continue;
+      const out = o.replace(t, rep);
+      if (n.data !== out) n.data = out;
+      textMem.set(n, { orig: o, out });
+    }
+  }
   for (const k of Object.keys(look.hide ?? {})) { const el = find(k); if (el) { el.dataset.loHide = "1"; el.dataset.loMark = "1"; } }
   for (const [k, s] of Object.entries(look.style ?? {})) {
     const el = find(k); if (!el) continue;
@@ -145,6 +159,23 @@ function applyLook(look: Look, path: string) {
   }
 }
 
+// A small ✎ on every box (cards, tiles and list rows), so each one has its own edit.
+const PEN_HOSTS = ".card, main a.rounded-2xl, main button.rounded-2xl, .card li, [role=dialog] li";
+function addPens() {
+  document.querySelectorAll<HTMLElement>(PEN_HOSTS).forEach((el) => {
+    if (el.closest(SKIP) || el.closest("nav")) return;
+    const has = !!el.querySelector(":scope > [data-lo-pen]");
+    if (!has) { const r = el.getBoundingClientRect(); if (r.width < 60 || r.height < 28) return; }
+    if (getComputedStyle(el).position === "static") setProp(el, "position", "relative");
+    if (has) return;
+    const pen = document.createElement("span");
+    pen.dataset.loPen = "1"; pen.dataset.noedit = "";
+    pen.setAttribute("role", "button"); pen.setAttribute("aria-label", "Edit this box");
+    pen.textContent = "✎";
+    el.appendChild(pen);
+  });
+}
+
 // What a tap picks: the button, tile, line or picture under the finger.
 const PICK = "a,button,label,li,h1,h2,h3,h4,p,img,input,textarea,select,summary,[role=button],[data-lo-add]";
 
@@ -157,6 +188,7 @@ export function EditLayer() {
   const [pick, setPick] = useState<HTMLElement | null>(null);
   const [panel, setPanel] = useState<"changes" | "auto" | null>(null);
   const stack = useRef<HTMLElement[]>([]);
+  const pressed = useRef<HTMLElement | null>(null);
   const lookRef = useRef(look); lookRef.current = look;
   const pathRef = useRef(path); pathRef.current = path;
 
@@ -202,7 +234,17 @@ export function EditLayer() {
     };
     const click = (e: MouseEvent) => {
       const t = e.target as Element | null;
-      if (!t?.closest || t.closest(SKIP)) return;
+      if (!t?.closest) return;
+      // This box's own ✎ (or a long press): edit just this one.
+      const pen = t.closest<HTMLElement>("[data-lo-pen]");
+      if (pen || pressed.current) {
+        e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
+        const el = pen ? pen.parentElement : pressed.current;
+        pressed.current = null;
+        if (el) { stack.current = []; setPick(el); }
+        return;
+      }
+      if (t.closest(SKIP)) return;
       if (editing) {
         e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
         const el = (t.closest(PICK) ?? t) as HTMLElement;
@@ -213,10 +255,31 @@ export function EditLayer() {
       const g = t.closest<HTMLElement>("[data-lo-go],[data-lo-href]");
       if (g) { e.preventDefault(); e.stopPropagation(); go(g.dataset.loGo ?? g.dataset.loHref!); }
     };
+    // Hold anything for a moment to edit only that thing (the menu keeps its own long press).
+    let timer: ReturnType<typeof setTimeout> | null = null, sx = 0, sy = 0;
+    const down = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (editing || !t?.closest || t.closest(SKIP) || t.closest("nav,input,textarea,select,[contenteditable]")) return;
+      sx = e.clientX; sy = e.clientY;
+      timer = setTimeout(() => { timer = null; pressed.current = (t.closest(PICK) ?? t) as HTMLElement; navigator.vibrate?.(30); }, 650);
+    };
+    const move = (e: PointerEvent) => { if (timer && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) { clearTimeout(timer); timer = null; } };
+    const up = () => {
+      if (timer) { clearTimeout(timer); timer = null; }
+      // A long press with no click after it (touch) still opens the editor.
+      if (pressed.current) { const el = pressed.current; setTimeout(() => { if (pressed.current === el) { pressed.current = null; stack.current = []; setPick(el); } }, 350); }
+    };
+    const menu = (e: Event) => { if (pressed.current) e.preventDefault(); };
     const evs = ["pointerdown", "mousedown", "touchstart", "pointerup", "mouseup", "touchend", "contextmenu"];
     for (const ev of evs) addEventListener(ev, block, true);
     addEventListener("click", click, true);
-    return () => { for (const ev of evs) removeEventListener(ev, block, true); removeEventListener("click", click, true); };
+    addEventListener("pointerdown", down, true); addEventListener("pointermove", move, true); addEventListener("pointerup", up, true); addEventListener("pointercancel", up, true);
+    addEventListener("contextmenu", menu, true);
+    return () => {
+      for (const ev of evs) removeEventListener(ev, block, true); removeEventListener("click", click, true);
+      removeEventListener("pointerdown", down, true); removeEventListener("pointermove", move, true); removeEventListener("pointerup", up, true); removeEventListener("pointercancel", up, true);
+      removeEventListener("contextmenu", menu, true);
+    };
   }, [editing, go]);
 
   const pages = allPages(profile.settings.ui);
@@ -231,9 +294,7 @@ export function EditLayer() {
           <button onClick={() => setPanel("auto")} className="rounded-full bg-black/15 px-2 py-1">⚙️ Auto</button>
           <button onClick={() => setEditing(false)} className="rounded-full bg-black text-amber-300 px-3 py-1">Done</button>
         </div>
-      ) : look.pencil !== "off" && (
-        <button aria-label="Edit mode" onClick={() => setEditing(true)} className="fixed left-3 bottom-24 z-[9999] h-10 w-10 rounded-full grid place-items-center text-lg bg-[#140c24]/90 border border-white/15 shadow-lg">✏️</button>
-      )}
+      ) : null}
       {pick && (
         <ItemSheet
           el={pick} path={path} look={look} save={save} pages={pages}
@@ -276,7 +337,7 @@ function ItemSheet({ el, path, look, save, pages, onBigger, onSmaller, onClose }
 }) {
   const inPopup = !!el.closest("[data-overlay],[role=dialog],nav,.fixed");
   const [scope, setScope] = useState(inPopup ? "*" : path);
-  const [textAll, setTextAll] = useState(true);
+  const [textAll, setTextAll] = useState(false);
   const [adding, setAdding] = useState<"button" | "note" | null>(null);
   const sig = sigOf(el);
   const key = keyOf(scope, sig);
@@ -294,12 +355,21 @@ function ItemSheet({ el, path, look, save, pages, onBigger, onSmaller, onClose }
   }
   if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) && (el.dataset.loPh ?? el.placeholder)) texts.push((el.dataset.loPh ?? el.placeholder).trim());
   const tScope = textAll ? "*" : path;
-  const cur = (o: string) => look.text?.[path]?.[o] ?? look.text?.["*"]?.[o] ?? o;
+  const eKey = [keyOf(path, sig), keyOf("*", sig)].find((k) => look.etext?.[k]) ?? key;
+  const cur = (o: string) => look.etext?.[eKey]?.[o] ?? look.text?.[path]?.[o] ?? look.text?.["*"]?.[o] ?? o;
+  const numeric = texts.some((t) => /\d/.test(t));
+  // Only this box, unless "change everywhere" is ticked.
   const setText = (o: string, v: string) => save((l) => {
+    const e = { ...l.etext };
+    if (e[eKey]) { e[eKey] = without(e[eKey], o); if (!Object.keys(e[eKey]).length) delete e[eKey]; }
+    if (!textAll) {
+      if (v !== o) e[key] = { ...e[key], [o]: v };
+      return { ...l, etext: e };
+    }
     const t = { ...l.text };
     for (const s of ["*", path]) t[s] = without(t[s], o);
     if (v !== o) t[tScope] = { ...t[tScope], [o]: v };
-    return { ...l, text: t };
+    return { ...l, text: t, etext: e };
   });
 
   const hiddenKey = anyKey(look.hide);
@@ -351,7 +421,8 @@ function ItemSheet({ el, path, look, save, pages, onBigger, onSmaller, onClose }
       {added ? <AddedEdit a={added} save={save} pages={pages} /> : texts.length > 0 && (
         <section className="space-y-1.5">
           <div className="flex items-center justify-between"><h4 className="text-xs font-bold text-muted">✍️ Words and icons</h4>
-            <label className="text-[11px] text-muted flex items-center gap-1"><input type="checkbox" checked={textAll} onChange={(e) => setTextAll(e.target.checked)} /> change everywhere it appears</label></div>
+            <label className="text-[11px] text-muted flex items-center gap-1"><input type="checkbox" checked={textAll} onChange={(e) => setTextAll(e.target.checked)} /> also change it everywhere else</label></div>
+          <p className="text-[11px] text-muted">Changes only this box{textAll ? ", and the same words everywhere else" : ""}.{numeric ? " This changes how it looks here. To change a real price, amount or time, tap the item itself and use its own edit." : ""}</p>
           {texts.map((o) => <TextRow key={o} orig={o} value={cur(o)} onSave={(v) => setText(o, v)} />)}
         </section>
       )}
@@ -467,6 +538,7 @@ function ChangesSheet({ look, save, onClose }: { look: Look; save: Save; onClose
   const label = (k: string) => { const s = sigPart(k).split("|"); return `${s[1] || s[0]}${scopePart(k) === "*" ? " · every page" : ` · ${scopePart(k)}`}`; };
   const rows: [string, string, () => void][] = [
     ...Object.entries(look.text ?? {}).flatMap(([s, m]) => Object.entries(m).map(([o, v]) => [`✍️ “${o}” → “${v}”${s === "*" ? "" : ` · ${s}`}`, "Undo", () => save((l) => ({ ...l, text: { ...l.text, [s]: without(l.text?.[s], o) } }))] as [string, string, () => void])),
+    ...Object.entries(look.etext ?? {}).flatMap(([k, m]) => Object.entries(m).map(([o, v]) => [`✍️ “${o}” → “${v}” · only ${label(k)}`, "Undo", () => save((l) => { const e = { ...l.etext, [k]: without(l.etext?.[k], o) }; if (!Object.keys(e[k]).length) delete e[k]; return { ...l, etext: e }; })] as [string, string, () => void])),
     ...Object.keys(look.hide ?? {}).map((k) => [`🗑 ${label(k)}`, "Bring back", () => save((l) => ({ ...l, hide: without(l.hide, k) }))] as [string, string, () => void]),
     ...Object.keys(look.img ?? {}).map((k) => [`🖼 ${label(k)}`, "Undo", () => save((l) => ({ ...l, img: without(l.img, k) }))] as [string, string, () => void]),
     ...Object.keys(look.style ?? {}).map((k) => [`🎨 ${label(k)}`, "Undo", () => save((l) => ({ ...l, style: without(l.style, k) }))] as [string, string, () => void]),
@@ -484,7 +556,7 @@ function ChangesSheet({ look, save, onClose }: { look: Look; save: Save; onClose
           <button onClick={fn} className="chip !py-1 text-xs shrink-0">{b}</button>
         </div>
       ))}
-      {rows.length > 0 && <button onClick={() => confirm("Undo every change and show the app as it came?") && save((l) => ({ pencil: l.pencil }))} className="chip !py-1.5 text-xs !border-rose-400/50 text-rose-300">↩ Undo everything</button>}
+      {rows.length > 0 && <button onClick={() => confirm("Undo every change and show the app as it came?") && save((l) => ({ pens: l.pens }))} className="chip !py-1.5 text-xs !border-rose-400/50 text-rose-300">↩ Undo everything</button>}
     </Box>
   );
 }
@@ -502,11 +574,11 @@ function AutoSheet({ look, save, onClose }: { look: Look; save: Save; onClose: (
           </button>
         );
       })}
-      <button onClick={() => save((l) => ({ ...l, pencil: l.pencil === "off" ? undefined : "off" }))} className="w-full flex items-center gap-2 text-left border-t border-white/10 pt-2">
-        <span className="flex-1 text-sm font-semibold">✏️ Floating edit button</span>
-        <span className={`chip !py-1 text-xs ${look.pencil !== "off" ? "chip-on" : ""}`}>{look.pencil !== "off" ? "Shown" : "Hidden"}</span>
+      <button onClick={() => save((l) => ({ ...l, pens: l.pens === "off" ? undefined : "off" }))} className="w-full flex items-center gap-2 text-left border-t border-white/10 pt-2">
+        <span className="flex-1 text-sm font-semibold">✎ Small edit pen on every box</span>
+        <span className={`chip !py-1 text-xs ${look.pens !== "off" ? "chip-on" : ""}`}>{look.pens !== "off" ? "Shown" : "Hidden"}</span>
       </button>
-      <p className="text-[11px] text-muted">Daily mission steps, their times and names are edited by tapping them in the Daily mission. Hidden edit button: turn edit mode on from Control Centre.</p>
+      <p className="text-[11px] text-muted">Daily mission steps, their times and names are edited by tapping them in the Daily mission. Hold any word, icon or button for a moment to edit just that one.</p>
     </Box>
   );
 }

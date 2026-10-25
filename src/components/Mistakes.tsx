@@ -101,7 +101,7 @@ function MistakeSheet({ x, subjects, onClose }: { x: CustomItem | null; subjects
     <Sheet title={x ? "📕 Edit mistake" : "📕 New mistake"} onClose={onClose}>
       <div className="flex flex-wrap gap-1">{subjects.map((s) => <button key={s} onClick={() => setSubject(s)} className={`chip !py-0.5 text-xs ${subject === s ? "chip-on" : ""}`}>{s}</button>)}</div>
       <input className="input" placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
-      <input ref={file} type="file" accept="image/*" capture="environment" className="hidden"
+      <input ref={file} type="file" accept="image/*" className="hidden"
         onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; setBusy(true); try { setPhoto(await notePhoto(f)); } catch {} setBusy(false); e.target.value = ""; }} />
       {photo ? (
         <div className="relative"><img src={photo} alt="Question" className="w-full rounded-xl" /><button onClick={() => setPhoto("")} className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/70">✕</button></div>

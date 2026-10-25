@@ -20,6 +20,7 @@ import { ResumeRoute } from "@/components/ResumeRoute";
 import { StageIntro } from "@/components/StageIntro";
 import { VoiceButton } from "@/components/VoiceButton";
 import { Auto, EditLayer } from "@/components/EditLayer";
+import { UploadHost } from "@/components/UploadSheet";
 import { Fab, HubHost } from "@/components/hub/Hub";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -48,6 +49,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <SummaryHost />
       <SafetyLayer />
       <HubHost />
+      <UploadHost />
       <EditLayer />
     </Gate>
   );

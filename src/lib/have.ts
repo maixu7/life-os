@@ -104,6 +104,13 @@ export function kitOf(pantry: PantryItem[]): Kit {
   }
   return kit;
 }
+/** How much of it you have: "2 pieces · 10 kg each · 20 kg total" for gear, "3 pcs" for the rest. */
+export function amountText(p: PantryItem): string {
+  if (itemKind(p) !== "equipment") return `${p.qty} ${p.unit}`;
+  const n = p.qty, w = p.kg ?? 0;
+  const pcs = `${n} ${n === 1 ? "piece" : "pieces"}`;
+  return w > 0 ? `${pcs} · ${w} kg each${n > 1 ? ` · ${+(n * w).toFixed(2)} kg total` : ""}` : pcs;
+}
 export const kitText = (k: Kit) => Object.values(k).map((g) => {
   if (!g!.kg.length) return `${g!.count > 1 ? `${g!.count} × ` : ""}${g!.label.toLowerCase()}`;
   const tot = g!.kg.reduce((a, b) => a + b, 0);

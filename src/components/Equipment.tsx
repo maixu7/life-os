@@ -8,7 +8,8 @@ import { EQUIP_TYPES, EQUIPMENT, equipOf, parseGear } from "@/lib/equipment";
 import { SnapChoice, type Pick } from "@/components/SnapChoice";
 import { aiPhoto, readProduct } from "@/lib/foodai";
 import { loadImage, smallPhoto } from "@/lib/foodphoto";
-import { gearOf, itemKind, kitOf, kitText, withGear } from "@/lib/have";
+import { openUpload } from "@/components/UploadSheet";
+import { amountText, gearOf, itemKind, kitOf, kitText, withGear } from "@/lib/have";
 import { useApp, type PantryItem } from "@/lib/store";
 
 // 📷 My equipment: snap your dumbbells, bands or bench and the app knows
@@ -84,7 +85,8 @@ export function EquipmentSheet({ onClose, file }: { onClose: () => void; file?: 
   return (
     <Sheet title="🏋️ My equipment" onClose={onClose}>
       <div className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 p-2.5 space-y-2">
-        <div className="text-xs font-semibold">📷 Snap your equipment (dumbbell, band, bench…)</div>
+        <button onClick={() => openUpload("equipment")} className="btn-primary w-full !py-2 text-sm">＋ Add equipment: photo, pieces, weight each, price</button>
+        <div className="text-xs font-semibold">📷 Or snap several at once (dumbbell, band, bench…)</div>
         <div className="flex gap-2">
           <button disabled={busy} onClick={() => ref.current?.click()} aria-label="Equipment photo" className="h-14 w-14 shrink-0 rounded-xl border border-dashed border-white/25 grid place-items-center overflow-hidden text-xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -104,7 +106,7 @@ export function EquipmentSheet({ onClose, file }: { onClose: () => void; file?: 
           {mine.map((p) => (
             <div key={p.id} className={`rounded-xl bg-white/5 p-2 flex items-center gap-2 ${p.qty <= 0 ? "opacity-50" : ""}`}>
               <Pic name={p.name} emoji={p.emoji} size={40} src={p.photo} />
-              <span className="min-w-0 text-xs"><span className="block font-semibold truncate">{p.name}</span><span className="text-muted">{p.qty} {p.unit}{p.kg ? ` · ${p.kg} kg` : ""}</span></span>
+              <span className="min-w-0 text-xs"><span className="block font-semibold truncate">{p.name}</span><span className="text-muted">{amountText(p)}</span></span>
             </div>
           ))}
         </div>

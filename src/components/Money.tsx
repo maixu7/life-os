@@ -326,7 +326,7 @@ export function ReceiptSheet({ onClose }: { onClose: () => void }) {
   // The photo waits for you: AI reads it only when you tap Ask AI.
   const [shot, setShot] = useState<{ img: HTMLImageElement; small: string } | null>(null);
   const scan = async (f: File) => {
-    const img = await loadImage(f);
+    const img = await loadImage(f, 2400);
     setShot({ img, small: smallPhoto(img, 160) });
     setMsg("Tap 🤖 Ask AI to read every line, or type the lines below.");
     if (!rows.length) setRows([blank()]);
@@ -373,7 +373,7 @@ export function ReceiptSheet({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title="🧾 Scan a receipt" onClose={onClose}>
       <button disabled={busy} onClick={() => ref.current?.click()} className="btn-primary w-full">{busy ? "Reading…" : rows.length ? "📷 Scan another photo" : "📷 Snap the receipt"}</button>
-      <input ref={ref} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) scan(f); }} />
+      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) scan(f); }} />
       {shot && !busy && (
         <div className="flex items-center gap-2 rounded-xl bg-white/5 p-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}

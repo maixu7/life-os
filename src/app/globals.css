@@ -221,3 +221,4 @@ html:not(.lo-editing) [data-lo-hide] { display: none !important; }
 html.lo-editing [data-lo-hide] { opacity: 0.3 !important; outline: 2px dashed #f43f5e !important; }
 html.lo-editing [data-lo-sel] { outline: 3px solid #facc15 !important; outline-offset: 2px; }
 html.lo-editing body { padding-top: 2.5rem; }
+[data-lo-pen] { position: absolute; right: 4px; bottom: 4px; z-index: 6; width: 20px; height: 20px; border-radius: 9999px; display: grid; place-items: center; font-size: 11px; line-height: 1; color: #fff; background: rgba(20, 12, 36, 0.8); border: 1px solid rgba(255, 255, 255, 0.2); opacity: 0.75; cursor: pointer; }

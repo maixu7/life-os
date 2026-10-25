@@ -6,7 +6,7 @@ import { XpHeader } from "@/components/XpHeader";
 import { HaveSheet } from "@/components/HaveSheet";
 import { Pic } from "@/components/Pic";
 import { MealSheet } from "@/components/Meals";
-import { gearOf, itemKind, KINDS, kitOf, kitText, withGear, type Kind } from "@/lib/have";
+import { amountText, gearOf, itemKind, KINDS, kitOf, kitText, withGear, type Kind } from "@/lib/have";
 import { useApp, type PantryItem } from "@/lib/store";
 
 // Everything the hero owns, with photos and amounts. The rest of the app reads
@@ -49,7 +49,7 @@ export default function HavePage() {
                   <Pic name={p.name} emoji={p.emoji} size={48} src={p.photo} />
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold truncate">{p.name}</span>
-                    <span className="block text-[11px] text-muted">{KINDS.find(([x]) => x === k)?.[1]} {p.qty} {p.unit}{p.kg ? ` · ${p.kg} kg each` : ""}</span>
+                    <span className="block text-[11px] text-muted">{KINDS.find(([x]) => x === k)?.[1]} {amountText(p)}</span>
                     {p.expiry && p.qty > 0 && (() => { const days = Math.ceil((new Date(`${p.expiry}T23:59`).getTime() - Date.now()) / 86_400_000); return days <= 7 ? <span className={`block text-[10px] ${days < 0 ? "text-rose-400" : days <= 2 ? "text-amber-300" : "text-muted"}`}>{days < 0 ? `⚠️ expired ${-days} d ago` : days === 0 ? "⏳ best before today" : `⏳ ${days} d left`}</span> : null; })()}
                   </span>
                 </button>

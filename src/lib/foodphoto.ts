@@ -1,11 +1,22 @@
 // Food photos, all on the device: shrink the photo, redraw it in an anime
 // (cel-shaded) style, and try to recognise the food with a small image model.
 
-export async function loadImage(file: Blob): Promise<HTMLImageElement> {
+// Opens a picked photo, shrunk to at most 1600 px and kept as its own small
+// copy, so its preview never goes blank and big photos don't fill the phone.
+export async function loadImage(file: Blob, max = 1600): Promise<HTMLImageElement> {
   const url = URL.createObjectURL(file);
   try {
+    const big = new Image();
+    big.src = url;
+    await big.decode();
+    const k = Math.min(1, max / Math.max(big.naturalWidth, big.naturalHeight));
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(big.naturalWidth * k)); c.height = Math.max(1, Math.round(big.naturalHeight * k));
+    const ctx = c.getContext("2d");
+    if (!ctx) return big;
+    ctx.drawImage(big, 0, 0, c.width, c.height);
     const img = new Image();
-    img.src = url;
+    img.src = c.toDataURL("image/jpeg", 0.85);
     await img.decode();
     return img;
   } finally {

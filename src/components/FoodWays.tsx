@@ -32,7 +32,7 @@ export function ReceiptButton({ onFoods }: { onFoods: (ds: Partial<Dish>[]) => v
   const drinkList = useMemo(() => [...data.items.filter((i) => i.category === "drink").map((i) => ({ name: i.name, ja: undefined, d: i })), ...DRINKS.map((d) => ({ name: d.name, ja: d.ja, d }))], [data.items]);
   const read = async (f: File) => {
     setBusy(true); setRows([]);
-    const img = await loadImage(f);
+    const img = await loadImage(f, 2400);
     setPhoto(img.src);
     const text = (await readLabel(img).catch(() => null))?.text ?? "";
     const out: Row[] = [];

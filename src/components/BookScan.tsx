@@ -70,7 +70,7 @@ export function BookScanSheet({ onClose, onRead }: { onClose: () => void; onRead
         </div>
       ) : (
         <>
-          <input ref={file} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) scan(f); e.target.value = ""; }} />
+          <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) scan(f); e.target.value = ""; }} />
           <button onClick={() => file.current?.click()} disabled={busy} className="btn-primary w-full flex items-center justify-center gap-2">
             {cover && <img src={cover} alt="" className="h-8 w-8 rounded object-cover" />}{busy ? "Reading the cover…" : "📷 Snap the cover"}
           </button>

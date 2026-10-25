@@ -11,7 +11,7 @@ import { useRunAction, useTasks } from "@/components/Coach";
 import { atWork, fmt12, hm, hoursIn, phaseNow, sched, studyFrom } from "@/lib/schedule";
 import { toDay, useApp } from "@/lib/store";
 import { CollectionHost, openCollection } from "@/components/Collections";
-import { openHub } from "@/components/hub/registry";
+import { openUpload } from "@/components/UploadSheet";
 
 // The page's main purpose as big buttons at the very top (Eat / Drink on
 // Food, Start workout on Train…). Everything else sits below them.
@@ -46,7 +46,7 @@ const MAIN: Record<string, Big[]> = {
   "/food": [
     { icon: "🍽️", label: "Eat", sub: "Photo, say it or search", go: () => openSlotSheet({ kind: "meal" }) },
     { icon: "🥤", label: "Drink", sub: "Photo, say it or search", go: () => openSlotSheet({ kind: "drink" }) },
-    { icon: "📷", label: "Upload", sub: "Any photo, now or later", go: () => openHub("later") },
+    { icon: "📷", label: "Upload", sub: "Food, drink, gear or shopping", go: () => openUpload() },
     { icon: "🛒", label: "Shopping", sub: "List, snap, receipt", href: "/shop" },
   ],
   "/train": [

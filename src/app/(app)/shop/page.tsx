@@ -13,6 +13,7 @@ import { UNITS, useApp, type PantryItem, type ShopItem } from "@/lib/store";
 import { deletePhoto, getPhoto, putPhoto } from "@/lib/vault";
 import { AutoGrocery, CategoryBudgets, MoneyTools, ReceiptSheet } from "@/components/Money";
 import { BIG_TILE } from "@/components/MainActions";
+import { UploadSheet } from "@/components/UploadSheet";
 import { aiPhotos, readProduct } from "@/lib/foodai";
 import { loadImage, smallPhoto } from "@/lib/foodphoto";
 import { SnapChoice, useRememberSnap, type Pick } from "@/components/SnapChoice";
@@ -88,6 +89,7 @@ export default function ShopPage() {
   // Snap a product (or its empty packet): the app reads what it is and adds it
   // to the list with the photo, so next time it's easy to find in the shop.
   // First the app's own list (on the phone, no AI); AI only from its button.
+  const [upload, setUpload] = useState(false);
   const [shot, setShot] = useState<{ file: File; imgs: HTMLImageElement[]; small: string } | null>(null);
   const rememberAI = useRememberSnap();
   const picks = useMemo<Pick[]>(() => [
@@ -138,7 +140,7 @@ export default function ShopPage() {
       <XpHeader title="Shopping" icon="🛒" subtitle="Your shopping list, what you bought, and your money" />
       <div className="grid grid-cols-3 gap-2 mb-4">
         <button onClick={() => { setTab("list"); setTimeout(() => quickRef.current?.focus(), 50); }} className={BIG_TILE}><span className="text-4xl leading-none">🛒</span><span className="font-black text-sm leading-tight">Shopping list</span><span className="text-[10px] text-muted leading-tight">{toBuy.length} to buy</span></button>
-        <button onClick={() => snapRef.current?.click()} className={BIG_TILE}><span className="text-4xl leading-none">📷</span><span className="font-black text-sm leading-tight">Snap to add</span><span className="text-[10px] text-muted leading-tight">Photo of what you need</span></button>
+        <button onClick={() => setUpload(true)} className={BIG_TILE}><span className="text-4xl leading-none">📷</span><span className="font-black text-sm leading-tight">Upload</span><span className="text-[10px] text-muted leading-tight">Gallery, scan, or type it</span></button>
         <button onClick={() => setReceipt(true)} className={BIG_TILE}><span className="text-4xl leading-none">🧾</span><span className="font-black text-sm leading-tight">Scan receipt</span><span className="text-[10px] text-muted leading-tight">Ticks what you bought</span></button>
       </div>
       <input ref={snapRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ""; if (f.length) snapAdd(f); }} />
@@ -165,7 +167,7 @@ export default function ShopPage() {
             </div>
             <button className="btn-primary">Add</button>
           </form>
-          <button onClick={() => setEditItem("new")} className="mb-4 text-xs text-muted">+ Add with quantity, price, photo…</button>
+          <button onClick={() => setUpload(true)} className="mb-4 text-xs text-muted">+ Add with quantity, price, photo…</button>
 
           {toBuy.length === 0 ? (
             <p className="card p-6 text-center text-sm text-muted">Your list is empty.</p>
@@ -303,6 +305,12 @@ export default function ShopPage() {
       <MoneyTools />
       </div>
 
+      {upload && <UploadSheet cat="shopping" onClose={() => setUpload(false)} onShop={async (item, photo) => {
+        let photo_id: string | null = null;
+        if (photo) { photo_id = crypto.randomUUID(); await putPhoto(session, photo_id, photo).catch(() => { photo_id = null; }); }
+        update((d) => ({ ...d, shopping: [...d.shopping, { ...item, photo_id }] }));
+        setTab("list");
+      }} />}
       {editItem && (
         <ItemSheet item={editItem === "new" ? null : editItem} lastBuy={lastBuy} money={money} onClose={() => setEditItem(null)}
           onSave={async (item, photo) => {
@@ -457,7 +465,7 @@ function ItemSheet({ item, lastBuy, money, onClose, onSave, onDelete }: {
       </div>
       <label className="btn-ghost block text-center cursor-pointer">
         📷 {photo ? photo.name.slice(0, 24) : item?.photo_id ? "Replace photo" : "Add photo"}
-        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
+        <input type="file" accept="image/*" className="hidden" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
       </label>
       <div className="flex gap-2">
         {item && <button onClick={() => onDelete(item)} className="btn-ghost text-rose-400">Delete</button>}
