@@ -18,7 +18,9 @@ export type Look = {
   go?: Record<string, string>; // item key -> page or web link it opens instead
   add?: Added[];
   auto?: Record<string, "off">; // automatic features turned off
-  pencil?: "off"; // hides the floating ✏️ button (Control Centre turns edit mode on too)
+  pencil?: "off"; // old floating ✏️ button setting (the button is gone; kept so old saves load)
+  etext?: Record<string, Record<string, string>>; // one exact item -> its original words -> your words (only that box changes)
+  pens?: "off"; // hides the small ✎ on every box
 };
 
 // Automatic things the app does by itself; each can be switched off.
@@ -106,7 +108,7 @@ export function readPicture(file: File, size = 256): Promise<string> {
 
 // How many changes there are, for the summary.
 export function countLook(l: Look) {
-  const t = Object.values(l.text ?? {}).reduce((a, m) => a + Object.keys(m).length, 0);
+  const t = [...Object.values(l.text ?? {}), ...Object.values(l.etext ?? {})].reduce((a, m) => a + Object.keys(m).length, 0);
   return t + Object.keys(l.hide ?? {}).length + Object.keys(l.order ?? {}).length + Object.keys(l.img ?? {}).length
     + Object.keys(l.style ?? {}).length + Object.keys(l.go ?? {}).length + (l.add?.length ?? 0) + Object.keys(l.auto ?? {}).length;
 }

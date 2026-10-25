@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { Pic } from "@/components/Pic";
-import { HaveSheet } from "@/components/HaveSheet";
+import { UploadSheet } from "@/components/UploadSheet";
 import { EditLog } from "@/components/EditLog";
 import { DrinkSheet } from "@/components/Drinks";
 import { FoodThumbs, MealSheet, isMealLog } from "@/components/Meals";
 import { MealSlotSheet } from "@/components/Meals";
 import { describe as describeLog } from "@/lib/describe";
 const describe = (l: Log) => { const d = describeLog(l); return `${d.emoji} ${d.title}${d.detail ? ` · ${d.detail}` : ""}`; };
-import { itemKind, kitOf, kitText, type Kind } from "@/lib/have";
+import { amountText, itemKind, kitOf, kitText, type Kind } from "@/lib/have";
 import { mealSlots } from "@/lib/layout";
 import { toDay, useApp, type Log, type PantryItem } from "@/lib/store";
 import type { Eaten } from "@/lib/body";
@@ -94,7 +94,7 @@ function FoodDrinkSheet({ c, onClose }: { c: "food" | "drink"; onClose: () => vo
           </ul>
         </>
       )}
-      {edit && <HaveSheet item={edit === "new" ? null : edit} kind={c === "food" ? "food" : "drink"} onClose={() => setEdit(null)} />}
+      {edit && <UploadSheet cat={c} item={edit === "new" ? null : edit} onClose={() => setEdit(null)} />}
       {eat && <MealSheet start={typeof eat === "string" ? [eat] : undefined} again={typeof eat === "string" ? undefined : eat} onClose={() => setEat(null)} />}
       {drink && <DrinkSheet start={drink} onClose={() => setDrink(null)} />}
     </Sheet>
@@ -108,7 +108,7 @@ function GymSheet({ onClose }: { onClose: () => void }) {
   const kit = kitOf(data.pantry);
   return (
     <Sheet title="🏋️ My gym collection" onClose={onClose}>
-      <p className="text-xs text-muted">Add each thing you train with: a photo, your own description, how many and kg each. Daily workouts and tasks use them (a few picked at random each day).</p>
+      <p className="text-xs text-muted">Add each thing you train with: a photo, your own description, how many pieces and the weight of each. Daily workouts and tasks use them (a few picked at random each day).</p>
       <button onClick={() => setEdit("new")} className="btn-primary w-full">＋ Add equipment (photo, description, how many, kg)</button>
       {Object.keys(kit).length > 0 && <div className="rounded-xl bg-white/5 p-2 text-xs">🧰 The app reads this as: {kitText(kit)}</div>}
       {!gear.length && <p className="text-xs text-muted">e.g. a photo of your dumbbells: 2, 10 kg each. Or dip bars: &quot;stomach-height dips&quot;.</p>}
@@ -118,7 +118,7 @@ function GymSheet({ onClose }: { onClose: () => void }) {
             <button onClick={() => setEdit(p)} className={`w-full rounded-xl bg-white/5 p-2 flex items-center gap-2 text-left ${p.qty > 0 ? "" : "opacity-50"}`}>
               <Pic name={p.name} emoji={p.emoji} size={48} src={p.photo} />
               <span className="flex-1 min-w-0"><span className="block text-sm font-semibold truncate">{p.name}</span>
-                <span className="block text-[11px] text-muted">{p.qty} {p.qty === 1 ? "piece" : "pieces"}{p.kg ? ` · ${p.kg} kg each` : ""}</span>
+                <span className="block text-[11px] text-muted">{amountText(p)}</span>
                 {p.note && <span className="block text-[11px] text-muted truncate">“{p.note}”</span>}
               </span>
               <span className="text-muted text-xs">✏️</span>
@@ -126,7 +126,7 @@ function GymSheet({ onClose }: { onClose: () => void }) {
           </li>
         ))}
       </ul>
-      {edit && <HaveSheet item={edit === "new" ? null : edit} kind="equipment" onClose={() => setEdit(null)} />}
+      {edit && <UploadSheet cat="equipment" item={edit === "new" ? null : edit} onClose={() => setEdit(null)} />}
     </Sheet>
   );
 }

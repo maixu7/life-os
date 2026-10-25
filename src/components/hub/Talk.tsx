@@ -345,7 +345,7 @@ export function CameraSheet({ onClose }: { onClose: () => void }) {
   };
   return (
     <Sheet title="📸 Snap anything" onClose={onClose}>
-      <input ref={file} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) snap(f); e.target.value = ""; }} />
+      <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) snap(f); e.target.value = ""; }} />
       <p className="text-sm text-muted">Food, a packet, a receipt or a book page: say what it is, and Sensei finds it in the app&apos;s list and sends it to the right place.</p>
       <button onClick={() => file.current?.click()} className="btn-primary w-full">{thumb ? "📸 Take another" : "📸 Take a photo"}</button>
       <button onClick={() => { onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent("lifeos-hub", { detail: "later" })), 50); }} className="btn-ghost w-full !py-2 text-sm">📥 Photos to scan ({data.items.filter((i) => i.category === "later").length})</button>

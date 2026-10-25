@@ -31,7 +31,7 @@ export function LabelScan({ files, onSaved, compact }: { files?: File[]; onSaved
       done.current.add(f);
       setStatus(`Reading photo ${i + 1} of ${list.length} (English + 日本語)… the first time downloads the reader.`);
       try {
-        const img = await loadImage(f);
+        const img = await loadImage(f, 2400);
         photo ||= smallPhoto(img, 160);
         const r = await readLabel(img);
         merged = { ...r, ...Object.fromEntries(Object.entries(merged).filter(([, v]) => v != null && v !== "")), names: [...(merged.names ?? []), ...r.names] };

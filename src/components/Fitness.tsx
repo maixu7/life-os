@@ -159,7 +159,7 @@ export function BodyPhotos() {
         <h2 className="section-title">📸 Body photos</h2>
         <button disabled={busy} onClick={() => file.current?.click()} className="chip chip-on">{busy ? "Saving…" : "+ Photo"}</button>
       </div>
-      <input ref={file} type="file" accept="image/*" capture="user" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
+      <input ref={file} type="file" accept="image/*" className="hidden" onChange={(e) => upload(e.target.files?.[0])} />
       <p className="text-[11px] text-muted mb-2">🔒 Locked with your password, like all your photos. Same light, same pose, once every 2 to 4 weeks shows the real change.</p>
       <input className="input mb-2 !py-1.5 text-sm" placeholder="Note for the next photo (optional, e.g. after 4 weeks of push-ups)" value={note} onChange={(e) => setNote(e.target.value)} />
       {pair.length === 2 && (
