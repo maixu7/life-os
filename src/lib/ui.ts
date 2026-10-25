@@ -21,6 +21,7 @@ export const ALL_TABS: Tab[] = [
   { href: "/trophies", icon: "🏆", label: "Trophies" },
   { href: "/", icon: "🏯", label: "Base" },
   { href: "/quick", icon: "⚡", label: "Quick log" },
+  { href: "/settings", icon: "⚙️", label: "Settings" },
 ];
 // Base sits on the right; the app opens on the leftmost tab.
 export const DEFAULT_TABS = ["/learn", "/today", "/food", "/train", "/tools", "/doctor", "/calendar", "/"];

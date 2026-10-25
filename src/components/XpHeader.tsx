@@ -12,6 +12,7 @@ import { today, useApp } from "@/lib/store";
 import { progress } from "@/lib/xp";
 import { Bell } from "@/components/hub/Talk";
 import { useT } from "@/lib/i18n";
+import { isGame } from "@/lib/assistant";
 
 function Vital({ label, value, color }: { label: string; value: number; color: string }) {
   return (
@@ -41,6 +42,25 @@ export function XpHeader({ title, icon, subtitle }: { title: string; icon?: stri
     return l ? { l, k: logKarma(l) } : null;
   }, [data.logs]);
 
+  const buttons = (
+    <>
+      <ReportButton />
+      <Bell />
+      <Link href="/settings" aria-label="Settings" title="Settings" className="shrink-0 h-10 w-10 rounded-xl border border-white/15 bg-white/5 grid place-items-center text-lg active:scale-90">⚙️</Link>
+      <Link href="/control" aria-label="Control Centre" title="Control Centre" className="shrink-0 h-10 w-10 rounded-xl border border-white/15 bg-white/5 grid place-items-center text-lg active:scale-90">🎛️</Link>
+    </>
+  );
+  // Plain assistant look: just the page name and its buttons (no avatar, level, XP or coins).
+  if (!isGame(profile.settings)) return (
+    <header className="mb-5 flex items-end gap-2">
+      {icon && <span className="text-2xl">{icon}</span>}
+      <div className="flex-1 min-w-0">
+        <h1 className="text-xl font-black">{t(title)}</h1>
+        {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
+      </div>
+      {buttons}
+    </header>
+  );
   return (
     <header className="mb-5">
       <div className="card frame p-3 flex items-center gap-3">
@@ -87,9 +107,7 @@ export function XpHeader({ title, icon, subtitle }: { title: string; icon?: stri
           <h1 className="text-xl font-black glow-text uppercase">{t(title)}</h1>
           {subtitle && <p className="text-xs text-muted">{subtitle}</p>}
         </div>
-        <ReportButton />
-        <Bell />
-        <Link href="/control" aria-label="Control Centre" title="Control Centre" className="shrink-0 h-10 w-10 rounded-xl border border-white/15 bg-white/5 grid place-items-center text-lg active:scale-90">🎛️</Link>
+        {buttons}
       </div>
     </header>
   );

@@ -1,5 +1,6 @@
 "use client";
 
+import { isGame } from "@/lib/assistant";
 import { MainActions, SleepWakeTiles } from "@/components/MainActions";
 import { DailyMission } from "@/components/DailyMission";
 import { GuideCard } from "@/components/Guide";
@@ -120,11 +121,12 @@ export default function TodayPage() {
   const hour = new Date().getHours();
   const greet = hour < 5 ? "Late night" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const summary = daySummary(logs, settings.currency);
+  const game = isGame(settings);
   const dateLabel = new Date(`${day}T12:00`).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   return (
     <>
-      <XpHeader title={isToday ? "Base Camp" : "Day record"} icon="🏯" subtitle={isToday ? `${greet}, hero. ${doneCount}/6 missions cleared.` : undefined} />
+      <XpHeader title={isToday ? (game ? "Base Camp" : "Home") : "Day record"} icon="🏯" subtitle={isToday ? (game ? `${greet}, hero. ${doneCount}/6 missions cleared.` : `${greet}, ${profile.display_name}. ${doneCount}/6 daily goals done.`) : undefined} />
 
       <div className="card flex items-center gap-2 p-2 mb-4">
         <button aria-label="Previous day" onClick={() => setDay(shiftDay(day, -1))} className="btn-ghost h-10 w-10 !p-0">‹</button>
@@ -151,8 +153,8 @@ export default function TodayPage() {
         exam: isToday ? <ExamTarget /> : null,
         pins: isToday ? <PinsCard /> : null,
         routine: isToday ? <MorningCard /> : null,
-        event: isToday ? <EventCard /> : null,
-        rival: isToday ? <RivalCard /> : null,
+        event: isToday && game ? <EventCard /> : null,
+        rival: isToday && game ? <RivalCard /> : null,
         coach: isToday ? <CoachCard /> : null,
         learn: isToday ? <LearnToday compact /> : null,
         gaps: isToday ? <GapsCard /> : null,
@@ -161,11 +163,11 @@ export default function TodayPage() {
         sleep: isToday ? <SleepCard onLogged={setToast} /> : null,
         meals: isToday ? <MealsCard /> : null,
         gauges: isToday ? <GaugesCard /> : null,
-        boss: isToday ? <BossAndChest /> : null,
+        boss: isToday && game ? <BossAndChest /> : null,
         missions: (
       <section className="mb-4">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="section-title">⚔ Daily missions</h2>
+          <h2 className="section-title">{game ? "⚔ Daily missions" : "🎯 Daily goals"}</h2>
           <span className="font-game text-sm text-[var(--accent2)]">{doneCount}/{missions.length}</span>
         </div>
         <div className="space-y-2">
