@@ -18,6 +18,7 @@ import { howTo, variantFromName } from "@/lib/howto";
 import { canDo, dayPlan, kitOf, kitText, setsText, splitPlan, todayKit, type PlanRow } from "@/lib/have";
 import { dayType, isOffDay, sched } from "@/lib/schedule";
 import Link from "next/link";
+import { fitOf } from "@/lib/focus";
 import { type Pattern } from "@/lib/exercises";
 import { moveOf, MOVES, myMove, variantOf } from "@/lib/moves";
 import type { CustomItem, Log } from "@/lib/store";
@@ -218,6 +219,13 @@ export default function TrainPage() {
         ),
         plan: (
         <>
+      {fitOf(data.profile.settings.fit).on && (
+        <Link href="/fit" className="card p-3 mb-3 flex items-center gap-3 active:scale-[.98]">
+          <span className="text-3xl">🎯</span>
+          <span className="flex-1"><b>Focus Area</b><span className="block text-xs text-muted">Your Daily mission workout is planned here: your chosen body areas, your equipment, in your free time.</span></span>
+          <span className="text-muted">›</span>
+        </Link>
+      )}
       <details className="card p-3 mb-3" open={Object.keys(kit).length > 0 || !items.length}>
         <summary className="text-sm font-semibold cursor-pointer">📅 Today&apos;s full workout (made from what you have)</summary>
         <p className="text-xs text-muted mt-2">{hard && <b className="text-amber-300">🔥 Day off: hard mode (an extra set, more reps, 2 extra moves). </b>}{Object.keys(kit).length ? <>Today&apos;s tools: <b>{kitText(tools)}</b> plus bodyweight moves.{Object.keys(tools).length < Object.keys(kit).length ? " Your other gear comes on other days." : ""}</> : <>No equipment yet, so this is bodyweight only. <Link href="/have" className="text-[var(--accent2)] underline">Add your dumbbells, kettlebell or pull-up bar</Link> and it changes.</>} A new random plan each day.</p>

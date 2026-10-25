@@ -1,5 +1,6 @@
 "use client";
 
+import { fmoveOf } from "@/lib/focusmoves";
 import { useEffect, useRef, useState } from "react";
 import { speak } from "@/lib/safety";
 import { useApp } from "@/lib/store";
@@ -40,13 +41,15 @@ export function WorkoutRunner({ row, onClose }: { row: PlanRow; onClose: () => v
   const timed = /s$/i.test(row.reps.trim());
   // How to do it: the moving picture, muscles and steps from the exercise guide.
   const move = moveOf(row.name);
-  const how = howTo(move, variantFromName(move, row.name), row.name);
+  // Focus Area moves carry their own guide (lib/focusmoves.ts).
+  const fm = fmoveOf(row.name);
+  const how = fm ? { pose: fm.pose, prop: fm.prop, scene: fm.scene, steps: fm.how } : howTo(move, variantFromName(move, row.name), row.name);
   const [showSteps, setShowSteps] = useState(false);
   const saved = remembered(row.name);
   const [setup, setSetup] = useState<Setup>({
     sets: Math.min(saved.sets ?? row.sets, row.sets),
     work: saved.work ?? (timed ? parseInt(row.reps) || 60 : 45),
-    rest: saved.rest ?? (timed ? 15 : 60),
+    rest: saved.rest ?? row.rest ?? (timed ? 15 : 60),
   });
   const [phase, setPhase] = useState<Phase | null>(null);
   const [end, setEnd] = useState(0); // when the current phase ends (ms)
