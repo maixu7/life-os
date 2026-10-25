@@ -123,6 +123,13 @@ export function autoSteps(d: Data, date: Date): RoutineItem[] {
     add(id, spots[i % spots.length] + i * 5, len, label, "step", href ? { href } : {});
   }
 
+  // ---- After a big meal (500+ kcal): a 10-minute walk lowers the blood sugar spike ----
+  d.logs.filter((l) => l.day === day && Array.isArray(l.data.foods)).forEach((l, i) => {
+    const kcal = (l.data.foods as { kcal?: number }[]).reduce((a, f) => a + (Number(f.kcal) || 0), 0);
+    const at = new Date(l.created_at);
+    if (kcal >= 500) add(`mealwalk-${i}`, at.getHours() * 60 + at.getMinutes() + 15, 10, "Walk 10 min after your meal", "step", { note: `${Math.round(kcal)} kcal meal: a short walk lowers the blood sugar spike`, href: "/train" });
+  });
+
   // ---- Before bed ----
   add("shower", S - 100, 20, "Shower or bath", "step");
   add("prep", S - 60, 10, off && !isOffDay(dayType(s, new Date(date.getTime() + 86_400_000))) ? "Pack bag and clothes for tomorrow" : "Prepare tomorrow", "step");

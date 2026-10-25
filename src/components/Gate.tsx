@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { PasswordHint } from "@/components/Safety";
+import { PasswordHint } from "@/components/PasswordHint";
 import { AppProvider, initialData, mergeData, normalizeData, type Data } from "@/lib/store";
 import {
   forgetDevice, getLockout, lastUser, login, readBackup, recordAttempt, register, remembered, rememberDevice,

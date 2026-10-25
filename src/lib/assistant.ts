@@ -22,10 +22,12 @@ export type AssistantSettings = {
   phrases: Record<string, string>; // your own words per kind of task
   focus: string; // today's focus statement, shown on the catch-up
   battery: boolean; // warn when the battery is low
+  briefing: boolean; // ☀️ morning briefing on the first open in the morning
+  review: boolean; // 🌙 night review an hour before bed
 };
 export const DEFAULT_ASSISTANT: AssistantSettings = {
   mode: "assistant", name: "Assistant", voice: "", rate: 1, pitch: 1, audio: true, chime: true, output: "both", fullscreen: true,
-  grace: 5, snooze: 15, catchup: true, sort: "time", pauseUntil: "", phrases: {}, focus: "", battery: true,
+  grace: 5, snooze: 15, catchup: true, sort: "time", pauseUntil: "", phrases: {}, focus: "", battery: true, briefing: true, review: true,
 };
 export const assistantOf = (s: Settings): AssistantSettings => ({ ...DEFAULT_ASSISTANT, ...(s.assistant ?? {}) });
 export const isGame = (s: Settings) => assistantOf(s).mode === "game";

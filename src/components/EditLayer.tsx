@@ -46,11 +46,13 @@ function setProp(el: HTMLElement, p: string, v: string) {
   el.dataset.loProps = [...ps].join(",");
 }
 
+let textOn = false; // some words were changed on screen (so they may need putting back)
 function applyLook(look: Look, path: string) {
   const tmap = { ...look.text?.["*"], ...look.text?.[path] };
-  // Words: every piece of text on screen, pop-ups included.
+  const anyText = Object.keys(tmap).length > 0;
+  // Words: every piece of text on screen, pop-ups included (skipped when no words are changed: fast on slow phones).
   const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  for (let n = w.nextNode() as Text | null; n; n = w.nextNode() as Text | null) {
+  if (anyText || textOn) for (let n = w.nextNode() as Text | null; n; n = w.nextNode() as Text | null) {
     const p = n.parentElement;
     if (!p || p.closest(SKIP) || p.closest("script,style")) continue;
     const r = textMem.get(n);
@@ -62,7 +64,8 @@ function applyLook(look: Look, path: string) {
     if (n.data !== out) n.data = out;
     textMem.set(n, { orig: o, out });
   }
-  document.querySelectorAll<HTMLInputElement>("input[placeholder],textarea[placeholder]").forEach((el) => {
+  textOn = anyText;
+  if (anyText || document.querySelector("[data-lo-ph]")) document.querySelectorAll<HTMLInputElement>("input[placeholder],textarea[placeholder]").forEach((el) => {
     if (el.closest(SKIP)) return;
     const o = el.dataset.loPh ?? el.placeholder;
     const rep = tmap[o.trim()];
@@ -161,21 +164,47 @@ function applyLook(look: Look, path: string) {
 
 // A small ✎ on every box (cards, tiles and list rows), so each one has its own edit.
 const PEN_HOSTS = ".card, main a.rounded-2xl, main button.rounded-2xl, .card li, [role=dialog] li";
+// Something you can tap (not the box itself or its pen) under a corner of the pen.
+const TAP = "button,a,input,select,textarea,label,[role=button]";
+function blocked(pen: HTMLElement, host: HTMLElement) {
+  const r = pen.getBoundingClientRect();
+  if (!r.width) return false;
+  // Buttons in the box and next to it (works off screen too, unlike elementsFromPoint).
+  const near = (host.parentElement ?? host).querySelectorAll<HTMLElement>(TAP);
+  for (const t of Array.from(near)) {
+    if (t === host || t.contains(host) || t.closest("[data-lo-pen]")) continue;
+    const q = t.getBoundingClientRect();
+    if (q.width && r.left < q.right - 1 && r.right > q.left + 1 && r.top < q.bottom - 1 && r.bottom > q.top + 1) return true;
+  }
+  return false;
+}
+// Places to try, in order: on the corner, inside the top-right, inside the top-left, inside the bottom-left.
+const SPOTS = ["", "in", "tl", "bl"] as const;
+function place(pen: HTMLElement, host: HTMLElement, first: number) {
+  for (let i = first; i < SPOTS.length; i++) {
+    delete pen.dataset.loPenIn; delete pen.dataset.loPenTl; delete pen.dataset.loPenBl;
+    if (SPOTS[i] === "in") pen.dataset.loPenIn = "1"; else if (SPOTS[i] === "tl") pen.dataset.loPenTl = "1"; else if (SPOTS[i] === "bl") pen.dataset.loPenBl = "1";
+    pen.style.visibility = "";
+    if (!blocked(pen, host)) return;
+  }
+  pen.style.visibility = "hidden"; // nowhere free: the box can still be edited from ✏ Edit mode
+}
+const penned = new WeakSet<HTMLElement>();
 function addPens() {
   document.querySelectorAll<HTMLElement>(PEN_HOSTS).forEach((el) => {
+    if (penned.has(el) && el.querySelector(":scope > [data-lo-pen]")) return; // done already (no layout work each redraw)
     if (el.closest(SKIP) || el.closest("nav")) return;
-    const has = !!el.querySelector(":scope > [data-lo-pen]");
-    if (!has) { const r = el.getBoundingClientRect(); if (r.width < 60 || r.height < 28) return; }
+    const r = el.getBoundingClientRect(); if (r.width < 60 || r.height < 28) return;
     if (getComputedStyle(el).position === "static") setProp(el, "position", "relative");
-    if (has) return;
+    penned.add(el);
     const pen = document.createElement("span");
     pen.dataset.loPen = "1"; pen.dataset.noedit = "";
     pen.setAttribute("role", "button"); pen.setAttribute("aria-label", "Edit this box");
     pen.textContent = "✎";
     const cs = getComputedStyle(el);
-    if (el.tagName === "LI") pen.dataset.loPenRow = "1";
-    else if (cs.overflow !== "visible" || cs.overflowX !== "visible") pen.dataset.loPenIn = "1";
     el.appendChild(pen);
+    if (el.tagName === "LI") { pen.dataset.loPenRow = "1"; if (blocked(pen, el)) { delete pen.dataset.loPenRow; place(pen, el, 1); } }
+    else place(pen, el, cs.overflow !== "visible" || cs.overflowX !== "visible" ? 1 : 0);
   });
 }
 
@@ -198,7 +227,7 @@ export function EditLayer() {
   // Keep the changes on screen while React redraws things.
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | null = null;
-    const obs = new MutationObserver(() => { if (!t) t = setTimeout(run, 60); });
+    const obs = new MutationObserver(() => { if (!t) t = setTimeout(run, 120); });
     const opts = { childList: true, subtree: true, characterData: true };
     function run() {
       t = null;

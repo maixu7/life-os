@@ -7,6 +7,7 @@ import { assistantOf, lateBy, needsDoing, sayFor, type AssistantSettings } from 
 import { steps, type Step } from "@/lib/mission";
 import { fmt12, isQuiet, sched } from "@/lib/schedule";
 import { toDay, useApp } from "@/lib/store";
+export { GameOnly, PlainWords } from "@/components/Plain";
 
 // The assistant (replaces the game's characters): when a task on the Daily
 // mission is late by a few minutes it says so on screen and out loud, with
@@ -85,7 +86,7 @@ function useGo() {
 }
 
 export function AssistantLayer() {
-  const { data, logActivity, updateLog } = useApp();
+  const { data, logActivity, updateLog, saveSettings } = useApp();
   const a = assistantOf(data.profile.settings);
   const go = useGo();
   const [now, setNow] = useState(() => new Date());
@@ -152,7 +153,11 @@ export function AssistantLayer() {
   );
   // Closing the catch-up counts as being told about each of them (no alert for them one by one after).
   const seen = () => { const k = `${ALERTED}-${day}`; const done = read<Record<string, string>>(k, {}); missed.forEach((s) => { done[s.id] = "x"; }); write(k, done); setCatchup(false); stopSpeaking(); };
-  if (catchup && missed.length) return <CatchUp a={a} list={missed} now={now} onClose={seen} onGo={(s) => { seen(); go(s); }} onTick={tick} />;
+  // 😮‍💨 Rest: no alerts and no list for 15 minutes.
+  const rest = () => { saveSettings({ assistant: { ...a, pauseUntil: new Date(Date.now() + 15 * 60_000).toISOString() } }); setAlert(null); seen(); };
+  const wake = list.find((x) => x.id === "b-wake");
+  const woke = wake?.state === "done" && wake.diff != null && wake.diff >= 10 ? `You got up ${wake.diff} min late, so the morning moved to after you got up.` : "";
+  if (catchup && missed.length) return <CatchUp a={a} list={missed} now={now} note={woke} onRest={rest} onClose={seen} onGo={(s) => { seen(); go(s); }} onTick={tick} />;
   if (alert) return (
     <Overlay a={a} full={a.fullscreen}>
       {a.output !== "sound" && <p className="text-xl font-semibold leading-snug">{sayFor(alert, a)}</p>}
@@ -162,6 +167,7 @@ export function AssistantLayer() {
         <button className="btn-primary !py-3" onClick={() => { mark(alert, false); go(alert); }}>OK</button>
       </div>
       <button className="btn-ghost w-full mt-2 !py-2.5" onClick={() => { tick(alert); mark(alert, false); }}>✓ Already done</button>
+      <button className="w-full mt-1 text-xs text-muted py-1.5" onClick={() => { mark(alert, true); rest(); }}>😮‍💨 I&apos;m resting: quiet for 15 min</button>
     </Overlay>
   );
   return null;
@@ -178,7 +184,7 @@ function Overlay({ a, full, children }: { a: AssistantSettings; full: boolean; c
   );
 }
 
-function CatchUp({ a, list, now, onClose, onGo, onTick }: { a: AssistantSettings; list: Step[]; now: Date; onClose: () => void; onGo: (s: Step) => void; onTick: (s: Step) => void }) {
+function CatchUp({ a, list, now, note, onRest, onClose, onGo, onTick }: { a: AssistantSettings; list: Step[]; now: Date; note?: string; onRest: () => void; onClose: () => void; onGo: (s: Step) => void; onTick: (s: Step) => void }) {
   const { data, saveSettings } = useApp();
   const [focus, setFocus] = useState(a.focus);
   useEffect(() => { assistantSay(`You missed ${list.length} ${list.length === 1 ? "task" : "tasks"} so far today.`, a); }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -188,6 +194,7 @@ function CatchUp({ a, list, now, onClose, onGo, onTick }: { a: AssistantSettings
         <div className="text-xs font-semibold tracking-widest uppercase text-[var(--accent2)]">{a.name}</div>
         <h2 className="text-xl font-bold mt-1">Missed so far today ({list.length})</h2>
         <p className="text-xs text-muted">Up to {fmt12(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`)}, {a.sort === "kind" ? "by type" : "in time order"}.</p>
+        {note && <p className="card p-2.5 mt-2 text-sm">🌅 {note}</p>}
         <ul className="mt-3 space-y-2">
           {list.map((s) => (
             <li key={s.id} className="card p-3 flex items-center gap-3">
@@ -202,47 +209,11 @@ function CatchUp({ a, list, now, onClose, onGo, onTick }: { a: AssistantSettings
           <input className="input mt-1" placeholder="One thing that matters most today" value={focus} onChange={(e) => setFocus(e.target.value)} onBlur={() => saveSettings({ assistant: { ...assistantOf(data.profile.settings), focus } })} />
         </label>
         <button className="btn-ghost w-full mt-4 !py-3" onClick={onClose}>OK, close</button>
+        <button className="w-full mt-1 text-xs text-muted py-2" onClick={onRest}>😮‍💨 I&apos;m resting: quiet for 15 min</button>
         <p className="text-[11px] text-muted text-center mt-2">✓ = I did it (saved at its planned time; change the time on the Daily mission if needed).</p>
       </div>
     </div>
   );
-}
-
-// Plain assistant look: game words on screen become the assistant's name, and
-// XP / coin rewards are left out (they're still counted in the background,
-// so switching back to the game look loses nothing).
-const SENSEI = /SENSEI KAITO|Sensei Kaito|SENSEI|Sensei/g;
-const REWARD = /\s*(Reward\s*)?\+\d+\s*XP(\s*·\s*\+\d+\s*🪙)?/g;
-function plainText(t: string, name: string) {
-  return t.replace(SENSEI, (m) => (m === m.toUpperCase() ? name.toUpperCase() : name)).replace(REWARD, "").replace(/🥷\s?/g, "");
-}
-export function PlainWords() {
-  const { data } = useApp();
-  const a = assistantOf(data.profile.settings);
-  useEffect(() => {
-    if (a.mode === "game") return;
-    const fix = (n: Node) => {
-      if (n.nodeType === 3) {
-        const v = n.nodeValue ?? "";
-        if (/Sensei|SENSEI|XP|🥷/.test(v)) { const w = plainText(v, a.name); if (w !== v) n.nodeValue = w; }
-        return;
-      }
-      if (n.nodeType !== 1 || (n as Element).closest?.("input,textarea,[contenteditable]")) return;
-      const walk = document.createTreeWalker(n, NodeFilter.SHOW_TEXT);
-      for (let x = walk.nextNode(); x; x = walk.nextNode()) fix(x);
-    };
-    fix(document.body);
-    const ob = new MutationObserver((ms) => { for (const m of ms) { if (m.type === "characterData") fix(m.target); else m.addedNodes.forEach(fix); } });
-    ob.observe(document.body, { subtree: true, childList: true, characterData: true });
-    return () => ob.disconnect();
-  }, [a.mode, a.name]);
-  return null;
-}
-
-/** Shows its children only with the game look on. */
-export function GameOnly({ children }: { children: React.ReactNode }) {
-  const { data } = useApp();
-  return assistantOf(data.profile.settings).mode === "game" ? <>{children}</> : null;
 }
 
 // While anything is being read aloud: a Stop button, and leaving the page stops it too.

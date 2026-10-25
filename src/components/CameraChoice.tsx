@@ -9,10 +9,20 @@ import { useEffect, useState } from "react";
 
 const OK = "loCamOk";
 
+// Android phones say "Android". Android tablets (and the Play Store app on them) open sites
+// in desktop mode, so they say "Linux" instead: a touch screen on Linux is a tablet too.
+// iPhone and iPad already offer the camera in their own sheet.
+export function needsChooser() {
+  const ua = navigator.userAgent;
+  const uad = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData;
+  if (/Android/i.test(ua) || uad?.platform === "Android") return true;
+  return /Linux|CrOS/i.test(ua) && !/iPhone|iPad|Mac/i.test(ua) && navigator.maxTouchPoints > 0;
+}
+
 export function CameraChoice() {
   const [input, setInput] = useState<HTMLInputElement | null>(null);
   useEffect(() => {
-    if (!/Android/i.test(navigator.userAgent)) return;
+    if (!needsChooser()) return;
     const on = (e: MouseEvent) => {
       const el = e.target;
       if (!(el instanceof HTMLInputElement) || el.type !== "file" || !/image/.test(el.accept)) return;

@@ -290,14 +290,7 @@ export function RecoverySheet({ onClose }: { onClose: () => void }) {
 }
 
 // Shown under the password box on the sign-in screen.
-export function PasswordHint({ user }: { user: string }) {
-  const [show, setShow] = useState(false);
-  const [hint, setHint] = useState("");
-  useEffect(() => { setHint(user ? passwordHint(user) : ""); setShow(false); }, [user]);
-  if (!hint) return null;
-  return show ? <p className="text-xs text-[var(--accent2)]">💡 Hint: {hint}</p>
-    : <button type="button" onClick={() => setShow(true)} className="text-xs text-muted">💡 Show my password hint</button>;
-}
+export { PasswordHint } from "@/components/PasswordHint";
 
 // ---------- Display & reading ----------
 export function DisplaySheet({ onClose }: { onClose: () => void }) {

@@ -1,29 +1,9 @@
-import { DetailsHost } from "@/components/Details";
-import { SummaryHost } from "@/components/Summary";
-import { AlarmLayer } from "@/components/AlarmLayer";
-import { BodyCareWatcher } from "@/components/tools/BodyCare";
-import { PageExtras, SlotHost } from "@/components/Blocks";
-import { CelebrationLayer } from "@/components/Celebration";
-import { DoingTray } from "@/components/Doing";
-import { Popper } from "@/components/Coach";
-import { BattleWatcher } from "@/components/RealMe";
-import { ReminderWatcher } from "@/components/tools/Insights";
-import { PushSync } from "@/components/Push";
-import { StudyWall } from "@/components/StrictStudy";
-import { BottleWatcher } from "@/components/FoodPlus";
-import { PaydayWatcher } from "@/components/Money";
-import { GameWatcher } from "@/components/GameWatcher";
 import { Gate } from "@/components/Gate";
+import { PageExtras, SlotHost, DetailsHost, SummaryHost, AlarmLayer, BodyCareWatcher, CelebrationLayer, DoingTray, Popper, BattleWatcher, ReminderWatcher, PushSync, StudyWall, BottleWatcher, PaydayWatcher, GameWatcher, SafetyLayer, StageIntro, VoiceButton, UploadHost, Fab, HubHost, AssistantLayer, SpeechStop, CameraChoice, DayCards } from "@/components/Layers";
 import { Nav } from "@/components/Nav";
-import { SafetyLayer } from "@/components/Safety";
 import { ResumeRoute } from "@/components/ResumeRoute";
-import { StageIntro } from "@/components/StageIntro";
-import { VoiceButton } from "@/components/VoiceButton";
 import { Auto, EditLayer } from "@/components/EditLayer";
-import { UploadHost } from "@/components/UploadSheet";
-import { Fab, HubHost } from "@/components/hub/Hub";
-import { AssistantLayer, GameOnly, PlainWords, SpeechStop } from "@/components/Assistant";
-import { CameraChoice } from "@/components/CameraChoice";
+import { GameOnly, PlainWords } from "@/components/Plain";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -47,6 +27,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Auto id="celebrate"><CelebrationLayer /></Auto>
       <Auto id="alarm"><AlarmLayer /></Auto>
       <Auto id="assistant"><AssistantLayer /></Auto>
+      <Auto id="daycards"><DayCards /></Auto>
       <PlainWords />
       <SpeechStop />
       <CameraChoice />

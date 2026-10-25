@@ -629,3 +629,24 @@ export function missionStats(d: Data, from: string, to: string, now = new Date()
 }
 
 export const nowHM = () => hhmm(new Date());
+
+// Days in a row (before today) with at least 60% of the Daily mission done. Past days rarely
+// change, so it's worked out once per day and per number of past records.
+const streakMemo = new Map<string, number>();
+export function missionStreak(d: Data, now = new Date(), max = 14) {
+  const today = toDay(now);
+  const key = `${today}|${d.logs.filter((l) => l.day < today).length}|${d.profile.updated_at}`;
+  const hit = streakMemo.get(key);
+  if (hit != null) return hit;
+  let n = 0;
+  for (let i = 1; i <= max; i++) {
+    const day = toDay(new Date(now.getTime() - i * 86_400_000));
+    if (!logsOn(d, day).length) break;
+    const s = steps(d, day, now);
+    const done = s.filter((x) => x.state === "done").length;
+    if (!s.length || done / s.length < 0.6) break;
+    n++;
+  }
+  streakMemo.set(key, n);
+  return n;
+}
