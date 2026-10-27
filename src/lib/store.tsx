@@ -286,8 +286,12 @@ export function AppProvider({ session, initial, onLock, onSignOut, hasPin, child
     };
     const onVis = () => document.visibilityState === "visible" && sync();
     document.addEventListener("visibilitychange", onVis);
+    addEventListener("online", sync);
+    // Check straight away when the app opens, so an old "not synced" warning clears at once.
+    sync();
     const t = setInterval(sync, 60_000);
     return () => {
+      removeEventListener("online", sync);
       document.removeEventListener("visibilitychange", onVis);
       clearInterval(t);
     };
