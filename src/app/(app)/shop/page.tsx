@@ -20,7 +20,7 @@ import { loadImage, smallPhoto } from "@/lib/foodphoto";
 import { SnapChoice, useRememberSnap, type Pick } from "@/components/SnapChoice";
 import { goods } from "@/lib/goods";
 
-type Tab = "list" | "storage" | "history" | "rewards" | "photos";
+type Tab = "names" | "list" | "collection" | "storage" | "history" | "rewards" | "photos";
 const monthOf = (iso: string) => iso.slice(0, 7);
 const shiftMonth = (m: string, n: number) => {
   const d = new Date(`${m}-01T12:00`);
@@ -33,7 +33,7 @@ export default function ShopPage() {
   const { session, data, update, profile, logActivity, celebrate } = useApp();
   const cur = profile.settings.currency;
   const money = (n: number | null | undefined) => (n == null ? "-" : `${cur} ${Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
-  const [tab, setTab] = useState<Tab>("list");
+  const [tab, setTab] = useState<Tab>("names");
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [editItem, setEditItem] = useState<ShopItem | "new" | null>(null);
   const [buying, setBuying] = useState<ShopItem | null>(null);
@@ -41,11 +41,9 @@ export default function ShopPage() {
   const [priceOf, setPriceOf] = useState<string | null>(null);
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [compare, setCompare] = useState<string[]>([]);
-  const [quick, setQuick] = useState("");
   const [receipt, setReceipt] = useState(false);
   const [snapMsg, setSnapMsg] = useState("");
   const snapRef = useRef<HTMLInputElement>(null);
-  const quickRef = useRef<HTMLInputElement>(null);
 
   const toBuy = useMemo(() => data.shopping.filter((i) => i.status === "to_buy").sort((a, b) => a.created_at.localeCompare(b.created_at)), [data.shopping]);
   const bought = useMemo(
@@ -72,20 +70,41 @@ export default function ShopPage() {
   }, [data.shopping, session]);
 
   const lastBuy = (name: string) => bought.find((b) => sameThing(b.name, name));
-  const listTotal = toBuy.reduce((s, i) => s + Number(i.price ?? 0), 0);
 
-  const quickAdd = () => {
-    const name = quick.trim();
+  // 📝 List: every name you ever want to buy. Names stay here for good; ticking one
+  // puts a copy in 🛒 To buy (untick takes the copy back out). Names that reach
+  // To buy some other way (upload, receipt, "ran out") show here too.
+  const saved = useCustomItems("shoplist");
+  const [newName, setNewName] = useState("");
+  const names = useMemo(() => {
+    const out = saved.items.map((i) => ({ id: i.id, name: i.name, emoji: String(i.config.emoji ?? emojiFor(i.name, "🛍️")), mine: true }));
+    for (const t of toBuy) if (!out.some((o) => sameThing(o.name, t.name))) out.push({ id: `v:${t.id}`, name: t.name, emoji: t.emoji, mine: false });
+    return out;
+  }, [saved.items, toBuy]);
+  const inToBuy = (name: string) => toBuy.find((t) => sameThing(t.name, name));
+  const addName = () => {
+    const name = newName.trim();
     if (!name) return;
-    const last = lastBuy(name);
+    if (!saved.items.some((i) => sameThing(i.name, name))) saved.add(name, { emoji: emojiFor(name, "🛍️") });
+    setNewName("");
+  };
+  const tickName = (n: { name: string; emoji: string; mine: boolean }) => {
+    if (!n.mine) saved.add(n.name, { emoji: n.emoji }); // keep it in the List for good
+    const copy = inToBuy(n.name);
+    if (copy) { update((d) => ({ ...d, shopping: d.shopping.filter((x) => x.id !== copy.id), deleted: [...d.deleted, copy.id] })); return; }
+    const last = lastBuy(n.name);
     const item: ShopItem = {
-      id: crypto.randomUUID(), name, emoji: emojiFor(name, "🛍️"), qty: last?.qty ?? 1, unit: last?.unit ?? "pcs",
+      id: crypto.randomUUID(), name: n.name, emoji: n.emoji, qty: last?.qty ?? 1, unit: last?.unit ?? "pcs",
       price: last?.price ?? null, category: last?.category ?? "", note: "", photo_id: null, status: "to_buy", purchased_at: null,
       created_at: new Date().toISOString(),
     };
     update((d) => ({ ...d, shopping: [...d.shopping, item] }));
-    setQuick("");
   };
+  const removeName = (n: { id: string; name: string }) => {
+    if (!confirm(`Remove "${n.name}" from your List?`)) return;
+    saved.remove(n.id);
+  };
+  const listTotal = toBuy.reduce((s, i) => s + Number(i.price ?? 0), 0);
 
   // Snap a product (or its empty packet): the app reads what it is and adds it
   // to the list with the photo, so next time it's easy to find in the shop.
@@ -139,10 +158,16 @@ export default function ShopPage() {
   return (
     <>
       <XpHeader title="Shopping" icon="🛒" subtitle="Your shopping list, what you bought, and your money" />
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <button onClick={() => { setTab("list"); setTimeout(() => quickRef.current?.focus(), 50); }} className={BIG_TILE}><span className="text-4xl leading-none">🛒</span><span className="font-black text-sm leading-tight">Shopping list</span><span className="text-[10px] text-muted leading-tight">{toBuy.length} to buy</span></button>
-        <button onClick={() => setUpload(true)} className={BIG_TILE}><span className="text-4xl leading-none">📷</span><span className="font-black text-sm leading-tight">Upload</span><span className="text-[10px] text-muted leading-tight">Gallery, scan, or type it</span></button>
-        <button onClick={() => setReceipt(true)} className={BIG_TILE}><span className="text-4xl leading-none">🧾</span><span className="font-black text-sm leading-tight">Scan receipt</span><span className="text-[10px] text-muted leading-tight">Ticks what you bought</span></button>
+      <div className="grid grid-cols-3 gap-2 mb-2">
+        {([["names", "📝", "List", `${names.length} name${names.length === 1 ? "" : "s"}`], ["list", "🛒", "To buy", `${toBuy.length} to buy`], ["collection", "📦", "Collection", `${bought.length} bought`]] as const).map(([k, icon, label, sub]) => (
+          <button key={k} onClick={() => setTab(k)} aria-pressed={tab === k} className={`${BIG_TILE} ${tab === k ? "ring-2 ring-[var(--accent2)]" : ""}`}>
+            <span className="text-4xl leading-none">{icon}</span><span className="font-black text-sm leading-tight">{label}</span><span className="text-[10px] text-muted leading-tight">{sub}</span>
+          </button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        <button onClick={() => setUpload(true)} className="chip justify-center !py-2 text-xs">📷 Upload</button>
+        <button onClick={() => setReceipt(true)} className="chip justify-center !py-2 text-xs">🧾 Scan receipt</button>
       </div>
       <input ref={snapRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ""; if (f.length) snapAdd(f); }} />
       {shot && <SnapChoice photo={shot.small} img={shot.imgs} list={picks} what="item" kind="item" laterType="shop" onClose={() => setShot(null)}
@@ -151,27 +176,54 @@ export default function ShopPage() {
       {snapMsg && <p className="card p-3 mb-3 text-xs">{snapMsg}</p>}
 
 
-      <div className="grid grid-cols-5 gap-1 p-1 mb-4 rounded-2xl bg-white/5">
-        {([["list", "🛒 Supplies"], ["storage", "🎒 Bag"], ["history", "🧾 Ledger"], ["rewards", "🎁 Rewards"], ["photos", "📸 Photos"]] as const).map(([k, l]) => (
+      <div className="grid grid-cols-4 gap-1 p-1 mb-4 rounded-2xl bg-white/5">
+        {([["storage", "🎒 Bag"], ["history", "🧾 Ledger"], ["rewards", "🎁 Rewards"], ["photos", "📸 Photos"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`rounded-xl py-2 text-[11px] font-semibold transition ${tab === k ? "bg-[var(--accent2)] text-[#0b0420]" : "text-muted"}`}>{l}</button>
         ))}
       </div>
 
-      {tab === "list" && (
+      {tab === "names" && (
         <>
-          <AutoGrocery />
-          <form onSubmit={(e) => { e.preventDefault(); quickAdd(); }} className="flex gap-2 mb-2">
+          <form onSubmit={(e) => { e.preventDefault(); addName(); }} className="flex gap-2 mb-2">
             <div className="relative flex-1">
-              <span className="absolute left-2 top-1/2 -translate-y-1/2"><Pic name={quick} emoji={quick ? emojiFor(quick, "🛍️") : "🛍️"} size={34} /></span>
-              <input ref={quickRef} className="input !pl-14" placeholder="Add item, e.g. Apple" value={quick} onChange={(e) => setQuick(e.target.value)} />
+              <span className="absolute left-2 top-1/2 -translate-y-1/2"><Pic name={newName} emoji={newName ? emojiFor(newName, "🛍️") : "🛍️"} size={34} /></span>
+              <input className="input !pl-14" placeholder="Add a name, e.g. Milk" value={newName} onChange={(e) => setNewName(e.target.value)} />
             </div>
             <button className="btn-primary">Add</button>
           </form>
-          <button onClick={() => setUpload(true)} className="mb-4 text-xs text-muted">+ Add with quantity, price, photo…</button>
+          <p className="text-xs text-muted mb-2">Tick a name to put it in 🛒 To buy. Names stay in your List.</p>
+          {names.length === 0 ? (
+            <p className="card p-6 text-center text-sm text-muted">Your List is empty. Add the things you buy.</p>
+          ) : (
+            <section className="card divide-y divide-white/5">
+              {names.map((n) => {
+                const on = !!inToBuy(n.name);
+                return (
+                  <div key={n.id} data-name={n.name} className="flex items-center gap-3 p-2.5">
+                    <Pic name={n.name} emoji={n.emoji} size={40} />
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-semibold truncate">{n.name}</span>
+                      {on && <span className="inline-block rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-bold text-emerald-300">✓ In To buy</span>}
+                    </span>
+                    {n.mine && <button onClick={() => removeName(n)} aria-label={`Remove ${n.name} from List`} className="h-10 w-10 shrink-0 rounded-full text-muted">🗑</button>}
+                    <button onClick={() => tickName(n)} aria-pressed={on} aria-label={on ? `Take ${n.name} out of To buy` : `Put ${n.name} in To buy`}
+                      className={`h-11 w-11 shrink-0 rounded-full border-2 font-black text-lg active:scale-90 ${on ? "border-emerald-400 bg-emerald-500 text-white" : "border-emerald-400/60 text-emerald-300/40"}`}>✓</button>
+                  </div>
+                );
+              })}
+            </section>
+          )}
+        </>
+      )}
+
+      {tab === "list" && (
+        <>
+          <AutoGrocery />
+          <p className="text-xs text-muted mb-2">Tick ✓ when you have bought it, fill in the photo, price and amount, and it moves to 📦 Collection.</p>
 
           {toBuy.length === 0 ? (
-            <p className="card p-6 text-center text-sm text-muted">Your list is empty.</p>
+            <p className="card p-6 text-center text-sm text-muted">Nothing to buy. Tick names in 📝 List to add them here.</p>
           ) : (
             <section className="card divide-y divide-white/5">
               {toBuy.map((i) => (
@@ -183,13 +235,35 @@ export default function ShopPage() {
                       {i.qty} {i.unit}{i.price != null ? ` · ${money(i.price)}` : " · tap to add price"}{i.note ? ` · ${i.note}` : ""}
                     </div>
                   </button>
-                  <button onClick={() => setBuying(i)} className="btn-primary !px-3 !py-1.5 text-sm">✓ Bought</button>
+                  <button onClick={() => setBuying(i)} aria-label={`Bought ${i.name}`} className="h-11 w-11 shrink-0 rounded-full border-2 border-emerald-400 text-emerald-300 font-black text-lg active:scale-90">✓</button>
                 </div>
               ))}
               <div className="flex justify-between p-3 text-sm">
                 <span className="text-muted">{toBuy.length} items</span>
                 <span className="font-bold">Estimated {money(listTotal)}</span>
               </div>
+            </section>
+          )}
+        </>
+      )}
+
+      {tab === "collection" && (
+        <>
+          <p className="text-xs text-muted mb-2">Everything you bought, with the date. Tap one for its price history.</p>
+          {bought.length === 0 ? (
+            <p className="card p-6 text-center text-sm text-muted">Nothing bought yet. Tick items in 🛒 To buy when you buy them.</p>
+          ) : (
+            <section className="card divide-y divide-white/5">
+              {bought.map((b) => (
+                <button key={b.id} onClick={() => setPriceOf(b.name)} className="flex w-full items-center gap-3 p-3 text-left">
+                  <Pic name={b.name} emoji={b.emoji} src={b.photo_id ? urls[b.photo_id] : undefined} size={48} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-semibold truncate">{b.name}</span>
+                    <span className="block text-xs text-muted">{b.qty} {b.unit} · {new Date(b.purchased_at!).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
+                  </span>
+                  <span className="font-bold tabular-nums">{money(b.price)}</span>
+                </button>
+              ))}
             </section>
           )}
         </>
@@ -334,21 +408,31 @@ export default function ShopPage() {
       )}
 
       {buying && (
-        <BuySheet item={buying} cur={cur} onClose={() => setBuying(null)} onBuy={(qty, unit, price, at, toStorage) => {
+        <BuySheet item={buying} cur={cur} onClose={() => setBuying(null)} onBuy={async (name, qty, unit, price, at, toStorage, photo) => {
           const nowIso = at.toISOString();
+          let photo_id = buying.photo_id;
+          if (photo) {
+            const fresh = crypto.randomUUID();
+            if (await putPhoto(session, fresh, photo).then(() => true).catch(() => false)) {
+              if (photo_id) await deletePhoto(session, photo_id).catch(() => {});
+              photo_id = fresh;
+            }
+          }
+          const emoji = sameThing(name, buying.name) ? buying.emoji : emojiFor(name, "🛍️");
           update((d) => {
-            const shopping = d.shopping.map((x) => (x.id === buying.id ? { ...x, qty, unit, price, status: "purchased" as const, purchased_at: nowIso } : x));
+            const shopping = d.shopping.map((x) => (x.id === buying.id ? { ...x, name, emoji, photo_id, qty, unit, price, status: "purchased" as const, purchased_at: nowIso } : x));
             if (!toStorage) return { ...d, shopping };
-            const existing = d.pantry.find((p) => sameThing(p.name, buying.name) && p.unit === unit);
+            const existing = d.pantry.find((p) => sameThing(p.name, name) && p.unit === unit);
             const unitPrice = price != null && qty ? +(price / qty).toFixed(2) : null;
             const pantry = existing
               ? d.pantry.map((p) => (p.id === existing.id ? { ...p, qty: +(p.qty + qty).toFixed(2), last_price: unitPrice ?? p.last_price, updated_at: nowIso } : p))
-              : [...d.pantry, { id: crypto.randomUUID(), name: buying.name, emoji: buying.emoji, qty, unit, last_price: unitPrice, updated_at: nowIso }];
+              : [...d.pantry, { id: crypto.randomUUID(), name: name, emoji: emoji, qty, unit, last_price: unitPrice, updated_at: nowIso }];
             return { ...d, shopping, pantry };
           });
-          const row = logActivity("shopping", { item: buying.name, emoji: buying.emoji, qty, unit, price }, at);
-          celebrate({ title: "ITEM ACQUIRED!", subtitle: `${buying.emoji} ${qty} ${unit} ${buying.name}`, xp: row.xp });
+          const row = logActivity("shopping", { item: name, emoji: emoji, qty, unit, price }, at);
+          celebrate({ title: "ITEM ACQUIRED!", subtitle: `${emoji} ${qty} ${unit} ${name}`, xp: row.xp });
           setBuying(null);
+          setTab("collection");
         }} />
       )}
 
@@ -484,8 +568,13 @@ function ItemSheet({ item, lastBuy, money, onClose, onSave, onDelete }: {
 
 function BuySheet({ item, cur, onClose, onBuy }: {
   item: ShopItem; cur: string; onClose: () => void;
-  onBuy: (qty: number, unit: string, price: number | null, at: Date, toStorage: boolean) => void;
+  onBuy: (name: string, qty: number, unit: string, price: number | null, at: Date, toStorage: boolean, photo: File | null) => void;
 }) {
+  const [name, setName] = useState(item.name);
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [shown, setShown] = useState<string | null>(null);
+  useEffect(() => () => { if (shown) URL.revokeObjectURL(shown); }, [shown]);
+  const [busy, setBusy] = useState(false);
   const [qty, setQty] = useState(String(item.qty));
   const [unit, setUnit] = useState(item.unit);
   const [price, setPrice] = useState(item.price != null ? String(item.price) : "");
@@ -493,16 +582,23 @@ function BuySheet({ item, cur, onClose, onBuy }: {
   const [toStorage, setToStorage] = useState(true);
   return (
     <Sheet title={`${item.emoji} Bought ${item.name}`} onClose={onClose}>
+      <label className="flex items-center gap-3 rounded-xl bg-white/5 p-2 cursor-pointer">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {shown ? <img src={shown} alt="" className="h-16 w-16 rounded-lg object-cover" /> : <span className="grid h-16 w-16 place-items-center rounded-lg bg-white/10 text-3xl">📷</span>}
+        <span className="text-sm font-semibold">{photo ? "Change photo" : "Take or upload a photo"}<span className="block text-[11px] font-normal text-muted">Optional</span></span>
+        <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0] ?? null; e.target.value = ""; if (!f) return; setPhoto(f); setShown(URL.createObjectURL(f)); }} />
+      </label>
+      <label className="text-xs text-muted">Name<input className="input mt-1" value={name} onChange={(e) => setName(e.target.value)} /></label>
       <div className="grid grid-cols-3 gap-2">
         <label className="text-xs text-muted">Quantity<input className="input mt-1" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} /></label>
         <label className="text-xs text-muted">Unit
           <select className="input mt-1" value={unit} onChange={(e) => setUnit(e.target.value)}>{UNITS.map((u) => <option key={u}>{u}</option>)}</select>
         </label>
-        <label className="text-xs text-muted">Paid ({cur})<input autoFocus className="input mt-1" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} /></label>
+        <label className="text-xs text-muted">Price ({cur})<input className="input mt-1" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} /></label>
       </div>
       <WhenPicker label="When" value={when} onChange={setWhen} />
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={toStorage} onChange={(e) => setToStorage(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" /> Add to my storage</label>
-      <button className="btn-primary w-full" onClick={() => onBuy(Number(qty) || 1, unit, price === "" ? null : Number(price), new Date(when), toStorage)}>Save purchase</button>
+      <button disabled={busy || !name.trim()} className="btn-primary w-full disabled:opacity-40" onClick={() => { setBusy(true); onBuy(name.trim(), Number(qty) || 1, unit, price === "" ? null : Number(price), new Date(when), toStorage, photo); }}>{busy ? "Saving…" : "Save · move to Collection"}</button>
     </Sheet>
   );
 }
