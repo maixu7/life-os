@@ -100,6 +100,21 @@ export default function ShopPage() {
     };
     update((d) => ({ ...d, shopping: [...d.shopping, item] }));
   };
+  // ✏️ Rename a List name; its copy in To buy gets the new name too.
+  const [renaming, setRenaming] = useState<{ id: string; name: string; emoji: string; mine: boolean } | null>(null);
+  const [renameTo, setRenameTo] = useState("");
+  const doRename = () => {
+    const n = renaming, to = renameTo.trim();
+    if (!n || !to) return;
+    if (!sameThing(n.name, to)) {
+      const emoji = emojiFor(to, n.emoji || "🛍️");
+      if (n.mine) saved.update(n.id, { name: to, config: { ...(saved.items.find((i) => i.id === n.id)?.config ?? {}), emoji } });
+      else saved.add(to, { emoji });
+      const copy = inToBuy(n.name);
+      if (copy) update((d) => ({ ...d, shopping: d.shopping.map((x) => (x.id === copy.id ? { ...x, name: to, emoji } : x)) }));
+    } else if (n.mine && n.name !== to) saved.update(n.id, { name: to });
+    setRenaming(null);
+  };
   const removeName = (n: { id: string; name: string }) => {
     if (!confirm(`Remove "${n.name}" from your List?`)) return;
     saved.remove(n.id);
@@ -206,6 +221,7 @@ export default function ShopPage() {
                       <span className="block font-semibold truncate">{n.name}</span>
                       {on && <span className="inline-block rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-bold text-emerald-300">✓ In To buy</span>}
                     </span>
+                    <button onClick={() => { setRenaming(n); setRenameTo(n.name); }} aria-label={`Rename ${n.name}`} className="h-10 w-10 shrink-0 rounded-full text-muted">✏️</button>
                     {n.mine && <button onClick={() => removeName(n)} aria-label={`Remove ${n.name} from List`} className="h-10 w-10 shrink-0 rounded-full text-muted">🗑</button>}
                     <button onClick={() => tickName(n)} aria-pressed={on} aria-label={on ? `Take ${n.name} out of To buy` : `Put ${n.name} in To buy`}
                       className={`h-11 w-11 shrink-0 rounded-full border-2 font-black text-lg active:scale-90 ${on ? "border-emerald-400 bg-emerald-500 text-white" : "border-emerald-400/60 text-emerald-300/40"}`}>✓</button>
@@ -255,14 +271,17 @@ export default function ShopPage() {
           ) : (
             <section className="card divide-y divide-white/5">
               {bought.map((b) => (
-                <button key={b.id} onClick={() => setPriceOf(b.name)} className="flex w-full items-center gap-3 p-3 text-left">
-                  <Pic name={b.name} emoji={b.emoji} src={b.photo_id ? urls[b.photo_id] : undefined} size={48} />
-                  <span className="flex-1 min-w-0">
-                    <span className="block font-semibold truncate">{b.name}</span>
-                    <span className="block text-xs text-muted">{b.qty} {b.unit} · {new Date(b.purchased_at!).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
-                  </span>
-                  <span className="font-bold tabular-nums">{money(b.price)}</span>
-                </button>
+                <div key={b.id} className="flex items-center gap-1 pr-1">
+                  <button onClick={() => setPriceOf(b.name)} className="flex flex-1 min-w-0 items-center gap-3 p-3 text-left">
+                    <Pic name={b.name} emoji={b.emoji} src={b.photo_id ? urls[b.photo_id] : undefined} size={48} />
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-semibold truncate">{b.name}</span>
+                      <span className="block text-xs text-muted">{b.qty} {b.unit} · {new Date(b.purchased_at!).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
+                    </span>
+                    <span className="font-bold tabular-nums">{money(b.price)}</span>
+                  </button>
+                  <button onClick={() => setEditItem(b)} aria-label={`Edit or rename ${b.name}`} className="h-10 w-10 shrink-0 rounded-full text-muted">✏️</button>
+                </div>
               ))}
             </section>
           )}
@@ -446,6 +465,15 @@ export default function ShopPage() {
             update((d) => ({ ...d, pantry: d.pantry.filter((x) => x.id !== p.id), deleted: [...d.deleted, p.id] }));
             setEditPantry(null);
           }} />
+      )}
+
+      {renaming && (
+        <Sheet title={`✏️ Rename ${renaming.name}`} onClose={() => setRenaming(null)}>
+          <form onSubmit={(e) => { e.preventDefault(); doRename(); }} className="space-y-3">
+            <input autoFocus className="input" aria-label="New name" value={renameTo} onChange={(e) => setRenameTo(e.target.value)} />
+            <button disabled={!renameTo.trim()} className="btn-primary w-full disabled:opacity-40">Save name</button>
+          </form>
+        </Sheet>
       )}
 
       {priceOf && (
