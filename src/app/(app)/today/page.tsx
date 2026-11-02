@@ -8,10 +8,7 @@ import { useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { TaskLog } from "@/components/TaskLog";
 import { EditLog } from "@/components/EditLog";
-import { FixCard } from "@/components/FixCard";
 import { foodGoodness, scoreColor } from "@/lib/goodness";
-import { useTasks } from "@/components/Coach";
-import { useGoals } from "@/components/Gauges";
 import { learnedOn } from "@/components/Learn";
 import { FoodThumbs } from "@/components/Meals";
 import { dayPlan, kitOf } from "@/lib/have";
@@ -35,8 +32,6 @@ export default function TodayPage() {
   const [editing, setEditing] = useState<Log | null>(null);
   const [day, setDay] = useState(toDay(new Date()));
   const isToday = day === toDay(new Date());
-  const goals = useGoals(day);
-  const tasks = useTasks();
   const [editGoals, setEditGoals] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const s = profile.settings, sc = sched(s.schedule);
@@ -143,21 +138,6 @@ export default function TodayPage() {
         <button onClick={() => setLogOpen(true)} className="block w-full text-center text-xs text-[var(--accent2)] mt-3">📝 Log anything you did</button>
         {editing && <EditLog log={editing} onClose={() => setEditing(null)} />}
         {logOpen && <TaskLog at={isToday ? undefined : new Date(`${day}T12:00:00`)} onClose={() => setLogOpen(false)} />}
-      </section>
-        ),
-        fix: isToday ? <FixCard /> : null,
-        quests: (
-      <section className="card p-3 mb-4">
-        <h2 className="section-title mb-2">🎯 App quests &amp; goals</h2>
-        <Table rows={goals.filter((g) => g.id !== "learn" && !g.id.startsWith("meal-")).map((g) => ({ icon: g.icon, name: g.name, did: g.have ? `${Math.round(g.have)}${g.unit ? ` ${g.unit}` : ""}` : "", goal: `${g.need}${g.unit ? ` ${g.unit}` : ""}`, done: !!g.doneAt }))} />
-        {isToday && tasks.length > 0 && (
-          <>
-            <div className="text-xs text-muted mt-3 mb-1">Sensei says next</div>
-            <ul className="space-y-1 text-xs">
-              {tasks.slice(0, 6).map((t) => <li key={t.id} className="flex gap-2 rounded-lg bg-white/5 px-2 py-1.5"><span>{t.icon}</span><span className="flex-1">{t.title}</span><span className="text-muted">to do</span></li>)}
-            </ul>
-          </>
-        )}
       </section>
         ),
       }} />

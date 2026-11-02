@@ -2,80 +2,19 @@
 
 import { WhenPicker } from "@/components/When";
 import { useMemo, useState } from "react";
-import { ACCESSORIES, AvatarArt, CLASSES, EXPRESSIONS, EYES, HAIR_STYLES, HAIRS, OUTFITS, PANTS, SHOES, SKINS } from "@/components/AvatarArt";
 import { dtLocal, Sheet } from "@/components/Sheet";
 import { ABOUT_HINTS, HABITS, suggestHabits } from "@/lib/habits";
 import { MeasureCharts } from "@/components/Fitness";
 import { MEASURES } from "@/lib/fitness";
-import { useApp, useCustomItems, type Avatar } from "@/lib/store";
-
-function Swatches({ list, value, onPick }: { list: string[]; value: string; onPick: (c: string) => void }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {list.map((c) => (
-        <button key={c} aria-label={c} onClick={() => onPick(c)}
-          className={`h-8 w-8 rounded-full border-2 ${value === c ? "border-white scale-110" : "border-transparent"}`} style={{ background: c }} />
-      ))}
-      <label className="relative h-8 w-8 rounded-full border-2 border-dashed border-white/30 grid place-items-center text-xs text-muted cursor-pointer">
-        +
-        <input type="color" value={value} onChange={(e) => onPick(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
-      </label>
-    </div>
-  );
-}
-
-export function AvatarEditor({ onClose }: { onClose: () => void }) {
-  const { profile, saveProfile } = useApp();
-  const [a, setA] = useState<Avatar>(profile.avatar);
-  const [name, setName] = useState(profile.display_name);
-  const set = (patch: Partial<Avatar>) => setA({ ...a, ...patch });
-  return (
-    <Sheet title="Edit hero" onClose={onClose}>
-      <div className="flex justify-center"><AvatarArt a={a} size={200} full /></div>
-      <input className="input text-center font-game" value={name} onChange={(e) => setName(e.target.value)} placeholder="Hero name" />
-      <div className="text-xs text-muted">Class</div>
-      <div className="grid grid-cols-3 gap-2">
-        {CLASSES.map((c) => (
-          <button key={c.name} onClick={() => set({ heroClass: c.name })} className={`chip py-2 ${a.heroClass === c.name ? "chip-on" : ""}`}>{c.icon} {c.name}</button>
-        ))}
-      </div>
-      <div className="text-xs text-muted">Hair style</div>
-      <div className="flex flex-wrap gap-2">
-        {HAIR_STYLES.map((h, i) => <button key={h} onClick={() => set({ hairStyle: i })} className={`chip ${a.hairStyle === i ? "chip-on" : ""}`}>{h}</button>)}
-      </div>
-      <div className="text-xs text-muted">Expression</div>
-      <div className="flex flex-wrap gap-2">
-        {EXPRESSIONS.map((x, i) => <button key={x} onClick={() => set({ expression: i })} className={`chip ${(a.expression ?? 0) === i ? "chip-on" : ""}`}>{x}</button>)}
-      </div>
-      <div className="text-xs text-muted">Hair color</div>
-      <Swatches list={HAIRS} value={a.hair} onPick={(hair) => set({ hair })} />
-      <div className="text-xs text-muted">Eyes</div>
-      <Swatches list={EYES} value={a.eyes} onPick={(eyes) => set({ eyes })} />
-      <div className="text-xs text-muted">Skin</div>
-      <Swatches list={SKINS} value={a.skin} onPick={(skin) => set({ skin })} />
-      <div className="text-xs text-muted">Outfit</div>
-      <Swatches list={OUTFITS} value={a.outfit} onPick={(outfit) => set({ outfit })} />
-      <div className="text-xs text-muted">Pants</div>
-      <Swatches list={PANTS} value={a.pants ?? PANTS[0]} onPick={(pants) => set({ pants })} />
-      <div className="text-xs text-muted">Shoes</div>
-      <Swatches list={SHOES} value={a.shoes ?? SHOES[0]} onPick={(shoes) => set({ shoes })} />
-      <div className="text-xs text-muted">Accessory</div>
-      <div className="flex flex-wrap gap-2">
-        {ACCESSORIES.map((x, i) => <button key={x} onClick={() => set({ accessory: i })} className={`chip ${a.accessory === i ? "chip-on" : ""}`}>{x}</button>)}
-      </div>
-      <button className="btn-primary w-full" onClick={() => { saveProfile({ avatar: a, display_name: name.trim() || profile.display_name }); onClose(); }}>Save hero</button>
-    </Sheet>
-  );
-}
+import { useApp, useCustomItems } from "@/lib/store";
 
 function bmiLabel(b: number) {
-  if (b < 18.5) return { label: "Light build", color: "#7cf2ff", tip: "Sensei: more protein and strength training will build power." };
-  if (b < 25) return { label: "Balanced", color: "#3ee08f", tip: "Sensei: perfect balance. Keep training to stay in this zone." };
-  if (b < 30) return { label: "Heavy build", color: "#ffcf4a", tip: "Sensei: daily walks and water will sharpen your form." };
-  return { label: "Tank class", color: "#ff7b54", tip: "Sensei: every step and every glass of water is progress. Small wins add up." };
+  if (b < 18.5) return { label: "Underweight", color: "#7cf2ff", tip: "More protein and strength training will help." };
+  if (b < 25) return { label: "Healthy", color: "#3ee08f", tip: "In the healthy range. Keep it up." };
+  if (b < 30) return { label: "Overweight", color: "#ffcf4a", tip: "Daily walks and water help." };
+  return { label: "Obese", color: "#ff7b54", tip: "Every walk and every glass of water is progress." };
 }
 
-// Real body stats tracked like a game character sheet.
 export function BodyStats() {
   const { data, profile, saveProfile, logActivity } = useApp();
   const [open, setOpen] = useState(false);

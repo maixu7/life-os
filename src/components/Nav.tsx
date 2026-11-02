@@ -19,7 +19,7 @@ export function Nav() {
   const NAV_MAX = 5;
   const base = ALL.find((t) => t.href === "/");
   // The daily pages win a place first; the bar keeps the hero's own order.
-  const MAIN = ["/learn", "/today", "/food", "/train"];
+  const MAIN = ["/today", "/food", "/shop", "/learn"];
   const rest = ALL.filter((t) => t !== base);
   const pickd = [...rest].sort((a, b) => Number(!MAIN.includes(a.href)) - Number(!MAIN.includes(b.href))).slice(0, base ? NAV_MAX - 1 : NAV_MAX);
   const shown = ALL.length <= NAV_MAX ? ALL : ALL.filter((t) => t === base || pickd.includes(t));

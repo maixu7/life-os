@@ -34,15 +34,14 @@ export const customHref = (id: string) => `/custom/${id}`;
 
 // The built-in blocks of each page, in their default order.
 export const PAGE_SECTIONS: Record<string, [string, string][]> = {
-  "/today": [["quick", "⚡ Quick add (top icons)"], ["doing", "▶ In progress"], ["basics", "🗓️ Daily basics table"], ["mytasks", "📝 My tasks"], ["did", "✅ What you did"], ["fix", "🚨 Fix my worst habits"], ["quests", "🎯 App quests & goals"]],
-  "/food": [["quick", "⚡ Quick add"], ["meals", "🍱 Food today"], ["drinks", "🥤 Drink today"], ["drink", "🥤 Log a drink"], ["next", "🍽️ What to eat next"], ["care", "🩺 Take care of me"], ["have", "🎒 Food you have"], ["packet", "🏷️ New packet food"], ["week", "📅 Last 7 days"], ["mine", "🍽️ My foods"],
-    ["usual", "⭐ One-tap meals"], ["protein", "🥚 Protein today"], ["coffee", "☕ Caffeine"], ["bottle", "🍶 Water bottle"], ["ideas", "🧑‍🍳 Recipes, konbini, eating out"], ["cost", "💴 Food cost this week"]],
-  "/train": [["list", "🏋️ My exercises"], ["plan", "📅 Today's full workout"], ["library", "📚 All exercises"], ["move", "🎯 Selected exercise"], ["lift", "📈 Strength forecast"], ["rest", "⏱️ Rest timer"], ["done", "✅ Today's sets"], ["streak", "🔥 Workout streak"], ["muscles", "🗺️ Muscle map"], ["records", "🏆 Personal records"]],
-  "/learn": [["plan", "🗓️ Study plan"], ["today", "📖 Learning today"], ["books", "📚 Books you have"], ["library", "📚 Library (read, listen, watch)"], ["skills", "🧠 Skills: noob to expert"],
+  "/today": [["quick", "⚡ Quick add (top icons)"], ["doing", "▶ In progress"], ["basics", "🗓️ Daily basics table"], ["mytasks", "📝 My tasks"], ["did", "✅ What you did"]],
+  "/food": [["quick", "⚡ Quick add"], ["meals", "🍱 Food today"], ["drinks", "🥤 Drink today"], ["drink", "🥤 Log a drink"], ["next", "🍽️ What to eat next"], ["have", "🎒 Food you have"], ["packet", "🏷️ New packet food"], ["week", "📅 Last 7 days"], ["mine", "🍽️ My foods"],
+    ["usual", "⭐ One-tap meals"]],
+  "/train": [["list", "🏋️ My exercises"], ["plan", "📅 Today's full workout"], ["library", "📚 All exercises"], ["move", "🎯 Selected exercise"], ["rest", "⏱️ Rest timer"], ["done", "✅ Today's sets"], ["records", "🏆 Personal records"]],
+  "/learn": [["plan", "🗓️ Study plan"], ["today", "📖 Learning today"], ["books", "📚 Books you have"], ["library", "📚 Library (read, listen, watch)"],
     ["cards", "🃏 Flashcards"], ["jlpt", "🈶 JLPT kanji"], ["mistakes", "📕 Mistake notebook"], ["papers", "📝 Past papers"]],
-  "/": [["mission", "⚔ Daily mission (schedule ✓/✗)"], ["actions", "⚡ Do next, Log, Report"], ["guide", "🧭 Today's guide"], ["score", "🏅 Day score"], ["pins", "📌 Pinned actions & camera"], ["routine", "🌅 Morning routine"], ["event", "🎃 Seasonal event"], ["focus", "⏱️ Big focus button"], ["exam", "📝 Exam countdown and today's target"], ["coach", "🥷 Sensei's next tasks"], ["learn", "📖 Learning today"], ["gaps", "🔍 What you're lacking"], ["fix", "🚨 Fix my worst habits"], ["care", "🩺 Take care of me"], ["sleep", "😴 Sleep and wake"],
-    ["meals", "🍱 Food today"], ["gauges", "🎯 Today's gauges"], ["boss", "👹 Weekly boss and chest"], ["missions", "⚔ Daily missions"],
-    ["potions", "🧪 Water and milk"], ["quests", "🗺 Side quests"], ["habits", "🔁 Habit quests"], ["library", "📚 Library"], ["pantry", "🎒 Inventory"], ["rival", "⚔️ Rival duel & loot"]],
+  // Home keeps only the day's plan; everything else lives on its own page.
+  "/": [["mission", "📋 Daily mission (schedule ✓/✗)"], ["actions", "⚡ Do next, Log, Report"]],
 };
 // Pages without a list above still get the hero's own blocks (shown at the top).
 
@@ -50,7 +49,7 @@ export const PAGE_SECTIONS: Record<string, [string, string][]> = {
 // waits in the page's "More" strip, one tap away (the hero can move any block
 // either way). Own blocks stay on screen.
 export const PAGE_MAIN: Record<string, string[]> = {
-  "/": ["mission"],
+  "/": ["mission", "actions"],
   "/today": ["quick", "doing", "basics", "mytasks", "did"],
   "/food": ["quick", "meals", "drinks", "next"],
   "/train": ["plan", "list", "move", "done"],
@@ -90,12 +89,11 @@ export const QUICK_ALL: MiniSlot[] = [
   { id: "q-drink", icon: "🥤", label: "Drink", action: { type: "drink" } },
   { id: "q-water", icon: "💧", label: "Water", action: { type: "water", ml: 250 } },
   { id: "q-milk", icon: "🥛", label: "Milk", action: { type: "milk", ml: 250 } },
-  { id: "q-train", icon: "⚔️", label: "Workout", action: { type: "page", href: "/train" } },
+  { id: "q-train", icon: "🏋️", label: "Workout", action: { type: "page", href: "/train" } },
   { id: "q-wake", icon: "🌅", label: "Woke up", action: { type: "wake" } },
   { id: "q-sleep", icon: "😴", label: "Sleep", action: { type: "sleep" } },
   { id: "q-study", icon: "📖", label: "Study", action: { type: "page", href: "/learn" } },
   { id: "q-any", icon: "📝", label: "Log anything", action: { type: "anything" } },
-  { id: "q-doctor", icon: "🩺", label: "Doctor", action: { type: "page", href: "/doctor" } },
   { id: "q-have", icon: "🎒", label: "My stuff", action: { type: "page", href: "/have" } },
   { id: "q-focus", icon: "⏱️", label: "Focus now", action: { type: "page", href: "/focus?start=1" } },
 ];
