@@ -6,6 +6,7 @@ import { assistantSay } from "@/components/Assistant";
 import { AlarmSettings } from "@/components/AlarmSettings";
 import { PushCard } from "@/components/Push";
 import { BackupCard } from "@/components/Safety";
+import { MeSection, ToolsSection } from "@/components/MeSettings";
 import { LOCK_KEY } from "@/components/Gate";
 import { assistantOf, PHRASE_KINDS, PHRASES, type AssistantSettings } from "@/lib/assistant";
 import { displayPrefs, downloadText, saveDisplay } from "@/lib/safety";
@@ -21,7 +22,7 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 export function AppSettings() {
-  const { data, saveSettings, hasPin, lock } = useApp();
+  const { data, saveSettings, hasPin, lock, signOut } = useApp();
   const a = assistantOf(data.profile.settings);
   const set = (patch: Partial<AssistantSettings>) => saveSettings({ assistant: { ...a, ...patch } });
   const s = sched(data.profile.settings.schedule);
@@ -70,6 +71,8 @@ export function AppSettings() {
   };
   return (
     <div>
+      <MeSection />
+      <ToolsSection />
       <Section title="🔐 Permissions">
         <div className="flex items-center justify-between text-sm"><span>Notifications</span><span className={perm === "granted" ? "text-emerald-400" : "text-amber-300"}>{perm === "granted" ? "Allowed" : perm === "denied" ? "Blocked" : "Not asked yet"}</span></div>
         {perm !== "granted" && typeof Notification !== "undefined" && <button className="btn-primary w-full" onClick={async () => setPerm(await Notification.requestPermission())}>Allow notifications</button>}
@@ -125,8 +128,6 @@ export function AppSettings() {
         {sw(a.catchup, "Catch-up list when I open the app", (v) => set({ catchup: v }))}
         <div className="grid grid-cols-2 gap-1.5">{(["time", "kind"] as const).map((o) => <button key={o} onClick={() => set({ sort: o })} className={`chip justify-center ${a.sort === o ? "chip-on" : ""}`}>{o === "time" ? "Sort by time" : "Sort by type"}</button>)}</div>
         {sw(a.battery, "Low-battery warning", (v) => set({ battery: v }))}
-        {sw(a.briefing, "☀️ Morning briefing", (v) => set({ briefing: v }), "Today at a glance the first time you open the app in the morning")}
-        {sw(a.review, "🌙 Night review", (v) => set({ review: v }), "An hour before bed: how today went and your top 3 for tomorrow")}
         <div className="flex items-center justify-between text-sm pt-1"><span>⏸️ Pause all alerts{paused && <span className="block text-[11px] text-amber-300">Paused until {new Date(a.pauseUntil).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}</span>
           {paused ? <button className="chip" onClick={() => set({ pauseUntil: "" })}>Resume</button>
             : <span className="flex gap-1">{[1, 3, 24].map((h) => <button key={h} className="chip !px-2" onClick={() => set({ pauseUntil: new Date(Date.now() + h * 3_600_000).toISOString() })}>{h}h</button>)}</span>}
@@ -147,7 +148,6 @@ export function AppSettings() {
         <div className="text-sm pt-1">⚡ Speed</div>
         <div className="grid grid-cols-3 gap-1.5">{(["auto", "on", "off"] as const).map((c) => <button key={c} onClick={() => { setLite(c); setLiteC(c); }} className={`chip justify-center !py-1.5 text-xs ${liteC === c ? "chip-on" : ""}`}>{c === "auto" ? "Auto" : c === "on" ? "Fast (fewer effects)" : "All effects"}</button>)}</div>
         <p className="text-[11px] text-muted">Auto turns effects down on slower phones and tablets{lowEnd() ? " (this device: fewer effects)" : ""}.</p>
-        {sw(a.mode === "game", "Game look (XP, levels, monsters, scenes)", (v) => set({ mode: v ? "game" : "assistant" }), "Off = plain assistant. Every feature works the same either way.")}
       </Section>
 
       <Section title="⏰ Alarms"><AlarmSettings /></Section>
@@ -160,7 +160,8 @@ export function AppSettings() {
               {[1, 5, 15, 60, 240].map((m) => <option key={m} value={m}>{m < 60 ? `${m} min` : `${m / 60} h`}</option>)}
             </select>
           </label>
-        </> : <p className="text-xs text-muted">No PIN on this device. To add one, sign out (Hero page › Security) and sign in again: it offers a 4-digit PIN.</p>}
+        </> : <p className="text-xs text-muted">No PIN on this device. To add one, sign out below and sign in again: it offers a 4-digit PIN.</p>}
+        <button className="btn-ghost w-full" onClick={signOut}>Sign out of this device</button>
       </Section>
 
       <Section title="💾 Data">

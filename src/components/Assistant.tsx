@@ -9,7 +9,6 @@ import { assistantOf, lateBy, needsDoing, sayFor, type AssistantSettings } from 
 import { steps, type Step } from "@/lib/mission";
 import { fmt12, isQuiet, sched } from "@/lib/schedule";
 import { toDay, useApp } from "@/lib/store";
-export { GameOnly, PlainWords } from "@/components/Plain";
 
 // The assistant (replaces the game's characters): when a task on the Daily
 // mission is late by a few minutes it says so on screen and out loud, with

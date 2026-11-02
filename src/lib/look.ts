@@ -25,23 +25,13 @@ export type Look = {
 
 // Automatic things the app does by itself; each can be switched off.
 export const AUTOS: [string, string, string][] = [
-  ["popper", "💬 Pop-up quotes, advice and Sensei's orders", "Random pop-ups, and the late-night “why are you awake?”"],
-  ["stage", "🎬 Stage intro and night report", "The full-screen screen when you open the app, and the stage report at night"],
-  ["battle", "⚔️ Morning battle replay", "After sleep, plays out yesterday's battle"],
-  ["game", "🏆 Rewards and achievement pop-ups", "Mission rewards and achievements firing by themselves"],
-  ["celebrate", "🎉 Celebrations", "Confetti and level-up screens"],
   ["reminders", "⏰ Reminders in the app", "Timed reminders shown while the app is open"],
-  ["bodycare", "🧍 Nap alarm, posture and eye breaks", "Body-care alarms while you sit"],
   ["push", "📲 Phone notifications sync", "Keeps phone notifications in step with your times"],
-  ["studywall", "📚 “Study first” wall", "Full-screen wall after study time until study is done"],
-  ["bottle", "🧴 Bottle refill nudges", "Short reminder to refill your water bottle"],
   ["payday", "💴 Payday auto-save", "Pays yourself first by itself on payday"],
   ["alarm", "🚨 Full-screen alarms", "Alarms that ring until you tap Stop"],
   ["assistant", "🗣️ Assistant alerts", "Speaks up when a task is late and shows the catch-up list"],
-  ["daycards", "☀️ Morning briefing & 🌙 night review", "Today at a glance in the morning; how today went before bed"],
   ["resume", "↩️ Reopen on the last screen", "Opening the app continues where you left off"],
   ["doing", "⏳ “In progress” pill", "The pill on every screen while something runs"],
-  ["fab", "＋ Round quick-add button", "The floating ＋ button"],
 ];
 
 export const isOff = (look: Look | undefined, id: string) => look?.auto?.[id] === "off";

@@ -12,7 +12,7 @@ import {
   allMealSlots, arrange, customHref, ICONS, PAGE_SECTIONS, QUICK_DEFAULT, quickChoices, uid,
   type Block, type BlockKind, type MealSlot, type MiniSlot, type PageLayout, type SlotAction,
 } from "@/lib/layout";
-import { allPages, tabOf, type Ui } from "@/lib/ui";
+import { allPages, DEFAULT_TABS, tabOf, type Ui } from "@/lib/ui";
 import { useApp, useCustomItems } from "@/lib/store";
 
 // Control Centre: one place to change the whole app. Every change is saved
@@ -332,7 +332,7 @@ function PageRename({ href }: { href: string }) {
         <input aria-label="Page icon" className="input text-center text-xl" value={c.icon} onChange={(e) => set({ icon: e.target.value })} />
         <input aria-label="Page name" className="input" value={c.label} onChange={(e) => set({ label: e.target.value })} />
       </div>
-      {!(ui.tabs ?? []).includes(href) && <button onClick={() => save({ tabs: [...(ui.tabs?.length ? ui.tabs : ["/learn", "/food", "/doctor", "/train", "/today", "/tools", "/calendar", "/"]), href].slice(0, 9) })} className="btn-ghost w-full text-sm">＋ Put it on the bottom menu</button>}
+      {!(ui.tabs ?? []).includes(href) && <button onClick={() => save({ tabs: [...(ui.tabs?.length ? ui.tabs : DEFAULT_TABS), href].slice(0, 9) })} className="btn-ghost w-full text-sm">＋ Put it on the bottom menu</button>}
     </div>
   );
 }
@@ -345,7 +345,7 @@ function NewPage({ onMade }: { onMade: (href: string) => void }) {
   const make = () => {
     const id = uid();
     const href = customHref(id);
-    const tabs = ui.tabs?.length ? ui.tabs : ["/learn", "/food", "/doctor", "/train", "/today", "/tools", "/calendar", "/"];
+    const tabs = ui.tabs?.length ? ui.tabs : DEFAULT_TABS;
     save({ custom: [...(ui.custom ?? []), { id, icon, label: label.trim() }], ...(onMenu ? { tabs: [...tabs.filter((x) => x !== href), href].slice(-9) } : {}) });
     onMade(href);
   };

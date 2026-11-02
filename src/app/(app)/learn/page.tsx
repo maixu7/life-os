@@ -8,7 +8,6 @@ import { Flashcards } from "@/components/Flashcards";
 import { JlptCard } from "@/components/Jlpt";
 import { MistakeNotebook } from "@/components/Mistakes";
 import { PastPapers } from "@/components/PastPaper";
-import { SkillsList } from "@/components/RealMe";
 import Link from "next/link";
 import { XpHeader } from "@/components/XpHeader";
 import { Blocks } from "@/components/Blocks";
@@ -31,12 +30,6 @@ export default function LearnPage() {
           </Link>
         ),
         library: <Library at={() => new Date()} onLogged={() => {}} />,
-        skills: (
-          <section className="card p-4 mb-4">
-            <h2 className="section-title mb-2">🧠 Skills: noob to expert</h2>
-            <SkillsList />
-          </section>
-        ),
         cards: <Flashcards />,
         jlpt: <JlptCard />,
         mistakes: <MistakeNotebook />,

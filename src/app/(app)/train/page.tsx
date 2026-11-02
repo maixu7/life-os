@@ -9,8 +9,8 @@ import { StartButton } from "@/components/Doing";
 import { useEffect, useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { Blocks } from "@/components/Blocks";
-import { ImpactCard, LiftCard } from "@/components/RealMe";
-import { MuscleMap, OverloadHint, RecordsBoard, WorkoutStreakCard } from "@/components/Fitness";
+import { ImpactCard } from "@/components/RealMe";
+import { OverloadHint, RecordsBoard } from "@/components/Fitness";
 import { personalBest } from "@/lib/fitness";
 import { Sheet } from "@/components/Sheet";
 import { PoseDemo, type Prop } from "@/components/PoseDemo";
@@ -34,7 +34,6 @@ function platesPerSide(total: number, bar: number) {
   for (const p of PLATES) while (rest >= p - 1e-9) { out.push(p); rest -= p; }
   return { out, leftover: Math.round(rest * 2 * 100) / 100 };
 }
-
 
 const PATTERNS: [Pattern, string][] = [["push", "Push"], ["pull", "Pull"], ["squat", "Squat"], ["hinge", "Hinge"], ["lunge", "Lunge"], ["plank", "Plank"], ["crunch", "Crunch"], ["jump", "Jump"], ["curl", "Curl"], ["press", "Press up"], ["row", "Row"], ["run", "Run"], ["raise", "Leg raise"], ["bridge", "Bridge"], ["dip", "Dip"], ["twist", "Twist"], ["stretch", "Stretch"]];
 
@@ -328,13 +327,6 @@ export default function TrainPage() {
       {editEx && <ExerciseEditor item={editEx} onClose={() => setEditEx(null)} />}
         </>
         ),
-        lift: (
-        <>
-      {ex && <LiftCard name={`${ex.name}${vr && vr.name !== "Standard" ? ` (${vr.name})` : ""}`} />}
-        </>
-        ),
-        streak: <WorkoutStreakCard />,
-        muscles: <MuscleMap />,
         records: (
       <details className="card p-3 mb-4">
         <summary className="text-sm font-semibold cursor-pointer">🏆 Personal records</summary>

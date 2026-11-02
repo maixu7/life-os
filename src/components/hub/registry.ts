@@ -17,13 +17,6 @@ export const HUB: { id: HubId; icon: string; label: string; group: "Do" | "Calm"
   { id: "urge", icon: "🌊", label: "Urge surfing", group: "Calm" },
   { id: "detox", icon: "📵", label: "Detox day", group: "Calm" },
   { id: "night", icon: "🌙", label: "Night mode", group: "Calm" },
-  { id: "rival", icon: "😤", label: "Rival duel", group: "Play" },
-  { id: "events", icon: "🎃", label: "Seasonal event", group: "Play" },
-  { id: "loot", icon: "💎", label: "Loot bag", group: "Play" },
-  { id: "freeze", icon: "🛡️", label: "Streak freeze", group: "Play" },
-  { id: "skills", icon: "🌳", label: "Skill tree", group: "Play" },
-  { id: "map", icon: "🗺️", label: "World map", group: "Play" },
-  { id: "chain", icon: "🔗", label: "Habit chains", group: "Play" },
   { id: "buddy", icon: "🤝", label: "Buddy & duel", group: "Talk" },
   { id: "chat", icon: "💬", label: "Ask Sensei", group: "Talk" },
   { id: "inbox", icon: "🔔", label: "Inbox", group: "Talk" },
@@ -31,6 +24,6 @@ export const HUB: { id: HubId; icon: string; label: string; group: "Do" | "Calm"
   { id: "lang", icon: "🌐", label: "Language", group: "Talk" },
 ];
 export const hubOf = (id: string) => HUB.find((h) => h.id === id);
-export const DEFAULT_PINS: HubId[] = ["camera", "surprise", "sos", "planner", "chat"];
+export const DEFAULT_PINS: HubId[] = ["camera", "later", "planner"];
 
 export const openHub = (id: HubId) => window.dispatchEvent(new CustomEvent("lifeos-hub", { detail: id }));

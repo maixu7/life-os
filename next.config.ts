@@ -40,6 +40,10 @@ const nextConfig: NextConfig = {
   poweredByHeader: false, // don't tell attackers what the site runs on
   productionBrowserSourceMaps: false, // ship only minified code, never the readable source
   compiler: { removeConsole: prod ? { exclude: ["error"] } : false },
+  // Pages taken out to keep the app simple go to Home (old links and reminders keep working).
+  async redirects() {
+    return ["/doctor", "/tools", "/rank", "/trophies", "/quick"].map((source) => ({ source, destination: "/", permanent: false }));
+  },
   async headers() {
     return [
       { source: "/:path*", headers: security },

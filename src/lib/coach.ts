@@ -124,7 +124,7 @@ export function nextTasks(d: Data, habits: CustomItem[], now = new Date()): Task
   }
 
   for (const p of d.items.filter((i) => i.category === "list:plan" && !i.config.done && i.config.for === day)) {
-    add({ id: `plan:${p.id}`, icon: "🗓️", title: p.name, priority: 66, action: { type: "href", href: "/tools" },
+    add({ id: `plan:${p.id}`, icon: "🗓️", title: p.name, priority: 66, action: { type: "href", href: "/today" },
       because: "You planned this last night as one of today's top tasks.", why: "Doing what you planned builds trust in yourself. That is real discipline." });
   }
 

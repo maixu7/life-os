@@ -24,13 +24,6 @@ const BrainDumpSheet = dynamic(() => import("@/components/hub/Plan").then((x) =>
 const MorningSheet = dynamic(() => import("@/components/hub/Plan").then((x) => x.MorningSheet));
 const PlannerSheet = dynamic(() => import("@/components/hub/Plan").then((x) => x.PlannerSheet));
 const SurpriseSheet = dynamic(() => import("@/components/hub/Plan").then((x) => x.SurpriseSheet));
-const ChainSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.ChainSheet));
-const EventsSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.EventsSheet));
-const FreezeSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.FreezeSheet));
-const LootSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.LootSheet));
-const RivalSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.RivalSheet));
-const SkillTreeSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.SkillTreeSheet));
-const WorldMapSheet = dynamic(() => import("@/components/hub/Play").then((x) => x.WorldMapSheet));
 const BuddySheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.BuddySheet));
 const LaterSheet = dynamic(() => import("@/components/Later").then((x) => x.LaterSheet));
 const CameraSheet = dynamic(() => import("@/components/hub/Talk").then((x) => x.CameraSheet));
@@ -50,8 +43,8 @@ export function HubHost() {
   const close = () => setId(null);
   const S: Record<string, React.ComponentType<{ onClose: () => void }>> = {
     camera: CameraSheet, later: LaterSheet, sleepplan: SleepPlanSheet, urge: UrgeSheet, detox: DetoxSheet, sos: SosSheet, night: NightSheet, morning: MorningSheet,
-    dump: BrainDumpSheet, planner: PlannerSheet, surprise: SurpriseSheet, chain: ChainSheet, skills: SkillTreeSheet, map: WorldMapSheet,
-    freeze: FreezeSheet, rival: RivalSheet, loot: LootSheet, events: EventsSheet, buddy: BuddySheet, chat: ChatSheet, inbox: InboxSheet,
+    dump: BrainDumpSheet, planner: PlannerSheet, surprise: SurpriseSheet,
+    buddy: BuddySheet, chat: ChatSheet, inbox: InboxSheet,
     share: ShareSheet, lang: LangSheet,
   };
   const C = id && id !== "mood" ? S[id] : null;

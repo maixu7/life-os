@@ -29,8 +29,9 @@ export const DEFAULT_ASSISTANT: AssistantSettings = {
   mode: "assistant", name: "Assistant", voice: "", rate: 1, pitch: 1, audio: true, chime: true, output: "both", fullscreen: true,
   grace: 5, snooze: 15, catchup: true, sort: "time", pauseUntil: "", phrases: {}, focus: "", battery: true, briefing: true, review: true,
 };
-export const assistantOf = (s: Settings): AssistantSettings => ({ ...DEFAULT_ASSISTANT, ...(s.assistant ?? {}) });
-export const isGame = (s: Settings) => assistantOf(s).mode === "game";
+export const assistantOf = (s: Settings): AssistantSettings => ({ ...DEFAULT_ASSISTANT, ...(s.assistant ?? {}), mode: "assistant" });
+// The game look was taken out (Nov 2026): the app always uses the plain look.
+export const isGame = (s: Settings) => !s && false;
 
 /** What the assistant says when a task is late. "{task}" = its name. */
 export const PHRASES: Record<string, string> = {

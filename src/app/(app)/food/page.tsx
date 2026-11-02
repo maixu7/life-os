@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { XpHeader } from "@/components/XpHeader";
 import { Blocks, QuickBar } from "@/components/Blocks";
-import { CareCard } from "@/components/CareCard";
 import { EatNextList } from "@/components/FixCard";
 import { DrinkSheet } from "@/components/LazySheets";
 import { FoodThumbs, MealSheet, MealsCard } from "@/components/Meals";
@@ -14,7 +13,7 @@ import { haveFoods, whenToEat } from "@/lib/have";
 import type { Eaten } from "@/lib/body";
 import { LabelScan } from "@/components/LabelScan";
 import { MyFoodForm, MyFoodsList } from "@/components/FoodPicker";
-import { BottleCard, CaffeineCard, FoodCostCard, FoodIdeas, ProteinCard, UsualMeals } from "@/components/FoodPlus";
+import { UsualMeals } from "@/components/FoodPlus";
 import { energy } from "@/lib/body";
 import { toDay, useApp } from "@/lib/store";
 import { DrinksCard, isIntake, TodayList } from "@/components/Collections";
@@ -34,7 +33,7 @@ export default function FoodPage() {
       <Blocks page="/food" parts={{
         quick: <QuickBar />,
         drinks: <DrinksCard />,
-        usual: <UsualMeals />, protein: <ProteinCard />, coffee: <CaffeineCard />, bottle: <BottleCard />, ideas: <FoodIdeas />, cost: <FoodCostCard />,
+        usual: <UsualMeals />,
         meals: (
         <>
       <MealsCard />
@@ -49,11 +48,6 @@ export default function FoodPage() {
         next: (
         <>
       <div className="mb-4"><EatNextList /></div>
-        </>
-        ),
-        care: (
-        <>
-      <CareCard open />
         </>
         ),
         have: (
