@@ -107,6 +107,11 @@ export async function POST(req: Request) {
     const facts = typeof summary === "string" ? summary.slice(0, 3000) : "";
     return chat(gemini, `My data:\n${facts}\n\nMy question: ${words}`);
   }
+  if (mode === "place") {
+    // Map: entry price, best time to visit and tips for one place (only when he taps "Ask AI").
+    const facts = typeof summary === "string" ? summary.slice(0, 3000) : "";
+    return chat(gemini, `Place facts:\n${facts}\n\nQuestion: ${words}`, PLACE_SYSTEM);
+  }
   if (mode === "guess") {
     const ask = "What is in this photo? Answer with one kind.";
     return gemini ? guessWithGemini(gemini, ask, m ? { mime: m[1], data: m[2] } : null) : guessWithClaude(ask, m ? { mime: m[1], data: m[2] } : null);
@@ -458,7 +463,15 @@ async function receiptWithGemini(key: string, img: { mime: string; data: string 
 const CHAT_SYSTEM = `You are Sensei Kaito, a warm, practical life coach inside an anime-RPG habit app. The user is a young man living in Japan who is studying for exams.
 Answer in 2 to 4 short sentences in plain, simple English. Use his numbers from "My data" when they help, and suggest one concrete next step (foods easy to get in Japan: konbini, supermarket).
 Health safety: give only general, safe advice. Never diagnose, never give medicine doses, never suggest extreme diets or fasting. For pain, illness, injury or serious low mood, tell him to see a doctor or call 119 in an emergency.`;
-async function chat(gemini: string | undefined, ask: string) {
+const PLACE_SYSTEM = `You are a friendly local guide in Japan helping someone decide whether to visit a place.
+Use the facts given and what you know about this exact place. Answer in plain English, under 150 words, as short lines:
+Cost: the usual entry fee or typical spend per person in yen (say "free" if free; say if you are not sure).
+Best time: best season, day and hour to go, and when it's crowded.
+Why go: one or two lines on what makes it special.
+Tips: one or two practical tips (manners, what to bring, nearby).
+If you don't know this specific place, say so and give general advice for this type of place. Never invent exact prices you don't know.`;
+
+async function chat(gemini: string | undefined, ask: string, system = CHAT_SYSTEM) {
   if (gemini) {
     const models = await geminiModels(gemini);
     let why = "";
@@ -469,7 +482,7 @@ async function chat(gemini: string | undefined, ask: string) {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
           method: "POST", signal: AbortSignal.timeout(Math.max(3_000, Math.min(30_000, 52_000 - (Date.now() - t0)))),
           headers: { "Content-Type": "application/json", "x-goog-api-key": gemini.trim() },
-          body: JSON.stringify({ systemInstruction: { parts: [{ text: CHAT_SYSTEM }] }, contents: [{ role: "user", parts: [{ text: ask }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 300 } }),
+          body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: ask }] }], generationConfig: { temperature: 0.5, maxOutputTokens: 300 } }),
         });
         const j = await r.json().catch(() => null);
         if (!r.ok) { why = `Gemini ${r.status}`; if (r.status === 404 || r.status === 429 || r.status >= 500) continue; return bad(why, 502); }
@@ -482,7 +495,7 @@ async function chat(gemini: string | undefined, ask: string) {
   }
   try {
     const client = new Anthropic({ timeout: 50_000, maxRetries: 0 });
-    const msg = await client.messages.create({ model: "claude-opus-5-5", max_tokens: 400, system: CHAT_SYSTEM, messages: [{ role: "user", content: ask }] });
+    const msg = await client.messages.create({ model: "claude-opus-5-5", max_tokens: 400, system, messages: [{ role: "user", content: ask }] });
     const answer = msg.content.map((c) => (c.type === "text" ? c.text : "")).join("").trim();
     return answer ? NextResponse.json({ answer: answer.slice(0, 1200) }) : bad("Sensei had no answer. Try again.", 502);
   } catch (e) {

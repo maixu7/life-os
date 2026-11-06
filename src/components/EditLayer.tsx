@@ -195,7 +195,9 @@ function addPens() {
     if (penned.has(el) && el.querySelector(":scope > [data-lo-pen]")) return; // done already (no layout work each redraw)
     if (el.closest(SKIP) || el.closest("nav")) return;
     const r = el.getBoundingClientRect(); if (r.width < 60 || r.height < 28) return;
-    if (getComputedStyle(el).position === "static") setProp(el, "position", "relative");
+    // An attribute, not a style: redraws clear styles (clearMarks), and a pen whose box
+    // lost "relative" jumps to the page edge and makes the page scroll sideways.
+    if (getComputedStyle(el).position === "static") el.dataset.loPenHost = "";
     penned.add(el);
     const pen = document.createElement("span");
     pen.dataset.loPen = "1"; pen.dataset.noedit = "";

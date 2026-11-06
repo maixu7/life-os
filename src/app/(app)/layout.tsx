@@ -4,6 +4,7 @@ import { Nav } from "@/components/Nav";
 import { ResumeRoute } from "@/components/ResumeRoute";
 import { Auto, EditLayer } from "@/components/EditLayer";
 import { PlainWords } from "@/components/Plain";
+import { TripBar } from "@/components/Trip";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,6 +18,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Auto id="doing"><DoingTray /></Auto>
       <Auto id="alarm"><AlarmLayer /></Auto>
       <Auto id="assistant"><AssistantLayer /></Auto>
+      <TripBar />
       <PlainWords />
       <SpeechStop />
       <CameraChoice />

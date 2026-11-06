@@ -15,12 +15,13 @@ export const ALL_TABS: Tab[] = [
   { href: "/calendar", icon: "📜", label: "Days" },
   { href: "/shop", icon: "🛒", label: "Shopping" },
   { href: "/have", icon: "🎒", label: "My stuff" },
+  { href: "/map", icon: "🗺️", label: "Places" },
   { href: "/", icon: "🏠", label: "Home" },
   { href: "/settings", icon: "⚙️", label: "Settings" },
 ];
 // Base sits on the right; the app opens on the leftmost tab.
-export const DEFAULT_TABS = ["/today", "/food", "/shop", "/learn", "/train", "/fit", "/have", "/calendar", "/"];
-export const MAX_TABS = 9;
+export const DEFAULT_TABS = ["/today", "/food", "/shop", "/learn", "/map", "/train", "/fit", "/have", "/calendar", "/"];
+export const MAX_TABS = 10;
 
 export const SECTIONS: [string, string][] = [["mission", "📋 Daily mission"], ["actions", "⚡ Do next, Log, Report"]];
 

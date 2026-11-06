@@ -40,6 +40,7 @@ const MAIN: Record<string, Big[]> = {
     { icon: "⏱️", label: "Focus now", sub: "Start a study session", href: "/focus" },
     { icon: "➕", label: "Log", sub: "Anything you did", go: openFab },
     { icon: "📊", label: "Report", sub: "How you're doing", go: () => openReport("day") },
+    { icon: "🗺️", label: "Places", sub: "Map, near me, trips", href: "/map" },
   ],
   "/today": [
     { icon: "➕", label: "Log something", sub: "Food, water, study, sleep…", go: openFab },
