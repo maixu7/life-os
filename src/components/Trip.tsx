@@ -145,10 +145,10 @@ export function TripBar() {
   const trip = useTrip();
   const path = usePathname();
   const now = useNow(!!trip);
-  if (!trip || path.startsWith("/map")) return null;
+  if (!trip || path.startsWith("/bored")) return null;
   const km = lengthOf(trip.pts) / 1000;
   return (
-    <Link href="/map" className="fixed z-[35] left-1/2 -translate-x-1/2 top-[max(0.5rem,env(safe-area-inset-top))] max-w-[calc(100vw-1.5rem)] rounded-full bg-red-600 text-white text-xs font-bold px-3 py-1.5 shadow-lg flex items-center gap-1.5 whitespace-nowrap">
+    <Link href="/bored" className="fixed z-[35] left-1/2 -translate-x-1/2 top-[max(0.5rem,env(safe-area-inset-top))] max-w-[calc(100vw-1.5rem)] rounded-full bg-red-600 text-white text-xs font-bold px-3 py-1.5 shadow-lg flex items-center gap-1.5 whitespace-nowrap">
       <span className="w-2 h-2 rounded-full bg-white animate-pulse shrink-0" />
       <span className="truncate">{MODES[trip.mode ?? guessMode(trip.pts)].icon} Trip {clock(now - trip.start)} · {km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(2)} km`}</span>
     </Link>
