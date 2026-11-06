@@ -21,7 +21,9 @@ type G = {
   formattedAddress?: string; shortFormattedAddress?: string; nationalPhoneNumber?: string; websiteUri?: string; googleMapsUri?: string;
   currentOpeningHours?: { openNow?: boolean; weekdayDescriptions?: string[] }; regularOpeningHours?: { openNow?: boolean; weekdayDescriptions?: string[] };
   primaryType?: string; editorialSummary?: { text: string }; generativeSummary?: { overview?: { text: string } }; primaryTypeDisplayName?: { text: string };
-  photos?: { name: string }[];
+  photos?: { name: string; authorAttributions?: { displayName?: string }[] }[];
+  reviewSummary?: { text?: { text: string } }; goodForChildren?: boolean; goodForGroups?: boolean; restroom?: boolean; allowsDogs?: boolean;
+  accessibilityOptions?: { wheelchairAccessibleEntrance?: boolean }; paymentOptions?: { acceptsCreditCards?: boolean; acceptsCashOnly?: boolean };
   reviews?: { rating?: number; relativePublishTimeDescription?: string; text?: { text: string }; originalText?: { text: string }; authorAttribution?: { displayName?: string; photoUri?: string } }[];
 };
 const LEVEL: Record<string, string> = { PRICE_LEVEL_FREE: "Free", PRICE_LEVEL_INEXPENSIVE: "¥ · cheap", PRICE_LEVEL_MODERATE: "¥¥ · moderate", PRICE_LEVEL_EXPENSIVE: "¥¥¥ · expensive", PRICE_LEVEL_VERY_EXPENSIVE: "¥¥¥¥ · very expensive" };
@@ -35,11 +37,15 @@ function shape(g: G, full: boolean) {
     address: g.shortFormattedAddress ?? g.formattedAddress, phone: g.nationalPhoneNumber, website: g.websiteUri, maps: g.googleMapsUri,
     open: hours?.openNow, hours: full ? hours?.weekdayDescriptions : undefined, type: g.primaryTypeDisplayName?.text, gtype: g.primaryType,
     about: g.editorialSummary?.text ?? g.generativeSummary?.overview?.text,
+    know: full ? g.reviewSummary?.text?.text : undefined, kids: g.goodForChildren, groups: g.goodForGroups, toilets: g.restroom, dogs: g.allowsDogs,
+    wheelchair: g.accessibilityOptions?.wheelchairAccessibleEntrance, cards: g.paymentOptions?.acceptsCreditCards, cashOnly: g.paymentOptions?.acceptsCashOnly,
     photos: full ? (g.photos ?? []).slice(0, 8).map((p) => p.name) : undefined,
     reviews: full ? (g.reviews ?? []).slice(0, 5).map((r) => ({ by: r.authorAttribution?.displayName ?? "Google user", stars: r.rating ?? 0, when: r.relativePublishTimeDescription ?? "", text: (r.text?.text ?? r.originalText?.text ?? "").slice(0, 1200), photo: r.authorAttribution?.photoUri })) : undefined,
   };
 }
-const FULL = ["id", "displayName", "location", "rating", "userRatingCount", "priceLevel", "priceRange", "formattedAddress", "shortFormattedAddress", "nationalPhoneNumber", "websiteUri", "googleMapsUri", "currentOpeningHours", "regularOpeningHours", "editorialSummary", "primaryTypeDisplayName", "primaryType", "photos", "reviews"];
+const FULL = ["id", "displayName", "location", "rating", "userRatingCount", "priceLevel", "priceRange", "formattedAddress", "shortFormattedAddress", "nationalPhoneNumber", "websiteUri", "googleMapsUri", "currentOpeningHours", "regularOpeningHours", "editorialSummary", "primaryTypeDisplayName", "primaryType", "photos", "reviews", "goodForChildren", "goodForGroups", "restroom", "allowsDogs", "accessibilityOptions", "paymentOptions"];
+// Newer AI summaries: asked for, but dropped if this key/region doesn't support them.
+const EXTRA = ["generativeSummary", "reviewSummary"];
 const LIST = ["id", "displayName", "location", "rating", "userRatingCount", "priceLevel", "shortFormattedAddress", "primaryTypeDisplayName", "primaryType", "currentOpeningHours.openNow"];
 const mask = (f: string[]) => f.map((x) => `places.${x}`).join(",");
 
@@ -76,7 +82,8 @@ export async function POST(req: Request) {
     if (op === "find") {
       const name = String(b.name ?? "").slice(0, 120).trim();
       if (!name) return bad("No name.");
-      const j = await google("places:searchText", { textQuery: name, languageCode, maxResultCount: 1, locationBias: { circle: { center: { latitude: lat, longitude: lon }, radius: 250 } } }, mask(FULL));
+      const body = { textQuery: name, languageCode, maxResultCount: 1, locationBias: { circle: { center: { latitude: lat, longitude: lon }, radius: 250 } } };
+      const j = await google("places:searchText", body, mask([...FULL, ...EXTRA])).catch((e) => (/field|mask|invalid/i.test(String(e)) ? google("places:searchText", body, mask(FULL)) : Promise.reject(e)));
       const g = j.places?.[0];
       // Too far from the pin: it's a different place with the same name.
       const far = g?.location && Math.hypot((g.location.latitude - lat) * 111_000, (g.location.longitude - lon) * 91_000) > 600;
