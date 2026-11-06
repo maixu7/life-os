@@ -17,7 +17,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Get OpenStreetMap for the Nagoya area
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool
+          curl -fsSL --retry 3 -o /tmp/chubu.pbf https://download.geofabrik.de/asia/japan/chubu-latest.osm.pbf
+          osmium extract -b 136.74,34.98,137.12,35.30 /tmp/chubu.pbf -o /tmp/ngy.pbf
+          osmium tags-filter /tmp/ngy.pbf nwr/amenity nwr/tourism nwr/historic nwr/leisure nwr/shop nwr/sport nwr/natural=hot_spring -o /tmp/fun.pbf
+          osmium tags-filter /tmp/ngy.pbf n/railway=station,halt n/public_transport=station -o /tmp/st.pbf
+          osmium export /tmp/fun.pbf -f geojsonseq --add-unique-id=type_id -o /tmp/fun.geojsonseq
+          osmium export /tmp/st.pbf -f geojsonseq --add-unique-id=type_id --geometry-types=point -o /tmp/st.geojsonseq
+          wc -l /tmp/fun.geojsonseq /tmp/st.geojsonseq
       - run: node scripts/nagoya/bake.mjs
+        env:
+          OSM_FUN: /tmp/fun.geojsonseq
+          OSM_STATIONS: /tmp/st.geojsonseq
       - name: Commit the data
         run: |
           git config user.name "github-actions[bot]"
@@ -25,4 +38,5 @@ jobs:
           git add public/nagoya
           git diff --cached --quiet && exit 0
           git commit -m "Bake Nagoya places data"
-          git push
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

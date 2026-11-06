@@ -57,9 +57,35 @@ function catOf(t) {
   return "sight";
 }
 
+// Matches the Overpass-style filters above against a tag set.
+const RULES = FILTERS.map((f) => [...f.matchAll(/\["([^"]+)"(?:(=|~)"([^"]+)")?\]/g)].map(([, k, op, v]) => [k, op, v && op === "~" ? new RegExp(v) : v]));
+const wanted = (t) => RULES.some((r) => r.every(([k, op, v]) => (op === "=" ? t[k] === v : op === "~" ? v.test(t[k] ?? "") : k in t)));
+// osmium "geojsonseq": one feature per line; areas get their middle point.
+function* features(file) {
+  for (const line of readFileSync(file, "utf8").split("\n")) {
+    const j = line.replace(/^\x1e/, "").trim();
+    if (!j) continue;
+    let f; try { f = JSON.parse(j); } catch { continue; }
+    const g = f.geometry; if (!g) continue;
+    let lat, lon;
+    if (g.type === "Point") [lon, lat] = g.coordinates;
+    else {
+      const pts = (g.type === "Polygon" ? g.coordinates[0] : g.type === "MultiPolygon" ? g.coordinates[0][0] : g.type === "LineString" ? g.coordinates : []) ?? [];
+      if (!pts.length) continue;
+      let w = 180, e = -180, so = 90, n = -90;
+      for (const [x, y] of pts) { w = Math.min(w, x); e = Math.max(e, x); so = Math.min(so, y); n = Math.max(n, y); }
+      lon = (w + e) / 2; lat = (so + n) / 2;
+    }
+    const raw = String(f.id ?? "");
+    let id = raw;
+    if (raw[0] === "a") { const k = Number(raw.slice(1)); id = k % 2 === 0 ? `w${k / 2}` : `r${(k - 1) / 2}`; }
+    yield { id, lat, lon, tags: f.properties ?? {} };
+  }
+}
+
 async function bakeOsm() {
-  const q = `[out:json][timeout:280][maxsize:1073741824][bbox:${BB}];(${FILTERS.map((f) => `nwr${f};`).join("")});out center tags;`;
-  const els = await overpass(q);
+  const els = process.env.OSM_FUN ? [...features(process.env.OSM_FUN)].filter((e) => wanted(e.tags)).map((e) => ({ type: e.id[0] === "n" ? "node" : e.id[0] === "w" ? "way" : "relation", id: e.id.slice(1), lat: e.lat, lon: e.lon, tags: e.tags }))
+    : await overpass(`[out:json][timeout:280][maxsize:1073741824][bbox:${BB}];(${FILTERS.map((f) => `nwr${f};`).join("")});out center tags;`);
   console.log("osm elements", els.length);
   const seen = new Set(), rows = [];
   for (const e of els) {
@@ -72,7 +98,7 @@ async function bakeOsm() {
     const key = `${t.name}|${lat.toFixed(3)}|${lon.toFixed(3)}`;
     if (seen.has(key)) continue; seen.add(key);
     const k = {};
-    for (const n of KEEP) if (t[n]) k[n] = t[n].slice(0, 300);
+    for (const n of KEEP) if (t[n]) k[n] = String(t[n]).slice(0, 300);
     rows.push({ id: `${e.type[0]}${e.id}`, c: catOf(t), a: Math.round(lat * 1e5), o: Math.round(lon * 1e5), t: k });
   }
   // Photos for the well-known ones (Wikidata P18).
@@ -90,7 +116,8 @@ async function bakeOsm() {
 }
 
 async function bakeStations() {
-  const els = await overpass(`[out:json][timeout:120][bbox:${BB}];(node["railway"="station"]["name"];node["public_transport"="station"]["name"];);out tags;`);
+  const els = process.env.OSM_STATIONS ? [...features(process.env.OSM_STATIONS)].map((e) => ({ lat: e.lat, lon: e.lon, tags: e.tags }))
+    : await overpass(`[out:json][timeout:120][bbox:${BB}];(node["railway"="station"]["name"];node["public_transport"="station"]["name"];);out tags;`);
   const seen = new Map();
   for (const e of els) {
     const t = e.tags ?? {}; const k = t.name;
@@ -166,7 +193,8 @@ async function bakePicks(osm) {
     let best = null, bd = 2500;
     for (const r of osm) {
       const rn = norm(r.t.name), d = dist(near, [r.a / 1e5, r.o / 1e5]);
-      if (d < bd && rn && (rn === n || (n.length >= 3 && (rn.includes(n) || n.includes(rn)) && rn.length >= 3))) { best = r; bd = d; }
+      const close = rn === n || (Math.min(n.length, rn.length) >= 3 && (rn.includes(n) || n.includes(rn)) && Math.min(n.length, rn.length) / Math.max(n.length, rn.length) >= 0.7);
+      if (d < bd && rn && close) { best = r; bd = d; }
     }
     const lat = best ? best.a / 1e5 : w?.lat ?? p.lat, lon = best ? best.o / 1e5 : w?.lon ?? p.lon;
     let photos = [];
