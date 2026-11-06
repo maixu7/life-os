@@ -64,6 +64,10 @@ function describeInner(l: Log, currency: string): { emoji: string; title: string
       return { emoji: "📚", title: "Reading", detail: join(d.minutes ? `${d.minutes} min` : "", d.title, note) };
     case "listening":
       return { emoji: "🎧", title: "Listening", detail: join(d.minutes ? `${d.minutes} min` : "", d.title, note) };
+    case "trip":
+      return { emoji: String(d.emoji ?? "🚶"), title: String(d.name ?? "Trip"), detail: join(d.km != null ? `${Number(d.km).toFixed(2)} km` : "", d.minutes ? `${d.minutes} min` : "", d.from ? `from ${d.from}` : "", d.kcal ? `${d.kcal} kcal` : "", note) };
+    case "visit":
+      return { emoji: String(d.emoji ?? "📍"), title: String(d.name ?? "Visit"), detail: join(d.kind ? String(d.kind) : "", note) };
     case "workout":
       return {
         emoji: "🏋️", title: String(d.exercise ?? "Workout"),

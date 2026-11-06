@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@custom-variant short (@media (max-height: 500px));
 
 :root {
   --bg: #070512;
@@ -217,6 +218,7 @@ html.app-hidden body { filter: blur(24px); }
 }
 
 /* ✏️ Edit mode (components/EditLayer.tsx) */
+[data-lo-pen-host] { position: relative; }
 html:not(.lo-editing) [data-lo-hide] { display: none !important; }
 html.lo-editing [data-lo-hide] { opacity: 0.3 !important; outline: 2px dashed #f43f5e !important; }
 html.lo-editing [data-lo-sel] { outline: 3px solid #facc15 !important; outline-offset: 2px; }
@@ -228,3 +230,25 @@ html.lo-editing body { padding-top: 2.5rem; }
 [data-lo-pen][data-lo-pen-bl] { top: auto; bottom: 2px; left: 2px; right: auto; width: 15px; height: 15px; font-size: 9px; opacity: 0.55; }
 /* rows in a list: in the box's margin, left of the row, so it never covers ✓ or Go to */
 [data-lo-pen][data-lo-pen-row] { top: 50%; right: auto; left: -12px; transform: translateY(-50%); width: 13px; height: 14px; font-size: 8px; opacity: 0.5; box-shadow: none; }
+
+/* 🗺️ Places map (components/PlacesMap.tsx) */
+.no-scrollbar { scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.leaflet-container { font: inherit; background: #dfe7ef; }
+.leaflet-control-attribution { font-size: 9px !important; max-width: 70%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(255,255,255,.75) !important; color: #333 !important; }
+.leaflet-control-attribution a { color: #1d4ed8 !important; }
+.lo-pin { --c: #7c3aed; width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--c); border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,.45); display: grid; place-items: center; position: relative; }
+.lo-pin > span:first-child { transform: rotate(45deg); font-size: 16px; line-height: 1; }
+.lo-pin-s { width: 26px; height: 26px; }
+.lo-pin-s > span:first-child { font-size: 12px; }
+.lo-star { position: absolute; top: -7px; right: -7px; transform: rotate(45deg); color: #facc15; font-size: 13px; text-shadow: 0 0 2px #000; }
+.lo-me { width: 22px; height: 22px; border-radius: 50%; background: #3b82f6; border: 3px solid #fff; box-shadow: 0 0 0 6px rgba(59,130,246,.3), 0 1px 4px rgba(0,0,0,.5); }
+.lo-tip { background: rgba(20,12,36,.9) !important; color: #fff !important; border: 0 !important; font-size: 11px; padding: 2px 6px !important; max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lo-tip::before { display: none; }
+.lo-badge { display: inline-block; max-width: 100%; border-radius: 999px; background: rgba(20,12,36,.88); color: #fff; font-size: 11px; padding: 4px 10px; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.lo-ctl { width: 40px; height: 40px; border-radius: 12px; background: rgba(255,255,255,.95); color: #111; font-size: 20px; font-weight: 700; line-height: 1; display: grid; place-items: center; box-shadow: 0 1px 5px rgba(0,0,0,.4); }
+.lo-ctl:active { transform: scale(.94); }
+.lo-act { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; border-radius: 14px; border: 1px solid var(--border); background: rgba(255,255,255,.05); padding: .55rem .2rem; font-size: 12px; font-weight: 700; text-align: center; }
+.lo-act > span { font-size: 22px; line-height: 1; }
+.lo-act:active { transform: scale(.95); }
+html.light .lo-act { background: #fff; }
