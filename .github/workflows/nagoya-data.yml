@@ -1,0 +1,28 @@
+# Bakes Nagoya's fun places (OpenStreetMap + Wikipedia photos) into public/nagoya
+# so the app shows them instantly without asking a map server.
+name: nagoya-data
+on:
+  push:
+    branches: ["claude/**"]
+    paths: ["scripts/nagoya/**", "src/data/nagoya-picks.json", ".github/workflows/nagoya-data.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  bake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/nagoya/bake.mjs
+      - name: Commit the data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/nagoya
+          git diff --cached --quiet && exit 0
+          git commit -m "Bake Nagoya places data"
+          git push
