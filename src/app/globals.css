@@ -252,3 +252,14 @@ html.lo-editing body { padding-top: 2.5rem; }
 .lo-act > span { font-size: 22px; line-height: 1; }
 .lo-act:active { transform: scale(.95); }
 html.light .lo-act { background: #fff; }
+/* Map colours follow Google Maps' dark look */
+.lo-mchip { white-space: nowrap; border-radius: 10px; padding: .45rem .8rem; font-size: .82rem; font-weight: 600; background: #2b2c30; color: #e3e3e3; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+.lo-mchip-on { background: #004a77; color: #c2e7ff; border-color: transparent; }
+.lo-mchip-main { background: #a8c7fa; color: #062e6f; font-weight: 800; border-color: transparent; }
+.lo-pill { white-space: nowrap; display: inline-flex; align-items: center; gap: .35rem; border-radius: 999px; padding: .6rem 1rem; font-size: .88rem; font-weight: 700; border: 0; background: #0f3651; color: #c2e7ff; }
+.lo-pill-main { background: #a8c7fa; color: #062e6f; }
+.lo-pill:active { transform: scale(.95); }
+.lo-pin-on { width: 42px; height: 42px; box-shadow: 0 0 0 4px rgba(255,255,255,.6), 0 3px 8px rgba(0,0,0,.5); }
+.lo-pin-on > span:first-child { font-size: 20px; }
+.lo-map .card, .lo-map .card:hover { background: #2b2c30; box-shadow: none; border: 1px solid rgba(255,255,255,.08); backdrop-filter: none; }
+.lo-map .text-muted { color: #a8abb3; }

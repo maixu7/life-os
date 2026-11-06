@@ -6,6 +6,8 @@ export type Cat = {
   id: string; icon: string; label: string; color: string;
   q: string[]; // Overpass tag filters
   dense?: boolean; // many of them in a city: only load when zoomed in
+  minZoom?: number; // very many (vending machines): only when zoomed right in
+  useful?: boolean; // not a place to visit: a handy layer (toilets, ATMs…)
   google?: string[]; // Google Places types for the same chip
 };
 
@@ -22,9 +24,13 @@ export const CATS: Cat[] = [
   { id: "food", icon: "🍜", label: "Food", color: "#dc2626", dense: true, q: ['["amenity"~"^(restaurant|fast_food|food_court)$"]'], google: ["restaurant"] },
   { id: "cafe", icon: "☕", label: "Cafés", color: "#92400e", dense: true, q: ['["amenity"~"^(cafe|ice_cream)$"]', '["shop"="pastry"]'], google: ["cafe"] },
   { id: "shop", icon: "🛍️", label: "Shopping", color: "#9333ea", dense: true, q: ['["shop"~"^(mall|department_store|anime|books|games|video_games|toys|electronics|second_hand|gift|variety_store|music|camera|hobby|model)$"]'], google: ["shopping_mall", "department_store", "book_store", "electronics_store"] },
-  { id: "konbini", icon: "🏪", label: "Konbini", color: "#0d9488", dense: true, q: ['["shop"~"^(convenience|supermarket)$"]'], google: ["convenience_store", "supermarket"] },
-  { id: "station", icon: "🚉", label: "Stations", color: "#475569", q: ['["railway"~"^(station|halt)$"]', '["public_transport"="station"]["name"]'], google: ["train_station", "subway_station"] },
-  { id: "toilet", icon: "🚻", label: "Toilets", color: "#64748b", dense: true, q: ['["amenity"="toilets"]'], google: [] },
+  { id: "konbini", icon: "🏪", label: "Konbini", color: "#0d9488", dense: true, useful: true, q: ['["shop"~"^(convenience|supermarket)$"]'], google: ["convenience_store", "supermarket"] },
+  { id: "station", icon: "🚉", label: "Stations", color: "#475569", useful: true, q: ['["railway"~"^(station|halt)$"]', '["public_transport"="station"]["name"]'], google: ["train_station", "subway_station"] },
+  { id: "toilet", icon: "🚻", label: "Toilets", color: "#64748b", dense: true, useful: true, q: ['["amenity"="toilets"]'], google: [] },
+  { id: "atm", icon: "🏧", label: "ATMs", color: "#15803d", dense: true, useful: true, q: ['["amenity"="atm"]', '["amenity"="bank"]["atm"="yes"]'], google: ["atm"] },
+  { id: "locker", icon: "🧳", label: "Coin lockers", color: "#a16207", dense: true, useful: true, q: ['["amenity"~"^(luggage_locker|locker)$"]', '["vending"="lockers"]'], google: [] },
+  { id: "water", icon: "🚰", label: "Drinking water", color: "#0284c7", dense: true, useful: true, q: ['["amenity"="drinking_water"]'], google: [] },
+  { id: "vending", icon: "🥤", label: "Vending machines", color: "#ef4444", minZoom: 17, useful: true, q: ['["amenity"="vending_machine"]["vending"~"drinks|food|ice_cream|coffee"]'], google: [] },
 ];
 export const DEFAULT_CATS = ["shrine", "sight", "park", "museum", "arcade", "karaoke", "cinema", "fun", "bath"];
 export const catOf = (id: string) => CATS.find((c) => c.id === id) ?? CATS[1];
@@ -54,7 +60,7 @@ const KIND: Record<string, string> = {
   mall: "Shopping mall", department_store: "Department store", anime: "Anime / manga shop", books: "Bookshop", games: "Game shop", video_games: "Video game shop",
   toys: "Toy shop", electronics: "Electronics", second_hand: "Second-hand shop", gift: "Gift shop", variety_store: "¥100 / variety shop", music: "Music shop",
   camera: "Camera shop", hobby: "Hobby shop", model: "Model shop", convenience: "Convenience store", supermarket: "Supermarket",
-  station: "Station", halt: "Station", toilets: "Public toilet", wayside_cross: "Wayside cross", climbing: "Climbing gym",
+  station: "Station", halt: "Station", toilets: "Public toilet", atm: "ATM", bank: "Bank (ATM)", luggage_locker: "Coin lockers", locker: "Coin lockers", drinking_water: "Drinking water", vending_machine: "Vending machine", wayside_cross: "Wayside cross", climbing: "Climbing gym",
 };
 export function kindOf(t: Record<string, string>): string {
   if (t.historic === "wayside_shrine") {
@@ -109,7 +115,7 @@ export function parseOsm(els: OsmEl[], lang: "en" | "ja" = "en"): Place[] {
     const local = t.name ?? t["name:ja"] ?? "";
     const en = t["name:en"] ?? (t["name:ja-Latn"] || undefined);
     // Unnamed things only count when they are small shrines / statues people want to find.
-    if (!local && !en && !(t.historic === "wayside_shrine" || t.amenity === "place_of_worship" || t.amenity === "toilets" || t.tourism === "viewpoint" || t.tourism === "artwork")) continue;
+    if (!local && !en && !(t.historic === "wayside_shrine" || t.amenity === "place_of_worship" || /^(toilets|atm|luggage_locker|locker|drinking_water|vending_machine)$/.test(t.amenity ?? "") || t.tourism === "viewpoint" || t.tourism === "artwork")) continue;
     const name = (lang === "en" ? en || local : local || en) || kind;
     out.push({ id: `osm:${e.type[0]}${e.id}`, lat, lon, name, en: en && en !== name ? en : local && local !== name ? local : undefined, cat: catFor(t), kind, tags: t });
   }
@@ -119,23 +125,51 @@ export function parseOsm(els: OsmEl[], lang: "en" | "ja" = "en"): Place[] {
 export async function loadPlaces(cats: string[], b: Box, lang: "en" | "ja", signal?: AbortSignal): Promise<Place[]> {
   if (!cats.length) return [];
   const body = `data=${encodeURIComponent(overpassQuery(cats, b))}`;
-  let last = "";
-  // Try each free server in turn; the main one is often busy.
-  const start = Math.floor(Date.now() / 60000) % 2; // spread the load a little
+  const ask = async (url: string) => {
+    const r = await fetch(url, { method: "POST", body, headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: anySignal(signal, 25_000), referrerPolicy: "origin" });
+    if (!r.ok) throw new Error(`map data server ${r.status}`);
+    const j = await r.json();
+    return parseOsm(j.elements ?? [], lang);
+  };
+  // Two free servers at once (the first answer wins), then the others.
+  const start = Math.floor(Date.now() / 60000) % 2;
   const order = [...OVERPASS.slice(start), ...OVERPASS.slice(0, start)];
-  for (const url of order) {
+  try {
+    const got = await Promise.any(order.slice(0, 2).map(ask));
+    remember(cats, b, lang, got);
+    return got;
+  } catch {
     if (signal?.aborted) throw new DOMException("aborted", "AbortError");
-    try {
-      const r = await fetch(url, { method: "POST", body, headers: { "Content-Type": "application/x-www-form-urlencoded" }, signal: anySignal(signal, 20_000), referrerPolicy: "origin" });
-      if (!r.ok) { last = `map data server ${r.status}`; continue; }
-      const j = await r.json();
-      return parseOsm(j.elements ?? [], lang);
-    } catch (e) {
-      if ((e as Error).name === "AbortError" && signal?.aborted) throw e;
-      last = "network";
-    }
   }
-  throw new Error(last === "network" ? "Couldn't reach the map data. Check your internet and try again." : `Map data is busy (${last}). Try again in a minute.`);
+  for (const url of order.slice(2)) {
+    try { const got = await ask(url); remember(cats, b, lang, got); return got; } catch { if (signal?.aborted) throw new DOMException("aborted", "AbortError"); }
+  }
+  // Offline or every server busy: what was seen here before.
+  const old = recall(cats, b, lang);
+  if (old.length) return old;
+  throw new Error(typeof navigator !== "undefined" && !navigator.onLine ? "You're offline. Places seen before still show." : "Map data is busy. Try again in a minute.");
+}
+// The last few areas you looked at, kept on this phone for offline use.
+const CACHE = "lifeos-map-cache";
+type Saved = { b: Box; cats: string[]; lang: string; at: number; ps: Place[] };
+function remember(cats: string[], b: Box, lang: string, ps: Place[]) {
+  try {
+    const all: Saved[] = JSON.parse(localStorage.getItem(CACHE) ?? "[]");
+    const slim = ps.slice(0, 500).map((p) => ({ ...p, g: undefined }));
+    const next = [{ b, cats, lang, at: Date.now(), ps: slim }, ...all].slice(0, 4);
+    localStorage.setItem(CACHE, JSON.stringify(next));
+  } catch { /* full or private: skip */ }
+}
+function recall(cats: string[], b: Box, lang: string): Place[] {
+  try {
+    const all: Saved[] = JSON.parse(localStorage.getItem(CACHE) ?? "[]");
+    const out = new Map<string, Place>();
+    for (const a of all) {
+      if (a.lang !== lang || a.b.s > b.n || a.b.n < b.s || a.b.w > b.e || a.b.e < b.w) continue;
+      for (const p of a.ps) if (cats.includes(p.cat)) out.set(p.id, p);
+    }
+    return [...out.values()];
+  } catch { return []; }
 }
 function anySignal(s: AbortSignal | undefined, ms: number) {
   const t = AbortSignal.timeout(ms);
@@ -354,7 +388,8 @@ export async function photosOf(p: Place): Promise<Photo[]> {
 export type GReview = { by: string; stars: number; when: string; text: string; photo?: string };
 export type GSummary = {
   id: string; name: string; rating?: number; count?: number; price?: string; address?: string; phone?: string; website?: string; maps?: string;
-  open?: boolean; hours?: string[]; about?: string; type?: string; gtype?: string; photos?: string[]; reviews?: GReview[]; lat?: number; lon?: number;
+  open?: boolean; hours?: string[]; about?: string; type?: string; gtype?: string;
+  know?: string; kids?: boolean; groups?: boolean; toilets?: boolean; dogs?: boolean; wheelchair?: boolean; cards?: boolean; cashOnly?: boolean; photos?: string[]; reviews?: GReview[]; lat?: number; lon?: number;
 };
 let gOn: Promise<boolean> | null = null;
 export const googleOn = () => (gOn ??= fetch("/api/places").then((r) => r.json()).then((j) => !!j.on).catch(() => false));
@@ -386,4 +421,20 @@ export async function searchPlaces(q: string, near: { lat: number; lon: number }
   return (Array.isArray(j) ? j : []).map((h: { name?: string; display_name: string; lat: string; lon: string; type?: string; category?: string }) => ({
     name: h.name || h.display_name.split(",")[0], lat: Number(h.lat), lon: Number(h.lon), what: h.display_name.split(",").slice(1, 3).join(",").trim() || (h.type ?? ""),
   }));
+}
+
+// ---------- routes on our own map (free OSM routing; walk and bicycle) ----------
+export type Route = { pts: [number, number][]; m: number; min: number; mode: "foot" | "bike" };
+const rcache = new Map<string, Promise<Route | null>>();
+export function routeTo(a: { lat: number; lon: number }, b: { lat: number; lon: number }, mode: "foot" | "bike"): Promise<Route | null> {
+  const k = `${a.lat.toFixed(4)},${a.lon.toFixed(4)}>${b.lat.toFixed(5)},${b.lon.toFixed(5)}|${mode}`;
+  if (!rcache.has(k)) rcache.set(k, (async () => {
+    const url = `https://routing.openstreetmap.de/routed-${mode}/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson&alternatives=false&steps=false`;
+    const r = await fetch(url, { signal: AbortSignal.timeout(12_000), referrerPolicy: "origin" }).catch(() => null);
+    const j = await r?.json().catch(() => null);
+    const rt = j?.routes?.[0];
+    if (!rt?.geometry?.coordinates?.length) { rcache.delete(k); return null; }
+    return { pts: rt.geometry.coordinates.map(([x, y]: [number, number]) => [y, x] as [number, number]), m: rt.distance, min: rt.duration / 60, mode };
+  })());
+  return rcache.get(k)!;
 }
