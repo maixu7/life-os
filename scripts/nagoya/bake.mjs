@@ -169,11 +169,13 @@ async function wiki(lang, titles) {
   }
   return out;
 }
-async function commonsPhotos(q) {
+const BADPIC = /map|logo|地図|location|svg|diagram|plan|murder|case|accident|incident|station|駅|platform|sign|看板|bus|train|car /i;
+async function commonsPhotos(q, en) {
   const u = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=8&gsrsearch=${encodeURIComponent(`${q} filetype:bitmap`)}&prop=info`;
   try {
     const j = await (await fetch(u, { headers: UA, signal: AbortSignal.timeout(30_000) })).json();
-    return Object.values(j.query?.pages ?? {}).sort((a, b) => a.index - b.index).map((p) => p.title.replace(/^File:/, "")).filter((f) => /\.(jpe?g|png|webp)$/i.test(f) && !/map|logo|地図|location|svg|diagram|plan/i.test(f));
+    return Object.values(j.query?.pages ?? {}).sort((a, b) => a.index - b.index).map((p) => p.title.replace(/^File:/, "")).filter((f) => /\.(jpe?g|png|webp)$/i.test(f) && !BADPIC.test(f))
+      .filter((f) => { const words = [q, ...en.split(/[\s()]+/).filter((w) => w.length >= 4 && !/^(nagoya|park|temple|shrine|museum|garden|street|shopping|city|the)$/i.test(w))]; return words.some((w) => f.toLowerCase().includes(w.toLowerCase())); });
   } catch { return []; }
 }
 
@@ -198,8 +200,9 @@ async function bakePicks(osm) {
     }
     const lat = best ? best.a / 1e5 : w?.lat ?? p.lat, lon = best ? best.o / 1e5 : w?.lon ?? p.lon;
     let photos = [];
-    for (const f of [best?.p, wj?.img, we?.img]) if (f && !photos.includes(f.replace(/_/g, " "))) photos.push(f.replace(/_/g, " "));
-    if (photos.length < 5) for (const f of await commonsPhotos(p.ja)) if (photos.length < 6 && !photos.includes(f)) photos.push(f);
+    const nearPic = (x) => x && (!x.lat || dist([p.lat, p.lon], [x.lat, x.lon]) < 4000) ? x.img : undefined;
+    for (const f of [best?.p, nearPic(wj), we?.lat ? nearPic(we) : undefined]) if (f && !BADPIC.test(f) && !photos.includes(f.replace(/_/g, " "))) photos.push(f.replace(/_/g, " "));
+    if (photos.length < 5) for (const f of await commonsPhotos(p.ja, p.en)) if (photos.length < 6 && !photos.includes(f)) photos.push(f);
     await sleep(150);
     const t = best?.t ?? {};
     const addr = t["addr:full"] ?? ["addr:province", "addr:city", "addr:suburb", "addr:quarter", "addr:neighbourhood", "addr:block_number", "addr:street", "addr:housenumber"].map((k) => t[k]).filter(Boolean).join(" ");
