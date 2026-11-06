@@ -15,12 +15,12 @@ export const ALL_TABS: Tab[] = [
   { href: "/calendar", icon: "📜", label: "Days" },
   { href: "/shop", icon: "🛒", label: "Shopping" },
   { href: "/have", icon: "🎒", label: "My stuff" },
-  { href: "/map", icon: "🗺️", label: "Places" },
+  { href: "/bored", icon: "😴", label: "I'm bored" },
   { href: "/", icon: "🏠", label: "Home" },
   { href: "/settings", icon: "⚙️", label: "Settings" },
 ];
 // Base sits on the right; the app opens on the leftmost tab.
-export const DEFAULT_TABS = ["/today", "/food", "/shop", "/learn", "/map", "/train", "/fit", "/have", "/calendar", "/"];
+export const DEFAULT_TABS = ["/today", "/food", "/shop", "/learn", "/bored", "/train", "/fit", "/have", "/calendar", "/"];
 export const MAX_TABS = 10;
 
 export const SECTIONS: [string, string][] = [["mission", "📋 Daily mission"], ["actions", "⚡ Do next, Log, Report"]];
@@ -46,4 +46,4 @@ export function tabOf(href: string, ui?: Ui): Tab | undefined {
 }
 // Every page you can put on the menu: built-in ones and your own.
 export const allPages = (ui?: Ui): Tab[] => [...ALL_TABS, ...(ui?.custom ?? []).map((c) => ({ href: `/custom/${c.id}`, icon: c.icon, label: c.label }))].map((t) => tabOf(t.href, ui) ?? t);
-export const tabsOf = (ui?: Ui) => (ui?.tabs?.length ? ui.tabs : DEFAULT_TABS).map((h) => tabOf(h, ui)).filter((t): t is Tab => !!t);
+export const tabsOf = (ui?: Ui) => (ui?.tabs?.length ? ui.tabs : DEFAULT_TABS).map((h) => tabOf(h === "/map" ? "/bored" : h, ui)).filter((t): t is Tab => !!t);

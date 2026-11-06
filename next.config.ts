@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
   compiler: { removeConsole: prod ? { exclude: ["error"] } : false },
   // Pages taken out to keep the app simple go to Home (old links and reminders keep working).
   async redirects() {
-    return ["/doctor", "/tools", "/rank", "/trophies", "/quick"].map((source) => ({ source, destination: "/", permanent: false }));
+    return [...["/doctor", "/tools", "/rank", "/trophies", "/quick"].map((source) => ({ source, destination: "/", permanent: false })), { source: "/map", destination: "/bored", permanent: false }];
   },
   async headers() {
     return [
