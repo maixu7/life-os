@@ -169,7 +169,7 @@ async function wiki(lang, titles) {
   }
   return out;
 }
-const BADPIC = /map|logo|地図|location|svg|diagram|plan|murder|case|accident|incident|station|駅|platform|sign|看板|bus|train|car /i;
+const BADPIC = /\bsta\b|ent(r)?ance|map|logo|地図|location|svg|diagram|plan|murder|case|accident|incident|station|駅|platform|sign|看板|bus|train|car /i;
 async function commonsPhotos(q, en) {
   const u = `https://commons.wikimedia.org/w/api.php?action=query&format=json&generator=search&gsrnamespace=6&gsrlimit=8&gsrsearch=${encodeURIComponent(`${q} filetype:bitmap`)}&prop=info`;
   try {

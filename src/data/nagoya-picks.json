@@ -135,7 +135,7 @@
 },
 {
 "en": "Sky Promenade (Midland Square)",
-"ja": "スカイプロムナード",
+"ja": "ミッドランドスクエア スカイプロムナード",
 "cat": "sight",
 "kind": "Viewpoint",
 "lat": 35.1704,
@@ -154,7 +154,9 @@
 "rain"
 ],
 "why": "Open-air rooftop on the 44th–46th floors near Nagoya Station. One of the best night views in the city.",
-"hours": "11:00–22:00"
+"hours": "11:00–22:00",
+"wja": "ミッドランドスクエア",
+"wen": "Midland Square"
 },
 {
 "en": "JR Gate Tower Sky Street",

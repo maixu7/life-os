@@ -82,7 +82,8 @@ export function Bored() {
   }, []);
   useEffect(() => { locate(); }, [locate]);
 
-  const say = (s: string) => { setToast(s); setTimeout(() => setToast(""), 2600); };
+  const toastT = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const say = (s: string) => { setToast(s); if (toastT.current) clearTimeout(toastT.current); toastT.current = setTimeout(() => setToast(""), 2600); };
 
   const placeItems = useMemo(() => data.items.filter((i) => i.category === "place"), [data.items]);
   const savedIds = useMemo(() => new Set(placeItems.filter((i) => (i.config as { saved?: unknown }).saved !== false && (i.config as { saved?: unknown }).saved !== undefined).map((i) => String(i.config.pid))), [placeItems]);
@@ -207,7 +208,7 @@ export function Bored() {
           onClose={() => setOpen(null)} onSave={() => toggleSave(open)} onWent={() => went(open)} onToday={() => addToday(open, openW)} say={say} />
       )}
       {adding && <AddPlace me={me} onClose={() => setAdding(false)} onDone={(s) => { setAdding(false); say(`➕ ${s} added`); }} />}
-      {toast && <div role="status" className="fixed z-[90] left-1/2 -translate-x-1/2 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-w-[calc(100vw-2rem)] rounded-full bg-black/90 text-white text-sm px-4 py-2 shadow-xl">{toast}</div>}
+      {toast && <div role="status" className="pointer-events-none fixed z-[90] left-1/2 -translate-x-1/2 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] max-w-[calc(100vw-2rem)] rounded-full bg-black/90 text-white text-sm px-4 py-2 shadow-xl">{toast}</div>}
     </div>
   );
 }
@@ -296,7 +297,7 @@ function Detail({ s, w, saved, visits, onClose, onSave, onWent, onToday, say }: 
           ) : (
             <div className={`h-[22dvh] min-h-[140px] bg-gradient-to-br ${GRAD[s.cat] ?? GRAD.sight} grid place-items-center`}><span className="text-7xl" aria-hidden>{c.icon}</span></div>
           )}
-          <button onClick={onClose} aria-label="Close" className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] h-11 w-11 rounded-full bg-black/70 text-xl grid place-items-center">✕</button>
+          <button onClick={onClose} aria-label="Close" className="fixed z-10 right-3 top-[max(0.75rem,env(safe-area-inset-top))] h-11 w-11 rounded-full bg-black/70 shadow-lg text-xl grid place-items-center">✕</button>
           {s.photos.length > 1 && (
             <>
               <button onClick={() => go(Math.max(0, idx - 1))} aria-label="Previous photo" className="absolute left-2 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/60 text-xl hidden sm:grid place-items-center">‹</button>
