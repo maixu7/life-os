@@ -119,6 +119,38 @@ export default function ShopPage() {
     if (!confirm(`Remove "${n.name}" from your List?`)) return;
     saved.remove(n.id);
   };
+  // Bought: mark it purchased (date + time), add it to the Pantry, log it.
+  // ✓ in To buy calls this straight away; ✏ Details opens BuySheet first.
+  const [moved, setMoved] = useState("");
+  const buyItem = async (it: ShopItem, name: string, qty: number, unit: string, price: number | null, at: Date, toStorage: boolean, photo: File | null) => {
+    const nowIso = at.toISOString();
+    let photo_id = it.photo_id;
+    if (photo) {
+      const fresh = crypto.randomUUID();
+      if (await putPhoto(session, fresh, photo).then(() => true).catch(() => false)) {
+        if (photo_id) await deletePhoto(session, photo_id).catch(() => {});
+        photo_id = fresh;
+      }
+    }
+    const emoji = sameThing(name, it.name) ? it.emoji : emojiFor(name, "🛍️");
+    update((d) => {
+      const shopping = d.shopping.map((x) => (x.id === it.id ? { ...x, name, emoji, photo_id, qty, unit, price, status: "purchased" as const, purchased_at: nowIso } : x));
+      if (!toStorage) return { ...d, shopping };
+      const existing = d.pantry.find((p) => sameThing(p.name, name) && p.unit === unit);
+      const unitPrice = price != null && qty ? +(price / qty).toFixed(2) : null;
+      const pantry = existing
+        ? d.pantry.map((p) => (p.id === existing.id ? { ...p, qty: +(p.qty + qty).toFixed(2), last_price: unitPrice ?? p.last_price, updated_at: nowIso } : p))
+        : [...d.pantry, { id: crypto.randomUUID(), name: name, emoji: emoji, qty, unit, last_price: unitPrice, updated_at: nowIso }];
+      return { ...d, shopping, pantry };
+    });
+    const row = logActivity("shopping", { item: name, emoji: emoji, qty, unit, price }, at);
+    celebrate({ title: "ITEM ACQUIRED!", subtitle: `${emoji} ${qty} ${unit} ${name}`, xp: row.xp });
+  };
+  const quickBuy = (it: ShopItem) => {
+    void buyItem(it, it.name, it.qty || 1, it.unit, it.price, new Date(), true, null);
+    setMoved(`✓ ${it.emoji} ${it.name} moved to 📦 Collection`);
+  };
+  useEffect(() => { if (!moved) return; const t = setTimeout(() => setMoved(""), 3000); return () => clearTimeout(t); }, [moved]);
   const listTotal = toBuy.reduce((s, i) => s + Number(i.price ?? 0), 0);
 
   // Snap a product (or its empty packet): the app reads what it is and adds it
@@ -189,6 +221,11 @@ export default function ShopPage() {
         onAI={() => askAI(shot.file, shot.imgs)} onPick={(p) => { setTab("list"); addSnapped(shot.file, p.name); }} />}
       {receipt && <ReceiptSheet onClose={() => setReceipt(false)} />}
       {snapMsg && <p className="card p-3 mb-3 text-xs">{snapMsg}</p>}
+      {moved && (
+        <div role="status" className="fixed inset-x-0 bottom-24 z-50 mx-auto w-fit max-w-[90vw] rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+          {moved} <button onClick={() => setTab("collection")} className="ml-2 underline">Open</button>
+        </div>
+      )}
 
 
       <div className="grid grid-cols-4 gap-1 p-1 mb-4 rounded-2xl bg-white/5">
@@ -236,7 +273,7 @@ export default function ShopPage() {
       {tab === "list" && (
         <>
           <AutoGrocery />
-          <p className="text-xs text-muted mb-2">Tick ✓ when you have bought it, fill in the photo, price and amount, and it moves to 📦 Collection.</p>
+          <p className="text-xs text-muted mb-2">Tick ✓ when you have bought it and it moves to 📦 Collection with the date and time. ✏️ adds photo, price and amount first.</p>
 
           {toBuy.length === 0 ? (
             <p className="card p-6 text-center text-sm text-muted">Nothing to buy. Tick names in 📝 List to add them here.</p>
@@ -251,7 +288,8 @@ export default function ShopPage() {
                       {i.qty} {i.unit}{i.price != null ? ` · ${money(i.price)}` : " · tap to add price"}{i.note ? ` · ${i.note}` : ""}
                     </div>
                   </button>
-                  <button onClick={() => setBuying(i)} aria-label={`Bought ${i.name}`} className="h-11 w-11 shrink-0 rounded-full border-2 border-emerald-400 text-emerald-300 font-black text-lg active:scale-90">✓</button>
+                  <button onClick={() => setBuying(i)} aria-label={`Details for ${i.name}`} className="h-10 w-10 shrink-0 rounded-full text-muted">✏️</button>
+                  <button onClick={() => quickBuy(i)} aria-label={`Bought ${i.name}`} className="h-11 w-11 shrink-0 rounded-full border-2 border-emerald-400 text-emerald-300 font-black text-lg active:scale-90">✓</button>
                 </div>
               ))}
               <div className="flex justify-between p-3 text-sm">
@@ -265,7 +303,7 @@ export default function ShopPage() {
 
       {tab === "collection" && (
         <>
-          <p className="text-xs text-muted mb-2">Everything you bought, with the date. Tap one for its price history.</p>
+          <p className="text-xs text-muted mb-2">Everything you bought, with the date and time. Tap one for its price history, ✏️ to add price or photo.</p>
           {bought.length === 0 ? (
             <p className="card p-6 text-center text-sm text-muted">Nothing bought yet. Tick items in 🛒 To buy when you buy them.</p>
           ) : (
@@ -276,7 +314,7 @@ export default function ShopPage() {
                     <Pic name={b.name} emoji={b.emoji} src={b.photo_id ? urls[b.photo_id] : undefined} size={48} />
                     <span className="flex-1 min-w-0">
                       <span className="block font-semibold truncate">{b.name}</span>
-                      <span className="block text-xs text-muted">{b.qty} {b.unit} · {new Date(b.purchased_at!).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
+                      <span className="block text-xs text-muted">{b.qty} {b.unit} · {new Date(b.purchased_at!).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                     </span>
                     <span className="font-bold tabular-nums">{money(b.price)}</span>
                   </button>
@@ -428,28 +466,7 @@ export default function ShopPage() {
 
       {buying && (
         <BuySheet item={buying} cur={cur} onClose={() => setBuying(null)} onBuy={async (name, qty, unit, price, at, toStorage, photo) => {
-          const nowIso = at.toISOString();
-          let photo_id = buying.photo_id;
-          if (photo) {
-            const fresh = crypto.randomUUID();
-            if (await putPhoto(session, fresh, photo).then(() => true).catch(() => false)) {
-              if (photo_id) await deletePhoto(session, photo_id).catch(() => {});
-              photo_id = fresh;
-            }
-          }
-          const emoji = sameThing(name, buying.name) ? buying.emoji : emojiFor(name, "🛍️");
-          update((d) => {
-            const shopping = d.shopping.map((x) => (x.id === buying.id ? { ...x, name, emoji, photo_id, qty, unit, price, status: "purchased" as const, purchased_at: nowIso } : x));
-            if (!toStorage) return { ...d, shopping };
-            const existing = d.pantry.find((p) => sameThing(p.name, name) && p.unit === unit);
-            const unitPrice = price != null && qty ? +(price / qty).toFixed(2) : null;
-            const pantry = existing
-              ? d.pantry.map((p) => (p.id === existing.id ? { ...p, qty: +(p.qty + qty).toFixed(2), last_price: unitPrice ?? p.last_price, updated_at: nowIso } : p))
-              : [...d.pantry, { id: crypto.randomUUID(), name: name, emoji: emoji, qty, unit, last_price: unitPrice, updated_at: nowIso }];
-            return { ...d, shopping, pantry };
-          });
-          const row = logActivity("shopping", { item: name, emoji: emoji, qty, unit, price }, at);
-          celebrate({ title: "ITEM ACQUIRED!", subtitle: `${emoji} ${qty} ${unit} ${name}`, xp: row.xp });
+          await buyItem(buying, name, qty, unit, price, at, toStorage, photo);
           setBuying(null);
           setTab("collection");
         }} />
