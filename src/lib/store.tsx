@@ -43,6 +43,7 @@ export type Settings = {
   assistant?: Partial<AssistantSettings>; // the assistant: name, voice, missed-task alerts, catch-up, plain or game look (lib/assistant.ts)
   fit?: Partial<FitSettings>; // Focus Area: body areas, equipment, workout time and safety rules (lib/focus.ts)
   look?: Look; // ✏️ edit mode: your words, pictures, colours, order, hidden items, new buttons, automatic features off
+  pw_warned?: boolean; // 🔐 Passwords: the "nobody can recover a forgotten app password" note was read
   hub?: { pins?: string[]; lang?: "en" | "ja" }; // Hero hub: actions pinned on Base Camp, menu language
 };
 export type Payday = { day: number; pct: number; amount?: number; jar?: string; auto: boolean };

@@ -96,6 +96,17 @@ export function SleepWakeTiles() {
   );
 }
 
+// 🔐 Passwords: one big row, near the top of Home and Today.
+export function PasswordsTile() {
+  return (
+    <Link href="/passwords" className="card mb-4 flex items-center gap-3 p-3 border border-[var(--accent)]/40 active:scale-[.98]">
+      <span className="text-4xl leading-none">🔐</span>
+      <span className="flex-1 min-w-0"><span className="block font-black text-base">Passwords</span><span className="block text-xs text-muted">My saved user IDs and passwords</span></span>
+      <span className="text-[var(--accent2)] text-xl">›</span>
+    </Link>
+  );
+}
+
 export const BIG_TILE = "rounded-2xl border border-[var(--accent)]/40 bg-gradient-to-br from-[var(--accent)]/25 to-[var(--accent2)]/10 p-3 flex flex-col items-center justify-center gap-1 text-center active:scale-95 min-h-28";
 
 export function MainActions({ page }: { page: string }) {

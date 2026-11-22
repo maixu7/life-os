@@ -43,7 +43,7 @@ export function SearchAllSheet({ onClose }: { onClose: () => void }) {
       for (const p of data.pantry) if (has(`${p.name} ${p.ja ?? ""} ${p.brand ?? ""} ${p.note ?? ""}`)) out.push({ id: p.id, kind: "stuff", emoji: p.emoji, title: p.name, detail: `Have ${p.qty} ${p.unit}${p.expiry ? ` · best before ${p.expiry}` : ""}`, href: "/have" });
       for (const s of data.shopping) if (has(`${s.name} ${s.note}`)) out.push({ id: s.id, kind: "lists", emoji: s.emoji, title: s.name, detail: `Shopping list · ${s.status === "to_buy" ? "to buy" : "bought"}`, href: "/shop" });
       for (const i of data.items) {
-        if (["food", "doing"].includes(i.category) || !has(`${i.name} ${typeof i.config.note === "string" ? i.config.note : ""}`)) continue;
+        if (["food", "doing", "pw"].includes(i.category) || !has(`${i.name} ${typeof i.config.note === "string" ? i.config.note : ""}`)) continue;
         out.push({ id: i.id, kind: "lists", emoji: String(i.config.emoji ?? "📌"), title: i.name, detail: CAT[i.category] ?? i.category });
       }
       for (const s of profile.settings.study_plan ?? []) if (has(`${s.subject} ${s.what}`)) out.push({ id: s.id, kind: "notes", emoji: "🗓️", title: s.subject, detail: `Study plan · ${s.what} · ${s.mins} min`, href: "/learn" });
