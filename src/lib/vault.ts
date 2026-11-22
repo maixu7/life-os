@@ -294,3 +294,19 @@ export async function readBackup<T>(text: string, user: string, password: string
   const d = await derive(normUser(j.user ?? user), password);
   return openJson<T>(d.key, j.vault);
 }
+
+// ---------- 🔐 Passwords: a second lock inside the app ----------
+// Saved logins are sealed again with their own key, made from the app password
+// with a different salt. The rest of the app (search, sync, backups) only ever
+// sees ciphertext; the key exists only while the Passwords page is unlocked.
+export async function unlockPasswords(s: Session, password: string, userOverride?: string): Promise<CryptoKey | null> {
+  const user = normUser(userOverride ?? s.user);
+  const base = await crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = (salt: string) => crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode(salt), iterations: ITERATIONS, hash: "SHA-256" }, base, 512);
+  // Both run at once: one proves it's the app password, the other makes the Passwords key.
+  const [check, own] = await Promise.all([userOverride ? null : bits(`lifeos:v1:${user}`), bits(`lifeos:pw:v1:${user}`)]);
+  if (check && hex(check.slice(32)) !== s.auth) return null;
+  return crypto.subtle.importKey("raw", own.slice(0, 32), "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+export const sealSecret = (key: CryptoKey, v: unknown) => sealJson(key, v);
+export const openSecret = <T,>(key: CryptoKey, c: Cipher) => openJson<T>(key, c);

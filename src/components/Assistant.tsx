@@ -98,6 +98,8 @@ export function AssistantLayer() {
   // Every time the app opens, reloads or comes back to the screen: the catch-up list.
   const [catchup, setCatchup] = useState(() => a.catchup);
   const [battery, setBattery] = useState<number | null>(null);
+  // 🔐 Passwords page: no pop-ups or voice over it.
+  const secret = usePathname()?.startsWith("/passwords") ?? false;
   const day = toDay(now);
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 30_000); return () => clearInterval(t); }, []);
   const list = useMemo(() => steps(data, day, now), [data, day, now]);
@@ -120,13 +122,13 @@ export function AssistantLayer() {
 
   // A task late by the grace minutes (and not more than 2 hours): speak up once.
   useEffect(() => {
-    if (paused || alert || (catchup && missed.length) || document.hidden) return;
+    if (secret || paused || alert || (catchup && missed.length) || document.hidden) return;
     const done = read<Record<string, string>>(`${ALERTED}-${day}`, {});
     const s = missed.find((x) => lateBy(x, now) <= a.grace + 120 && !(done[x.id] && (done[x.id] === "x" || new Date(done[x.id]) > now)));
     if (!s) return;
     setAlert(s);
     assistantSay(sayFor(s, a), a, quiet);
-  }, [missed, now, paused, alert, catchup, day, a, quiet]);
+  }, [secret, missed, now, paused, alert, catchup, day, a, quiet]);
 
   // Low battery: once a day.
   useEffect(() => {
@@ -149,6 +151,7 @@ export function AssistantLayer() {
     stopSpeaking();
   };
 
+  if (secret) return null;
   if (battery != null) return (
     <Overlay a={a} full={a.fullscreen} onClose={() => setBattery(null)}>
       <p className="text-lg">Battery is low ({battery}%). Charge your phone so alarms and reminders keep working.</p>

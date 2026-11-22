@@ -1,6 +1,6 @@
 "use client";
 
-import { MainActions } from "@/components/MainActions";
+import { MainActions, PasswordsTile } from "@/components/MainActions";
 import { Blocks, QuickBar } from "@/components/Blocks";
 import { DoingCard } from "@/components/Doing";
 import Link from "next/link";
@@ -77,6 +77,7 @@ export default function TodayPage() {
         <button onClick={() => setDay(shift(day, 1))} disabled={isToday} className="btn-ghost !px-3 !py-1">▶</button>
       </div>
       <MainActions page="/today" />
+      <PasswordsTile />
       <Blocks page="/today" parts={{
         quick: isToday ? <QuickBar /> : null,
         doing: isToday ? <DoingCard /> : null,

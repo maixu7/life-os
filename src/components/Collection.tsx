@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { Sheet } from "@/components/Sheet";
 import { Pic } from "@/components/Pic";
@@ -88,6 +89,9 @@ export function CollectionSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet title="🗂️ My collection" onClose={onClose}>
+      <Link href="/passwords" onClick={onClose} className="w-full flex items-center gap-3 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 p-2.5">
+        <span className="text-3xl">🔐</span><span className="flex-1 min-w-0"><span className="block text-sm font-bold">My passwords</span><span className="block text-[11px] text-muted">Saved user IDs and passwords</span></span><span className="text-[var(--accent2)]">›</span>
+      </Link>
       <p className="text-xs text-muted">Books, coding apps, courses and screenshots of videos you learn from. Sensei picks something from here every day.</p>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={() => ref.current?.click()} className="btn-primary !py-3 text-sm">📷 Photo or screenshot</button>

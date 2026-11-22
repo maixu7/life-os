@@ -1,6 +1,6 @@
 "use client";
 
-import { MainActions, SleepWakeTiles } from "@/components/MainActions";
+import { MainActions, PasswordsTile, SleepWakeTiles } from "@/components/MainActions";
 import { DailyMission } from "@/components/DailyMission";
 import { DoingCard } from "@/components/Doing";
 import { EditLog } from "@/components/EditLog";
@@ -72,6 +72,7 @@ export default function TodayPage() {
       </div>
 
       {isToday && <SleepWakeTiles />}
+      {isToday && <PasswordsTile />}
       {isToday && <DoingCard />}
       <Blocks page="/" parts={{
         mission: isToday ? <DailyMission /> : null,
